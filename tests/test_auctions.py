@@ -123,7 +123,9 @@ def test_clean_checks_quotes_missing_parts_vat_and_fees():
         ("Lenovo ThinkCentre M93p SFF", "thinkcentre m93p sff"),
         ("HP EliteBook 840 G5", "elitebook 840 g5"),
         ("ACER Extensa 2540", None),
-        ("HP EliteOne 800 G3", None),
+        ("HP EliteOne 800 G3", "eliteone 800 g3"),  # office rules v3: business AIOs are priced
+        ("Fujitsu Esprimo D756/E85+", "esprimo d756"),
+        ("Fujitsu D756/E85", "esprimo d756"),
     ],
 )
 def test_map_model(model, key):

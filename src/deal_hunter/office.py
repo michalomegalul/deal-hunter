@@ -6,6 +6,9 @@ sections (gaming PCs, MacBooks, consumer laptops, workstations) is excluded as `
 doesn't clutter `hunt review`; only titles that name one of these business lines but can't be pinned
 down to a model stay unmatched.
 
+Phase 8 added Fujitsu Esprimo desktops ('esprimo d756', 'esprimo q920') and HP's business all-in-ones
+('eliteone 800 g3', 'proone 600 g4'); both turn up in state auction lots.
+
 The canonical model is the pricing key, e.g. 'thinkpad t480', 'thinkpad t14 gen 3', 'latitude 7490',
 'elitebook 840 g5', 'optiplex 7060 micro', 'thinkcentre m720q', 'elitedesk 800 g4 mini'. A missing
 generation or form factor gives a coarser key ('thinkpad t14', 'optiplex 7050'), which mixes
@@ -19,7 +22,7 @@ import unicodedata
 from dataclasses import dataclass, field
 
 # Bump whenever the rules change, so `hunt normalize` re-processes old listings.
-VERSION = 2
+VERSION = 3  # v3: Fujitsu Esprimo, HP EliteOne/ProOne all-in-ones
 
 
 @dataclass(frozen=True)
@@ -112,6 +115,15 @@ ELITEBOOK_NUMBERS = re.compile(r"^(8[2-5]0|7[2-5][05]|10[34]0)$")
 PROBOOK_NUMBERS = re.compile(r"^(4[3-7][05]|6[3-5][05])$")
 ELITEDESK_NUMBERS = re.compile(r"^(705|800|805|880)$")
 PRODESK_NUMBERS = re.compile(r"^(400|405|600|680)$")
+
+HP_AIO = re.compile(r"\b(elite|pro) ?one(?: aio)? (\d{3,4})\b")  # 'HP EliteOne 800 G3', 'ProOne 600 G4'
+
+FUJITSU = re.compile(r"\b(fujitsu|esprimo)\b")
+# Esprimo D/P/Q (desktop, tower, mini) 5xx-9xx ('D756', 'Q920', 'P958') and the 2020+ names
+# ('D7010', 'G9010'). 'D9510' (2008), 'J550', 'E5730' and the like are recognised but not priced.
+ESPRIMO_MODEL = re.compile(r"\b([dpqg])([5-9]\d\d|[5-9]01[0-3])\b")
+ESPRIMO_OLD = re.compile(r"\b([a-z])(\d{3,4})\b")
+FUJITSU_OTHER = re.compile(r"\b(celsius|lifebook|stylistic|primergy|scenic|futro)\b")
 
 GEN = re.compile(r"\b(?:gen|g)\s?(\d{1,2})\b|\b(\d{1,2})(?:st|nd|rd|th)\s?gen\b")
 
@@ -279,11 +291,35 @@ def _hp(t: str) -> list[Found] | None:
     return found
 
 
+def _hp_aio(t: str) -> list[Found] | None:
+    found: list[Found] = []
+    for m in HP_AIO.finditer(t):
+        line, number = m.groups()
+        gen = HP_GEN.match(t, m.end() + 1) if m.end() < len(t) else None
+        found.append((f"{line}one {number}" + (f" g{gen.group(1)}" if gen else ""), "office_pc", m.start()))
+    if not found and not re.search(r"\b(elite|pro) ?one\b", t):
+        return None
+    return found
+
+
+def _fujitsu(t: str) -> list[Found] | None:
+    if not FUJITSU.search(t):
+        return None
+    if other := FUJITSU_OTHER.search(t):
+        return [(f"fujitsu {other.group(1)}", "office_pc", other.start())]  # out of scope
+    found: list[Found] = []
+    for m in ESPRIMO_MODEL.finditer(t):
+        found.append((f"esprimo {m.group(1)}{m.group(2)}", "office_pc", m.start()))
+    if not found and re.search(r"\besprimo\b", t) and (old := ESPRIMO_OLD.search(t, t.index("esprimo"))):
+        found.append((f"esprimo {old.group(1)}{old.group(2)}", "office_pc", old.start()))  # out of scope
+    return found
+
+
 def find_models(t: str) -> tuple[list[Found], bool]:
     """(models found, whether any business line was named at all)."""
     found: list[Found] = []
     named = False
-    for finder in (_thinkpad, _thinkcentre, _dell, _hp):
+    for finder in (_thinkpad, _thinkcentre, _dell, _hp, _hp_aio, _fujitsu):
         hits = finder(t)
         if hits is None:
             continue
@@ -305,7 +341,10 @@ IN_SCOPE = re.compile(
     r"|optiplex [3579]\d{3}\b"
     r"|elitebook (x360 )?(8[1-6]0|7[2-5][05]|6[3-5]0|10[34]0)( g[\d.]+)?$"
     r"|probook (4[3-7][05]|6[3-5][05])( g[\d.]+)?$"
-    r"|elitedesk|prodesk)"
+    r"|elitedesk|prodesk"
+    r"|eliteone (800|705|840|870|1000)( g\d)?$"
+    r"|proone (400|440|600|640)( g\d)?$"
+    r"|esprimo ([dpq][5-9]\d\d|[dpqg][5-9]01[0-3])$)"
 )
 
 
@@ -378,7 +417,8 @@ def normalize(title: str) -> OfficeResult:
         return OfficeResult(excluded_reason="out_of_scope")
     first = min((f[2] for f in found), default=None)
     line = re.search(
-        r"\b(think ?pad|think ?cent\w*|lenovo|latitude|optiplex|dell|elitebook|probook|elitedesk|prodesk|hp)\b",
+        r"\b(think ?pad|think ?cent\w*|lenovo|latitude|optiplex|dell|elitebook|probook|elitedesk|prodesk|hp"
+        r"|eliteone|proone|fujitsu|esprimo)\b",
         t,
     )
     anchor = first if first is not None else (line.start() if line else len(t))

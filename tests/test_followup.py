@@ -1,7 +1,7 @@
 """The 👍 follow-up without a database: the offer, the Czech draft and its evidence check, formatting."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -19,7 +19,7 @@ AD = {
     "url": "https://pc.bazos.cz/inzerat/224876851/rtx-3060.php",
     "location": "Brno",
     "psc": "602 00",
-    "posted_at": datetime(2026, 10, 9).date(),
+    "posted_at": date(2026, 10, 9),
     "first_seen": NOW - timedelta(hours=5),
     "views": 87,
     "seller": "Petr",
@@ -179,7 +179,7 @@ def test_lot_followup_text():
     }
     v = value_lot(x, prices, 30000, 1000, 2, Costs())
     lot = {"lot_id": "62388", "title": "Soubor 14 ks HW vybavení - Notebooky V.", "bids": 2, "url": "u"}
-    end = datetime(2026, 10, 14, 14, 0)
+    end = datetime(2026, 10, 14, 14, 0, tzinfo=UTC)
     title, message = followup.format_lot(lot, x, v, end)
     assert title == "👍 🏛 14× Dell Latitude 5511"
     assert "⏰ ends Wed 14.10. 14:00" in message
