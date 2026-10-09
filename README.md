@@ -17,7 +17,8 @@ else is built on what it collects.
 - **Backfill** (once): walks up to 15 category pages to seed history.
 - **GPU normalizer**: maps titles to canonical models (`rtx 3060` + 12 GB, `rx 6700 xt`, ...) from a
   YAML catalog, and excludes wanted ads, whole PCs, laptops, multi-card lots, boxes/coolers and
-  mining rigs. Anything it isn't sure about stays unmatched and shows up in `hunt review`.
+  mining rigs. Anything it isn't sure about stays unmatched and shows up in `hunt review`. Runs
+  after every scrape cycle; bumping the catalog `version` re-processes everything.
 
 ## Being polite
 
@@ -84,13 +85,18 @@ password lives only in `/opt/deal-hunter/.env`.
   renewed", not necessarily "first posted". `first_seen` is our own timestamp.
 - History only starts when the scraper started (plus a 15-page backfill). Prices for rare
   models will stay noisy for a long time.
-- The normalizer is rule-based and deliberately conservative; it reads titles only.
+- The normalizer is rule-based and deliberately conservative; it reads titles only. A title that
+  doesn't say the VRAM size of a multi-variant model (RTX 3060 8/12 GB) leaves `vram_gb` empty.
+  Broken or "for parts" cards are still matched; spotting those is a job for the LLM (phase 4).
+- Older and workstation cards (GTX 9xx and earlier, RX 400/500, Quadro, ...) are recognised but
+  excluded as `out_of_scope`, so the first backfill (which reaches deep into cheap old stock) shows
+  a high exclusion rate.
 
 ## Roadmap
 
 - [x] **Phase 1: scraper + storage.** RSS + category pages every 10 min, details for new ads,
       6-hourly recheck for removal, price change history, fixture-tested parsers.
-- [ ] **Phase 2: GPU normalizer.** YAML catalog (GTX 10/16, RTX 20–50, RX 5000–9000, Arc A/B),
+- [x] **Phase 2: GPU normalizer.** YAML catalog (GTX 10/16, RTX 20–50, RX 5000–9000, Arc A/B),
       VRAM variants kept apart, exclusions with reasons, ~200 hand-checked real titles in tests.
 - [ ] **Phase 3: fair price.** v1: trimmed median of asking prices per model over 60 days with a
       confidence from sample size; v2 (after 4–6 weeks of data): LightGBM on log price that must

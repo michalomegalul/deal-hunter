@@ -2,11 +2,12 @@
 
 import os
 from dataclasses import dataclass
+from importlib.metadata import version
 
 from dotenv import load_dotenv
 
 REPO_URL = "https://github.com/michalomegalul/deal-hunter"
-USER_AGENT = f"deal-hunter/0.1 (+{REPO_URL}; personal GPU price research, ~1 request per 3 s)"
+USER_AGENT = f"deal-hunter/{version('deal-hunter')} (+{REPO_URL}; personal GPU price research, ~1 request per 3 s)"
 
 # Hard ceiling for `hunt backfill`, whatever --pages says: we seed history, we don't mirror the site.
 MAX_BACKFILL_PAGES = 15
