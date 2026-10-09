@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<title>Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - Praha 4 | Bazoš.cz</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="Inzerát č. 224857281: Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ, Cena: 2 490 Kč, Lokalita: Praha 4. Popis: ➡️ Záruka 12 měsíců ➡️."><meta property="og:image" content="https://www.bazos.cz/img/1/281/224857281.jpg?t=1791539470"><meta property="og:title" content="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - Praha 4">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bazos.cz">
+<meta property="og:description" content="Inzerát č. 224857281: Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ, Cena: 2 490 Kč, Lokalita: Praha 4. Popis: ➡️ Záruka 12 měsíců ➡️.">
+<link rel="canonical" href="https://pc.bazos.cz/inzerat/224857281/dell-optiplex-5040-sff-i3-6100-8gb-128gb-ssd-vice-kusu.php"><meta property="fb:admins" content="1055875657">
+<meta name="ROBOTS" content="max-image-preview:large">
+<link rel="preload" as="image" href="https://www.bazos.cz/img/1/281/224857281.jpg?t=1791539470"><link rel="stylesheet" href="https://www.bazos.cz/bazos67s.css" type="text/css"><link rel="preload" as="image" href="https://www.bazos.cz/obrazky/bazos.svg">
+<link rel="stylesheet" href="https://www.bazos.cz/bazosprint.css" type="text/css" media="print">
+<link rel="icon" href="https://www.bazos.cz/favicon.svg" type="image/svg+xml">
+<link rel="icon" HREF="https://www.bazos.cz/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="https://www.bazos.cz/apple-touch-icon.png">
+<script async="async" src="https://www.google.com/adsense/search/ads.js"></script>
+<script type="text/javascript" charset="utf-8">
+(function(g,o){g[o]=g[o]||function(){(g[o]['q']=g[o]['q']||[]).push(
+  arguments)},g[o]['t']=1*new Date})(window,'_googCsa');
+</script><script>
+var xhr = new XMLHttpRequest();
+var naseptavac_value = '';
+function naseptavac(value) {
+  if (value=='')  {
+  	naseptavac_value = '';
+  	document.getElementById('vysledek').innerHTML='';
+  	}
+else {
+	if (naseptavac_value == value) {
+		return false;
+	}
+	naseptavac_value = value;
+	setTimeout(function () {
+		if (naseptavac_value != value) {
+			return false;
+		}
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4 && naseptavac_value == value){
+				document.getElementById('vysledek').innerHTML = this.responseText;
+			}
+ 		 };
+		xhr.open("POST", '/suggest.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('rubnas=PC&catnas=12&qnas='+encodeURIComponent(naseptavac_value));
+	}, 250);
+}
+}
+
+var naseptavacpsc_value = '';
+function naseptavacpsc(value) {
+  if (value=='')  {
+  	naseptavacpsc_value = '';
+  	document.getElementById('vysledekpsc').innerHTML='<table cellpadding=\"3\" cellspacing=\"0\" class=\"tablenaspsc\"><tr><td class=\"act\" onclick=\"getLocation();\"><b>Inzeráty v okolí</b></td></tr></table>';
+  	}
+else {
+	if (naseptavacpsc_value == value) {
+		return false;
+	}
+	naseptavacpsc_value = value;
+	setTimeout(function () {
+		if (naseptavacpsc_value != value) {
+			return false;
+		}
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4 && naseptavacpsc_value == value){
+				document.getElementById('vysledekpsc').innerHTML = this.responseText;
+			}
+ 		 };
+		xhr.open("POST", '/suggestpsc.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('qnaspsc='+encodeURIComponent(naseptavacpsc_value));
+	}, 250);
+}
+}
+
+function getLocation() {
+if (navigator.geolocation) {navigator.geolocation.getCurrentPosition(showPosition);}
+else {document.getElementById('hlokalita').value = '';}
+}
+function showPosition(position) {
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4){
+				document.getElementById('hlokalita').value = this.responseText;
+				document.forms['formt'].submit();
+			}
+ 		 };
+		xhr.open("POST", '/zip.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('latitude='+encodeURIComponent(position.coords.latitude)+'&longitude='+encodeURIComponent(position.coords.longitude));
+}
+
+function favouriteadd(value,params,obradresa) {
+xhr.onreadystatechange = function() {
+  if (this.readyState == 4 && this.status == 200){
+				document.getElementById('favour').innerHTML = this.responseText;
+				document.getElementById('obrfavour').src = obradresa;
+			}
+  };
+xhr.open("POST", value);
+xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhr.send(params);
+}
+
+function odeslatrequest(value,params,overvalue) {
+xhr.onreadystatechange = function() {
+  if (this.readyState == 4){
+				document.getElementById(overvalue).innerHTML = this.responseText;
+			}
+  };
+xhr.open("POST", value);
+xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhr.send(params);
+}
+function odeslatakci(postaction,value1,value2,value3) {
+document.getElementById('postaction').value = postaction;
+document.getElementById("postv1").value = value1;
+document.getElementById("postv2").value = value2;
+document.getElementById("postv3").value = value3;
+document.formaction.submit();
+}
+</script>
+<script src="https://www.bazos.cz/flickity2.js"></script></head>
+
+<body>
+
+
+<div class="sirka">
+<div class="listalogor">
+<div class="listalogol"><a href="https://www.bazos.cz/" title="Bazos.cz - Inzerce, bazar"><img src="https://www.bazos.cz/obrazky/bazos.svg" width="199" height="34" alt="Bazos.cz - Inzerce, inzeráty"></a></div>
+<div class="listalogom"><b>... bazar pro každého</b></div>
+<div class="listalogop"><a href="https://www.bazos.cz/oblibene.php"><b>Oblíbené inzeráty</b></a> <a href="https://www.bazos.cz/moje-inzeraty.php"><b>Moje inzeráty</b></a> <a href="/pridat-inzerat.php"><b><span class=pridati>Přidat inzerát</span></b></a></div>
+</div>
+<form name="formt" id="formt" method=get action=/>
+<div class="listah">
+<div class="rubriky">
+<b>
+Co: <span class=vysokoli><span id="vysledek"></span><input type="search" onkeyup="naseptavac(this.value);" id=hledat name=hledat size="17" maxlength="256" value="" autocomplete="off" title="Co? Vyhledávaný výraz"></span>
+
+<select name="rubriky" onchange='this.form.submit();' title="Vyber rubriku">
+<option value="www">Všechny rubriky</option>
+<option value="auto">Auto</option><option value="deti">Děti</option><option value="dum">Dům a zahrada</option><option value="elektro">Elektro</option><option value="foto">Foto</option><option value="hudba">Hudba</option><option value="knihy">Knihy</option><option value="mobil">Mobily</option><option value="motorky">Motorky</option><option value="nabytek">Nábytek</option><option value="obleceni">Oblečení</option><option value="pc" selected>PC</option><option value="prace">Práce</option><option value="reality">Reality</option><option value="sluzby">Služby</option><option value="sport">Sport</option><option value="stroje">Stroje</option><option value="vstupenky">Vstupenky</option><option value="zvirata">Zvířata</option><option value="ostatni">Ostatní</option></select>
+
+Lokalita: <span class=vysokolipsc><span id="vysledekpsc"></span><input type="search" name="hlokalita" id="hlokalita" onkeyup="naseptavacpsc(this.value);" onclick="naseptavacpsc(this.value);" value="" size="4" maxlength="25" autocomplete="off" title="Kde? PSČ (místo)" style="-webkit-appearance: none;"></span>
+Okolí: <input name="humkreis" title="Okolí v km" value="25" size="3" style="width: 25px;"> km
+Cena od: <input name=cenaod title="Cena od Kč" maxlength="12" size="5" value=""> - do: <input name=cenado title="Cena do Kč" maxlength="12" size="5" value=""> Kč <input type="submit" name="Submit" value="Hledat">
+<input type="hidden" name="order" id="order"><input type="hidden" name="crp" id="crp"><input type="hidden" id="kitx" name="kitx" value="ano"></b>
+</div>
+</div>
+</form>
+<div class="drobky"><a href="https://www.bazos.cz/" title="Inzerce Bazoš">Hlavní stránka</a>  > <a href="https://pc.bazos.cz/">PC</a> > <a href="https://pc.bazos.cz/pc/">PC, Počítače</a> > <b>Inzerát č. 224857281</b></div>
+<br>
+
+
+<div class="flexmain"><div class="menuleft"><div class="nadpismenu">Kategorie</div>
+<div class="barvalmenu">
+<div class="barvaleva">
+<a href="/cd/" >DVD, Blu-ray mechaniky</a>
+<a href="https://foto.bazos.cz/">Fotoaparáty</a>
+<a href="/gps/" >GPS navigace</a>
+<a href="/graficka/" >Grafické karty</a>
+<a href="/hdd/" >Hard disky, SSD</a>
+<a href="/playstation/" >Herní konzole</a>
+<a href="/volanty/" >Herní zařízení</a>
+<a href="/hry/" >Hry</a>
+<a href="/chladic/" >Chladiče</a>
+<a href="/klavesnice/" >Klávesnice</a>
+<a href="/kopirka/" >Kopírovací stroje</a>
+<a href="/monitor/" >LCD monitory</a>
+<a href="https://mobil.bazos.cz/">Mobilní telefony</a>
+<a href="/modem/" >Modemy</a>
+<a href="/mys/" >Myši</a>
+<a href="/notebook/" >Notebooky</a>
+<a href="/pamet/" >Paměti</a>
+<a href="/pc/"  id=zvyraznenikat>PC, Počítače</a>
+<a href="/procesor/" >Procesory</a>
+<a href="/sit/" >Síťové prvky</a>
+<a href="/scaner/" >Scanery</a>
+<a href="/case/" >Skříně, zdroje</a>
+<a href="/software/" >Software</a>
+<a href="/spotrebni/" >Spotřební materiál</a>
+<a href="/tablet/" >Tablety, E-čtečky</a>
+<a href="/tiskarna/" >Tiskárny</a>
+<a href="/wifi/" >Wireless, WiFi</a>
+<a href="/motherboard/" >Základní desky</a>
+<a href="/ups/" >Záložní zdroje</a>
+<a href="/sound/" >Zvukové karty</a>
+<a href="/ostatni/" >Ostatní</a>
+</div></div>
+
+</div><div class="maincontent">
+
+
+<div class="listainzerat inzeratyflex">
+<div class="inzeratydetnadpis"><H1 class=nadpisdetail>Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ</H1><span class=velikost10> - <span title="TOP 2x Platí do 22.10. 2026" class="ztop">TOP</span> - [9.10. 2026]</span></div>
+<div class="inzeratydetdel"><span onclick="odeslatakci('edit','224857281');return false;" class="paction">Smazat/ Upravit/ Topovat</span></div>
+</div><br><div class="fliobal"><div class="carousel"><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/1/281/224857281.jpg?t=1791539470" src="https://www.bazos.cz/img/1/281/224857281.jpg?t=1791539470" width="800" height="600" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ"></div><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/2/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 2"></div><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/3/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 3"></div><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/4/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 4"></div><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/5/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 5"></div><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/6/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 6"></div><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/7/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 7"></div><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/8/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 8"></div></div><div class="flinavigace" id="nahledy1"><img onmouseover="flkty.select(0, false, true );" src="https://www.bazos.cz/img/1t/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 1" class="obrazekflithumb"><br><img onmouseover="flkty.select(1, false, true );" src="https://www.bazos.cz/img/2t/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 2" class="obrazekflithumb"><br><img onmouseover="flkty.select(2, false, true );" src="https://www.bazos.cz/img/3t/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 3" class="obrazekflithumb"><br><img onmouseover="flkty.select(3, false, true );" src="https://www.bazos.cz/img/4t/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 4" class="obrazekflithumb"><br><img onmouseover="flkty.select(4, false, true );" src="https://www.bazos.cz/img/5t/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 5" class="obrazekflithumb"><br></div><div class="flinavigace" id="nahledy2"><img onmouseover="flkty.select(5, false, true );" src="https://www.bazos.cz/img/6t/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 6" class="obrazekflithumb"><br><img onmouseover="flkty.select(6, false, true );" src="https://www.bazos.cz/img/7t/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 7" class="obrazekflithumb"><br><img onmouseover="flkty.select(7, false, true );" src="https://www.bazos.cz/img/8t/281/224857281.jpg?t=1791539470" alt="Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ - 8" class="obrazekflithumb"><br></div></div><script>var flkty = new Flickity( '.carousel', {fullscreen: true,lazyLoad: 1,wrapAround: true,adaptiveHeight: true});</script>
+<div class=popisdetail>➡️ Záruka 12 měsíců<br>
+➡️ Možnost osobního odběru v Praze<br>
+➡️ Množstevní SLEVY!<br>
+<br>
+Prodám repasované počítače Dell Optiplex 5040 v krásném stavu. PC jsou vhodné především pro kancelářské a domácí využití. Mají více než dostatečný výkon pro běžnou práci i multimédia a vejdou se na každý stůl. Díky grafické kartě s 2GB vlastní paměti navíc zvládnou i nenáročné hry nebo práci s grafikou.<br>
+<br>
+Jde o provedení "Desktop / SFF" - malý case s možností orientace jak na plocho, tak i na výšku. Lze tedy umístit i přímo pod monitor.<br>
+<br>
+• Intel® Core™ i3-6100 Processor 3M Cache, 3.70 GHz<br>
+• Intel® Q170 Chipset<br>
+• 8 GB (2x 4GB) DDR3L 1600 MHz RAM<br>
+-- 2x volný slot pro případný upgrade<br>
+• 128 GB M.2 SSD<br>
+-- 1x volná šachta pro 3,5" hard disk<br>
+• AMD® Radeon™ R5 340X s vlastní pamětí 2GB DDR3<br>
+• DVD-RW mechanika<br>
+• 180W síťový zdroj<br>
+<br>
+Počítač je důkladně vyčištěný, otestovaný a obsahuje čistou instalaci Windows 11 Pro 64-bit včetně licence. Napájecí kabel je součástí.<br>
+<br>
+Osobní převzetí s prohlídkou a vyzkoušením dle dohody na Praze 4, zaslání možné na dobírku po úhradě poštovného předem. K prodeji vystavím fakturu (nelze odečíst DPH).<br>
+<br>
+▼▼ Celý sortiment repasovaných PC k vidění na mém profilu níže ▼▼</div><br>
+<table width="100%" cellpadding="5" cellspacing="0">
+<tr><td width="35%" valign=top class=listadvlevo>
+<table width="*" cellpadding="0" cellspacing="1">
+<tr><td height="22px" width="25%">Jméno:<br><br></td><td colspan=2><b><span onclick="odeslatakci('rating','6990968','5728465','TM+Po%C4%8D%C3%ADta%C4%8De+Praha');return false;" class="paction">TM Počítače Praha</span></b><br><br></td></tr>
+<tr id="overlaytel"><td height="22px" width="25%">Telefon:<br><br></td><td colspan=2><span class=teldetail onclick="odeslatrequest('/ad-phone.php','idi=224857281&idphone=5728465','overlaytel');"><span style="white-space: nowrap;">725... zobraz číslo</span></span><br><br></td></tr>
+<tr><td height="22px" width="25%">Lokalita:</td><td width="9%"><img src="https://www.bazos.cz/obrazky/map.svg" alt="Mapa" height="17"></td><td><a href="https://www.google.com/maps/place/50.041266,14.442902/@50.041266,14.442902,12z/data=!4m2!3m1!1s0x0:0x0" title="Přibližná lokalita" rel="nofollow">140 00</a> <a href="https://pc.bazos.cz/inzeraty/praha-4/14000/">Praha 4</a></td></tr>
+<tr><td height="22px" width="25%"><br>Vidělo:</td><td colspan=2><br>86 lidí</td></tr>
+<tr><td height="22px" width="25%"><br>Cena:</td><td colspan=2><br><b><span translate="no">  2 490 Kč</span></b></td></tr>
+</table>
+</td>
+
+<td width="*" valign=top class=listadvpravo>
+
+<table cellpadding="0" cellspacing="1">
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/user.svg" alt="Uživatel" height="17"></td><td><form name="formaction" method="post" style="display: inline;"><input type="hidden" id="postaction" name="postaction" value=""><input type="hidden" id="postv1" name="postv1" value=""><input type="hidden" id="postv2" name="postv2" value=""><input type="hidden" id="postv3" name="postv3" value=""></form>
+<span onclick="odeslatakci('rating','6990968','5728465','TM+Po%C4%8D%C3%ADta%C4%8De+Praha');return false;" class="paction">Všechny inzeráty a hodnocení uživatele</span></td></tr>
+<tr><td height="22px"><img id="obrfavour" src="https://www.bazos.cz/obrazky/favourite.svg" alt="Oblíbené" height="18"></td><td><span id="favour"><a href="https://www.bazos.cz/oblibene.php" rel="nofollow">Přidat do oblíbených</a></span></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/spam.svg" alt="Spam" height="17"></td><td><span onclick="odeslatakci('spam','224857281');return false;" class="paction">Označit špatný inzerát</span></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/miscat.svg" alt="Chybná kategorie" height="17"></td><td><span onclick="odeslatakci('category','224857281');return false;" class="paction">Označit chybnou kategorii inzerátu</span></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/print.svg" alt="Tisk" height="17"></td><td><a href="#" onclick="window.print()">Vytisknout inzerát</a></td></tr>
+<tr><td height="22px"><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fpc.bazos.cz%2Finzerat%2F224857281%2Fdell-optiplex-5040-sff-i3-6100-8gb-128gb-ssd-vice-kusu.php" target="_blank" rel="nofollow"><img src="https://www.bazos.cz/obrazky/facebook.svg" alt="Facebook" height="22"></a></td><td><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fpc.bazos.cz%2Finzerat%2F224857281%2Fdell-optiplex-5040-sff-i3-6100-8gb-128gb-ssd-vice-kusu.php" target="_blank" rel="nofollow">Sdílejte na Facebooku</a></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/mail.svg" alt="Mail" height="17"></td><td><span onclick="odeslatakci('recommend','224857281');return false;" class="paction">Doporučit kamarádovi</span></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/similar.svg" alt="Podobné" height="17"></td><td><a href="https://pc.bazos.cz/inzeraty/dell-optiplex/">Vyhledat podobné inzeráty</a></td></tr>
+</table>
+
+</td></tr>
+</table>
+<br>
+
+<script>
+function nahledy() {
+  var na1 = document.getElementById("nahledy1");
+  var na2 = document.getElementById("nahledy2");
+  var na3 = document.getElementById("nahledy3");
+  var na4 = document.getElementById("nahledy4");
+  if (na1.style.display === "none") {
+    na1.style.display = "block";
+    na2.style.display = "block";
+    na3.style.display = "none";
+    na4.style.display = "none";
+  } else {
+    na1.style.display = "none";
+    na2.style.display = "none";
+    na3.style.display = "block";
+    na4.style.display = "block";
+  }
+}
+</script>
+
+
+<div class="kontaktniformular"><div class="oranzovy" id="overlaymail"><b>Kontaktovat inzerenta emailem</b><br><br>
+Kontaktovat emailem může pouze ověřený uživatel.<br>
+<br>
+Vaše telefonní číslo <span class="ztop">*</span><br>
+<input type="text" name="teloverit2" id="teloverit2" maxlength="30" autocomplete="off" onkeydown="if (event.keyCode == 13) odeslatrequest('/ad-mail.php','idi=224857281&teloverit='+encodeURIComponent(document.getElementById('teloverit2').value),'overlaymail');">
+<br><br>
+<button type="button" id="mailbutton" onclick="odeslatrequest('/ad-mail.php','idi=224857281&teloverit='+encodeURIComponent(document.getElementById('teloverit2').value),'overlaymail');">Odeslat</button>
+</div></div>
+
+
+<br>
+
+<div class="podobne">
+<br><br>
+<div class="listainzerat">Podobné inzeráty</div><div id="container_one"></div>
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224873947/dell-optiplex-7050-i7-16gb-500gb-nvme-1tb-hdd-quadro.php"><img src="https://www.bazos.cz/img/1t/947/224873947.jpg" class="obrazek" alt="Dell OptiPlex 7050, i7, 16GB, 500GB NVMe, +1TB HDD, Quadro.." width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224873947/dell-optiplex-7050-i7-16gb-500gb-nvme-1tb-hdd-quadro.php">Dell OptiPlex 7050, i7, 16GB, 500GB NVMe, +1TB HDD, Quadro..</a></span><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Dell OptiPlex 7050, i7-7700, 16GB RAM, 500GB NVMe, +1TB HDD, Quadro K620, W11 Pro
+
+Plně funkční výkonný značkový počítač Dell Optiplex 7050.
+
+PC je tiché, čisté.
+
+Nově nainstalován W11 Pro 25H2, vč. aktualizací a ovladačů, stačí pouze zapnout a ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  3 499 Kč</span></b></div>
+<div class="inzeratylok">Kladno<br>272 01</div>
+<div class="inzeratyview">21 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224873947');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224873947');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','6867349','5306449','Jan');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224873947');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224869519/dell-optiplex-3080-sff-i3-10105-8gb-ddr4-256ssd-w11.php"><img src="https://www.bazos.cz/img/1t/519/224869519.jpg" class="obrazek" alt="Dell Optiplex 3080 SFF (i3 10105, 8GB DDR4, 256SSD, W11)" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224869519/dell-optiplex-3080-sff-i3-10105-8gb-ddr4-256ssd-w11.php">Dell Optiplex 3080 SFF (i3 10105, 8GB DDR4, 256SSD, W11)</a></span><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám PC formátu SFF (29 x 9,2 x 29 cm) Dell Optiplex 3080. Plně funkční použité PC. CPU i3-10105 (3,7 - 4,4GHz/6MB/65W), 8GB DDR4 (1x8), 256SSD M2 NVMe. Předinstalovaný Windows 11 Pro (čistá instalace). Porty: 4xUSB 3.2 Gen 1, 4xUSB 2.0, 1xRJ-45, 1 ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  3 000 Kč</span></b></div>
+<div class="inzeratylok">Praha 4<br>140 00</div>
+<div class="inzeratyview">36 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224869519');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224869519');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','7420371','6465454','Jan');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224869519');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224857062/dell-optiplex-3020-i5-4590-8gb-ram-500gb-r5-240-zaruka.php"><img src="https://www.bazos.cz/img/1t/062/224857062.jpg" class="obrazek" alt="Dell Optiplex 3020 - i5-4590, 8GB RAM, 500GB, R5-240, ZÁRUKA" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224857062/dell-optiplex-3020-i5-4590-8gb-ram-500gb-r5-240-zaruka.php">Dell Optiplex 3020 - i5-4590, 8GB RAM, 500GB, R5-240, ZÁRUKA</a></span><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>➡️ Záruka 12 měsíců
+➡️ Možnost osobního odběru v Praze
+
+Prodám repasovaný počítač Dell Optiplex 3020. PC je vhodný především pro kancelářské a domácí využití, ale nevadí mu ani průmyslové nasazení v nepřetržitém provozu. Nabízí plně dostatečný výk ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 790 Kč</span></b></div>
+<div class="inzeratylok">Praha 4<br>140 00</div>
+<div class="inzeratyview">22 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224857062');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224857062');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','6990968','5728465','TM+Po%C4%8D%C3%ADta%C4%8De+Praha');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224857062');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224856399/dell-optiplex-3020m-i3-4160t-8gb-ram-256gb-ssd-wifi.php"><img src="https://www.bazos.cz/img/1t/399/224856399.jpg?t=1791538646" class="obrazek" alt="Dell Optiplex 3020M - i3-4160T, 8GB RAM, 256GB SSD, WIFI" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224856399/dell-optiplex-3020m-i3-4160t-8gb-ram-256gb-ssd-wifi.php">Dell Optiplex 3020M - i3-4160T, 8GB RAM, 256GB SSD, WIFI</a></span><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>➡️ Záruka 12 měsíců
+➡️ Možnost osobního odběru v Praze
+
+Prodám repasovaný počítač Dell Optiplex 3020 Micro. Nejmenší dostupné provedení s rozměry cca 15x15cm a nízká spotřeba energie z něj dělá ideální volbu pro IOT projekty nebo nasazení jako med ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  2 290 Kč</span></b></div>
+<div class="inzeratylok">Praha 4<br>140 00</div>
+<div class="inzeratyview">25 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224856399');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224856399');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','6990968','5728465','TM+Po%C4%8D%C3%ADta%C4%8De+Praha');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224856399');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224856321/dell-optiplex-3040m-i3-6100t-8gb-ram-128gb-ssd-wifi.php"><img src="https://www.bazos.cz/img/1t/321/224856321.jpg?t=1791538706" class="obrazek" alt="Dell Optiplex 3040M - i3-6100T, 8GB RAM, 128GB SSD, WIFI" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224856321/dell-optiplex-3040m-i3-6100t-8gb-ram-128gb-ssd-wifi.php">Dell Optiplex 3040M - i3-6100T, 8GB RAM, 128GB SSD, WIFI</a></span><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>➡️ Záruka 12 měsíců
+➡️ Možnost osobního odběru v Praze
+
+Prodám repasovaný počítač Dell Optiplex 3040 Micro. Nejmenší dostupné provedení s rozměry cca 15x15cm, HDMI výstup a nízká spotřeba energie z něj dělá ideální volbu pro IOT projekty nebo nasa ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  2 990 Kč</span></b></div>
+<div class="inzeratylok">Praha 4<br>140 00</div>
+<div class="inzeratyview">25 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224856321');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224856321');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','6990968','5728465','TM+Po%C4%8D%C3%ADta%C4%8De+Praha');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224856321');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224849118/pocitac-dell-optiplex-7020-sff.php"><img src="https://www.bazos.cz/img/1t/118/224849118.jpg" class="obrazek" alt="Počítač Dell OptiPlex 7060 SFF Core i5 SSD" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224849118/pocitac-dell-optiplex-7020-sff.php">Počítač Dell OptiPlex 7060 SFF Core i5 SSD</a></span><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Procesor: Intel Core i5 8500 3.0 GHz 
+Operační paměť: 8 GB DDR4
+Pevný disk: SSD 256GB
+Optická mechanika DVD Slim
+Grafická karta: Intel HD Graphics
+Operační systém: Windows 11 Pro
+Rozhraní: 6xUSB 2.0, 4xUSB 3.0, DisplayPort, VGA, COM, LAN
+Rozmě ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  3 699 Kč</span></b></div>
+<div class="inzeratylok">Prachatice<br>383 01</div>
+<div class="inzeratyview">29 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224849118');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224849118');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5323050','87491','Dell');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224849118');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224849100/pocitac-dell-optiplex-7020-tower.php"><img src="https://www.bazos.cz/img/1t/100/224849100.jpg" class="obrazek" alt="Počítač Dell OptiPlex 7060 tower core i5 SSD" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224849100/pocitac-dell-optiplex-7020-tower.php">Počítač Dell OptiPlex 7060 tower core i5 SSD</a></span><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Procesor: Intel Core i5 8500 3.00 GHz 
+Operační paměť: 8 GB DDR4
+Pevný disk: SSD 256GB 
+Optická mechanika DVD-RW Slim
+Grafická karta: Intel HD Graphics 
+Operační systém: Windows 11 Pro
+Rozhraní: 6xUSB 2.0, 4xUSB 3.0, DisplayPort, VGA, COM, LAN ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  3 699 Kč</span></b></div>
+<div class="inzeratylok">Prachatice<br>383 01</div>
+<div class="inzeratyview">25 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224849100');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224849100');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5323050','87491','Dell');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224849100');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224809203/dell-optiplex-7050.php"><img src="https://www.bazos.cz/img/1t/203/224809203.jpg" class="obrazek" alt="Dell Optiplex 7050" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224809203/dell-optiplex-7050.php">Dell Optiplex 7050</a></span><span class=velikost10> - [8.10. 2026]</span><br>
+<div class=popis>Dobrý den,prodám pc značky Dell plus klávesnice a myš.Pc je tiché malé ,vhodné na kanceláře práce.
+Výkon a parametry na foto.
+Neposílám.
+Osobně.
+Windows 10 Spectre.</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 800 Kč</span></b></div>
+<div class="inzeratylok">Praha 6<br>161 00</div>
+<div class="inzeratyview">84 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224809203');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224809203');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','16272043','15038805','Bohou%C5%A1');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224809203');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224794827/dell-optiplex-7050-wifi-intel-i5-6500-31ghz-ssd-256gb-500gb.php"><img src="https://www.bazos.cz/img/1t/827/224794827.jpg" class="obrazek" alt="Dell Optiplex 7050 Wifi Intel i5-6500 3.1GHz SSD 256GB 500GB" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224794827/dell-optiplex-7050-wifi-intel-i5-6500-31ghz-ssd-256gb-500gb.php">Dell Optiplex 7050 Wifi Intel i5-6500 3.1GHz SSD 256GB 500GB</a></span><span class=velikost10> - [7.10. 2026]</span><br>
+<div class=popis>Nabízím rychlý Mini počítač Dell OptiPlex 7050 Micro SFF, vhodný na multimédia a kancelář. Malé rozměry, nezabírá místo na stole a může být umístěn pod monitorem. Poskytuji osobní záruku 14 dní na skryté vady (standartní dvouletá záruka již skončila) ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  2 990 Kč</span></b></div>
+<div class="inzeratylok">Zlín<br>760 05</div>
+<div class="inzeratyview">57 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224794827');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224794827');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','2017','5212','pczlin%40email.cz');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224794827');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224774223/i3-4130-8gb-ram-ssd-win11p-kancelarsky-pc-lze-vylepsit.php"><img src="https://www.bazos.cz/img/1t/223/224774223.jpg" class="obrazek" alt="i3 4130, 8GB RAM, SSD, Win11p - Kancelářský PC lze vylepšit" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224774223/i3-4130-8gb-ram-ssd-win11p-kancelarsky-pc-lze-vylepsit.php">i3 4130, 8GB RAM, SSD, Win11p - Kancelářský PC lze vylepšit</a></span><span class=velikost10> - [7.10. 2026]</span><br>
+<div class=popis>Prodám starší, ale stále výkonný značkový PC. Základem je kvalitní PC DELL Optiplex 3020 MT, vylepšený výkonným procesorem i5 a novým SSD.
+
+S takovou sestavou lze vykonávat veškerou kancelářskou činnost včetně základní úpravy fotek a nebo spousty o ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 700 Kč</span></b></div>
+<div class="inzeratylok">Hradec Králové<br>503 46</div>
+<div class="inzeratyview">59 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224774223');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224774223');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','97149','5835','Ji%C5%99%C3%AD+Chaloupka');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224774223');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div id="container_two"></div>
+<script type="text/javascript" charset="utf-8">
+var pageOptions = {
+  'pubId': 'pub-3645948300403337',
+  'query' : "dell optiplex 5040 sff i3",
+  'channel': '4133833399',
+  'linkTarget' : '_blank',
+  'personalizedAds' : false,
+  'adsafe': 'medium',
+  'ivt': false,
+'styleId' : '6171314811',  'hl': 'cs'
+};
+
+var adblock1 = {
+  'container': 'container_one',
+  'width': 'auto',
+  'number' : 1
+};
+
+var adblock2 = {
+  'container': 'container_two',
+  'width': 'auto',
+  'number' : 2
+};
+
+_googCsa('ads', pageOptions, adblock1, adblock2);
+
+</script>
+<br>
+
+</div>
+
+
+</div></div><br>
+
+&copy;2026 Bazoš -  <b>Inzerce, Bazar PC, Počítače</b><br>
+<a href="https://www.bazos.cz/napoveda.php">Nápověda</a>, <a href="https://www.bazos.cz/dotazy.php">Dotazy</a>, <a href="https://www.bazos.cz/hodnoceni.php">Hodnocení</a>, <a href="https://www.bazos.cz/kontakt.php">Kontakt</a>, <a href="https://www.bazos.cz/reklama.php">Reklama</a>, <a href="https://www.bazos.cz/podminky.php">Podmínky</a>, <a href="https://www.bazos.cz/ochrana-udaju.php">Ochrana údajů</a>, <a href="https://www.bazos.cz/rss.php?rub=pc&cat=12">RSS</a>, <form name="formvkm" id="formvkm" method="post" style="display: inline;"><input type="hidden" name="vkm" value="m"><input type="submit" class="vkm" value="Mobilní verze"></form><br>
+
+Inzeráty PC celkem: <b>43440</b>, za 24 hodin: <b>1715</b><br><br>
+<a href="https://www.bazos.cz/mapa-kategorie.php">Mapa kategorií</a>, <a href="https://pc.bazos.cz/mapa-search.php">Nejvyhledávanější výrazy</a>
+<br>
+Země: <a href="https://pc.bazos.cz">Česká republika</a>, <a href="https://pc.bazos.sk">Slovensko</a>, <a href="https://komputer.bazos.pl">Polsko</a>, <a href="https://pc.bazos.at">Rakousko</a>
+<br>
+<br>
+</div>
+
+<script src="https://www.bazos.cz/cookie-consent.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({"notice_banner_type":"simple","consent_type":"express","palette":"light","language":"cs","page_load_consent_levels":["strictly-necessary"],"notice_banner_reject_button_hide":false,"preferences_center_close_button_hide":false,"page_refresh_confirmation_buttons":false,"cookie_domain": "bazos.cz"});
+});
+</script>
+<a href="#" id="open_preferences_center"> </a>
+
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NZW1QTHKBB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-NZW1QTHKBB');
+</script>
+
+</body>
+</html>

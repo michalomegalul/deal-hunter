@@ -41,11 +41,13 @@ def make_client(settings: Settings, throttle_conn: psycopg.Connection | None = N
     return PoliteClient(settings.user_agent, min_delay=settings.min_delay, throttle=throttle)
 
 
-def read_category(client: PoliteClient, pages: range, stats: repo.RunStats) -> dict[int, Listing]:
+def read_category(
+    client: PoliteClient, pages: range, stats: repo.RunStats, section: str = bazos.CATEGORY
+) -> dict[int, Listing]:
     """Listings from category pages (stops early at an empty page)."""
     found: dict[int, Listing] = {}
     for page in pages:
-        url = bazos.category_url(page)
+        url = bazos.category_url(page, section)
         try:
             resp = client.get(url)
         except Exception as exc:  # noqa: BLE001 - keep going, log it in the run
@@ -59,23 +61,44 @@ def read_category(client: PoliteClient, pages: range, stats: repo.RunStats) -> d
             log.info("%s has no ads, stopping", url)
             break
         for item in items:
+            item.section = section
             found.setdefault(item.id, item)
     return found
 
 
-def read_rss(client: PoliteClient, stats: repo.RunStats) -> dict[int, Listing]:
+def read_rss(client: PoliteClient, stats: repo.RunStats, section: str = bazos.CATEGORY) -> dict[int, Listing]:
     try:
-        resp = client.get(bazos.RSS_URL)
+        resp = client.get(bazos.rss_url(section))
         if resp.status != 200:
             raise RuntimeError(f"HTTP {resp.status}")
         items = bazos.parse_rss(resp.text)
     except Exception as exc:  # noqa: BLE001
-        stats.errors.append(f"rss: {exc}")
+        stats.errors.append(f"rss {section}: {exc}")
         return {}
     return {
-        i.id: Listing(id=i.id, url=i.url, title=i.title, price_czk=i.price_czk, price_kind=i.price_kind)
+        i.id: Listing(
+            id=i.id, url=i.url, title=i.title, price_czk=i.price_czk, price_kind=i.price_kind, section=section
+        )
         for i in items
     }
+
+
+def read_section(client: PoliteClient, section: str, pages: int, stats: repo.RunStats) -> dict[int, Listing]:
+    """RSS feed + the first `pages` category pages of one section (category data is richer)."""
+    found = read_rss(client, stats, section)
+    found.update(read_category(client, range(pages), stats, section))
+    return found
+
+
+def wants_detail(item: Listing) -> bool:
+    """Office sections are mostly gaming PCs and MacBooks we never price: only fetch the detail page
+    of ads the normalizer doesn't exclude. That keeps the request budget for what matters."""
+    section = bazos.SECTIONS.get(item.section)
+    if section is None or section.details == "all":
+        return True
+    from deal_hunter.normalize import classify
+
+    return classify(item.title, item.section).excluded_reason is None
 
 
 def fetch_ad(client: PoliteClient, url: str) -> tuple[Listing | None, str | None, Page]:
@@ -113,7 +136,7 @@ def ingest(
     have = repo.detailed_ids(conn, list(found))
     for listing_id, summary in found.items():
         item, detail = summary, False
-        if listing_id not in have:
+        if listing_id not in have and wants_detail(summary):
             try:
                 full, gone, page = fetch_ad(client, summary.url)
             except Exception as exc:  # noqa: BLE001
@@ -123,6 +146,7 @@ def ingest(
                 item, detail = full, True
                 # The list page knows the seller's name and the thumbnail even when the detail page is odd.
                 item.seller = item.seller or summary.seller
+                item.section = summary.section
             elif gone is not None:
                 continue  # removed between the list page and now: nothing worth storing
             elif page is not None:
@@ -148,30 +172,44 @@ def _run(conn: psycopg.Connection, kind: str, body: Callable[[repo.RunStats], No
     return stats
 
 
-def scrape_once(client: PoliteClient, conn: psycopg.Connection, pages: int) -> repo.RunStats:
-    """One cycle: RSS + the first `pages` category pages; details only for new ads."""
+def section_pages(sections: dict[str, int] | None, gpu_pages: int) -> dict[str, int]:
+    """{section: category pages per cycle}. GPUs read `gpu_pages` (HUNTER_PAGES), others their default."""
+    if sections is not None:
+        return sections
+    return {s.slug: (gpu_pages if s.slug == bazos.CATEGORY else s.pages) for s in bazos.SECTIONS.values()}
+
+
+def scrape_once(
+    client: PoliteClient, conn: psycopg.Connection, pages: int, sections: dict[str, int] | None = None
+) -> repo.RunStats:
+    """One cycle over every section: RSS + the first category pages; details only for new ads.
+
+    With the defaults that is 3 RSS feeds + 4 category pages = 7 requests, plus one per new ad
+    worth keeping (all new GPU ads, only in-scope office ads).
+    """
 
     def body(stats):
         start = client.requests
-        found = read_rss(client, stats)
-        found.update(read_category(client, range(pages), stats))  # category data is richer
-        ingest(client, conn, found, stats)
+        for section, n in section_pages(sections, pages).items():
+            ingest(client, conn, read_section(client, section, n, stats), stats)
         stats.requests = client.requests - start
 
     return _run(conn, "scrape", body)
 
 
-def backfill(client: PoliteClient, conn: psycopg.Connection, pages: int) -> repo.RunStats:
+def backfill(
+    client: PoliteClient, conn: psycopg.Connection, pages: int, section: str = bazos.CATEGORY
+) -> repo.RunStats:
     """Walk deeper category pages once to seed history (capped at MAX_BACKFILL_PAGES)."""
 
     def body(stats):
         start = client.requests
         for page in range(min(pages, MAX_BACKFILL_PAGES)):
-            found = read_category(client, range(page, page + 1), stats)
+            found = read_category(client, range(page, page + 1), stats, section)
             if not found:
                 break
             ingest(client, conn, found, stats)
-            log.info("backfill page %d: %d ads (%d new so far)", page, len(found), stats.new)
+            log.info("backfill %s page %d: %d ads (%d new so far)", section, page, len(found), stats.new)
         stats.requests = client.requests - start
 
     return _run(conn, "backfill", body)
@@ -204,11 +242,12 @@ def recheck(client: PoliteClient, conn: psycopg.Connection, older_than_hours: fl
     return _run(conn, "recheck", body)
 
 
-def dry_run(client: PoliteClient, pages: int) -> list[Listing]:
+def dry_run(client: PoliteClient, pages: int, sections: dict[str, int] | None = None) -> list[Listing]:
     """Read RSS + category pages without a database and return what was parsed."""
     stats = repo.RunStats("dry-run")
-    found = read_rss(client, stats)
-    found.update(read_category(client, range(pages), stats))
+    found: dict[int, Listing] = {}
+    for section, n in section_pages(sections, pages).items():
+        found.update(read_section(client, section, n, stats))
     for err in stats.errors:
         log.warning(err)
     return list(found.values())

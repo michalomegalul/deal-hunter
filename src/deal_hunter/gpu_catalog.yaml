@@ -6,7 +6,7 @@
 # one, the title has to name the size (e.g. "12GB") or vram_gb stays empty.
 #
 # Bump `version` whenever the rules change, so `hunt normalize` re-processes old listings.
-version: 1
+version: 2
 
 # Applied (as regexes, on the normalized title) before matching.
 aliases:

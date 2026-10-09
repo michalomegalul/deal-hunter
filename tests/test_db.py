@@ -110,8 +110,9 @@ def test_due_for_recheck(conn):
 class FakeBazos:
     """Serves the saved fixtures as if it were pc.bazos.cz."""
 
-    def __init__(self, gone_ids=()):
+    def __init__(self, gone_ids=(), detail="detail_224601918.html"):
         self.gone_ids = set(gone_ids)
+        self.detail = detail
         self.paths = []
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
@@ -123,22 +124,30 @@ class FakeBazos:
             return httpx.Response(200, text=fixture_text("category_0.html"))
         if url == bazos.category_url(1):
             return httpx.Response(200, text=fixture_text("category_20.html"))
-        if "/graficka/" in url:
+        for section in ("pc", "notebook"):
+            if url == bazos.rss_url(section):
+                return httpx.Response(200, text=fixture_text(f"rss_{section}.xml"))
+            if url == bazos.category_url(0, section):
+                return httpx.Response(200, text=fixture_text(f"{section}_0.html"))
+        if any(f"/{s}/" in url for s in bazos.SECTIONS):
             return httpx.Response(200, text="<html><body>no ads</body></html>")
         listing_id = bazos.ad_id(url)
         if listing_id in self.gone_ids:
             return httpx.Response(410, text=fixture_text("detail_gone.html"))
         # every ad gets the same detail page body; parse_detail takes the id from the URL
-        return httpx.Response(200, text=fixture_text("detail_224601918.html"))
+        return httpx.Response(200, text=fixture_text(self.detail))
 
 
 def fake_client(handler):
     return PoliteClient("test", min_delay=0, transport=httpx.MockTransport(handler), sleep=lambda s: None)
 
 
+GPU_ONLY = {"graficka": 2}
+
+
 def test_scrape_once_fetches_details_only_for_new_ads(conn):
     site = FakeBazos()
-    stats = scraper.scrape_once(fake_client(site), conn, pages=2)
+    stats = scraper.scrape_once(fake_client(site), conn, pages=2, sections=GPU_ONLY)
     n = conn.execute("SELECT count(*), count(detail_fetched_at) FROM listings").fetchone()
     assert n[0] == n[1] == stats.new > 40
     assert not stats.errors
@@ -146,7 +155,7 @@ def test_scrape_once_fetches_details_only_for_new_ads(conn):
     assert detail_requests == stats.new
 
     site2 = FakeBazos()
-    stats2 = scraper.scrape_once(fake_client(site2), conn, pages=2)
+    stats2 = scraper.scrape_once(fake_client(site2), conn, pages=2, sections=GPU_ONLY)
     assert stats2.new == 0 and stats2.updated == stats.new
     assert not any("/inzerat/" in p for p in site2.paths)  # nothing new: no detail pages fetched
     run = conn.execute("SELECT kind, ok, new FROM scrape_runs ORDER BY id").fetchall()
@@ -205,9 +214,49 @@ def test_normalize_run_and_review(conn, monkeypatch):
         )
     assert normalize.run(conn) == 3
     assert normalize.run(conn) == 0  # nothing new
-    rows = conn.execute("SELECT listing_id, gpu_model, vram_gb, excluded_reason FROM normalized ORDER BY 1")
-    assert rows.fetchall() == [(1, "rtx 3060", 12, None), (2, None, None, "wanted"), (3, None, None, None)]
+    rows = conn.execute(
+        "SELECT listing_id, category, model, features, excluded_reason FROM normalized ORDER BY 1"
+    )
+    assert rows.fetchall() == [
+        (1, "gpu", "rtx 3060 12gb", {"vram_gb": 12}, None),
+        (2, "gpu", None, {}, "wanted"),
+        (3, "gpu", None, {}, None),
+    ]
     assert [r[1] for r in repo.unmatched(conn, 10)] == ["Grafická karta"]
 
-    monkeypatch.setattr(normalize, "version", lambda: 999)  # a catalog bump redoes everything
+    monkeypatch.setattr(normalize, "version", lambda: 999_999)  # a catalog bump redoes everything
     assert normalize.run(conn) == 3
+
+
+def test_office_sections_fetch_details_only_in_scope(conn):
+    from deal_hunter import normalize
+
+    site = FakeBazos(detail="detail_224725687.html")  # a ThinkPad T14s
+    stats = scraper.scrape_once(fake_client(site), conn, pages=1, sections={"pc": 1, "notebook": 1})
+    assert not stats.errors
+    rows = conn.execute("SELECT id, section, detail_fetched_at IS NOT NULL FROM listings").fetchall()
+    assert {r[1] for r in rows} == {"pc", "notebook"}
+    assert len(rows) == stats.new > 100  # 2 x (50 RSS + 20 page) minus the overlap
+    titles = {}
+    for section in ("pc", "notebook"):
+        titles |= {i.id: (i.title, section) for i in bazos.parse_rss(fixture_text(f"rss_{section}.xml"))}
+        titles |= {i.id: (i.title, section) for i in bazos.parse_category(fixture_text(f"{section}_0.html"))}
+    detailed = {r[0] for r in rows if r[2]}
+    in_scope = {
+        i
+        for i, (title, section) in titles.items()
+        if normalize.classify(title, section).excluded_reason is None
+    }
+    assert detailed == in_scope and 5 < len(detailed) < len(rows) / 3
+    assert sum("/inzerat/" in p for p in site.paths) == len(detailed)
+    list_requests = [p for p in site.paths if "/inzerat/" not in p]
+    assert len(list_requests) == 4  # 2 RSS feeds + 2 category pages
+
+    normalize.run(conn)
+    matched = conn.execute(
+        "SELECT n.category, count(*) FROM normalized n WHERE n.model IS NOT NULL GROUP BY 1 ORDER BY 1"
+    ).fetchall()
+    assert matched and {c for c, _ in matched} <= {"office_laptop", "office_pc"}  # (all details are a T14s)
+    # out-of-scope office ads (gaming PCs, MacBooks) are never re-checked for removal
+    conn.execute("UPDATE listings SET last_seen = now() - interval '1 day'")
+    assert {r[0] for r in repo.due_for_recheck(conn, 6, 10_000)} == in_scope

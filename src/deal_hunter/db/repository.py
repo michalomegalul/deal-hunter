@@ -69,8 +69,8 @@ def save_listing(conn: psycopg.Connection, item: Listing, detail: bool) -> tuple
         if old is None:
             conn.execute(
                 "INSERT INTO listings (id, url, title, price_czk, price_kind, location, psc, posted_at, "
-                "description, images, views, seller, raw_category, detail_fetched_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() END)",
+                "description, images, views, seller, raw_category, section, detail_fetched_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() END)",
                 (
                     item.id,
                     item.url,
@@ -85,6 +85,7 @@ def save_listing(conn: psycopg.Connection, item: Listing, detail: bool) -> tuple
                     item.views,
                     item.seller,
                     item.raw_category,
+                    item.section,
                     detail,
                 ),
             )
@@ -146,11 +147,14 @@ def due_for_recheck(conn: psycopg.Connection, older_than_hours: float, limit: in
     """(id, url) of active ads not seen for `older_than_hours`, least recently seen first.
 
     Ads that still show up on the category pages get their last_seen refreshed by every scrape, so
-    in practice this re-checks the older ads that have scrolled off the pages we read.
+    in practice this re-checks the older ads that have scrolled off the pages we read. Ads the
+    normalizer excluded (wanted ads, gaming PCs, MacBooks, ...) are never priced, so whether they
+    sold doesn't matter and they aren't re-checked.
     """
     return conn.execute(
-        "SELECT id, url FROM listings WHERE gone_at IS NULL "
-        "AND last_seen < now() - make_interval(secs => %s) ORDER BY last_seen LIMIT %s",
+        "SELECT l.id, l.url FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id "
+        "WHERE l.gone_at IS NULL AND n.excluded_reason IS NULL "
+        "AND l.last_seen < now() - make_interval(secs => %s) ORDER BY l.last_seen LIMIT %s",
         (older_than_hours * 3600, limit),
     ).fetchall()
 
@@ -226,49 +230,58 @@ def stats(conn: psycopg.Connection) -> dict:
         "ORDER BY kind"
     ).fetchall()
     out["normalized"] = conn.execute(
-        "SELECT CASE WHEN gpu_model IS NOT NULL THEN 'matched' WHEN excluded_reason IS NOT NULL "
+        "SELECT CASE WHEN model IS NOT NULL THEN 'matched' WHEN excluded_reason IS NOT NULL "
         "THEN 'excluded' ELSE 'unmatched' END AS status, count(*) FROM normalized GROUP BY 1 ORDER BY 1"
+    ).fetchall()
+    out["sections"] = conn.execute(
+        "SELECT l.section, count(*), count(*) FILTER (WHERE l.gone_at IS NULL), count(n.model), "
+        "count(*) FILTER (WHERE n.model IS NULL AND n.excluded_reason IS NULL), "
+        "count(*) FILTER (WHERE l.first_seen > now() - interval '24 hours'), min(l.first_seen) "
+        "FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id GROUP BY 1 ORDER BY 1"
     ).fetchall()
     return out
 
 
-def to_normalize(conn: psycopg.Connection, version: int, everything: bool = False) -> list[tuple[int, str]]:
-    """(id, title) of listings never normalized, or normalized by an older catalog version."""
+def to_normalize(
+    conn: psycopg.Connection, version: int, everything: bool = False
+) -> list[tuple[int, str, str]]:
+    """(id, title, section) of listings never normalized, or normalized by older rules."""
     if everything:
-        return conn.execute("SELECT id, title FROM listings ORDER BY id").fetchall()
+        return conn.execute("SELECT id, title, section FROM listings ORDER BY id").fetchall()
     return conn.execute(
-        "SELECT l.id, l.title FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id "
+        "SELECT l.id, l.title, l.section FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id "
         "WHERE n.listing_id IS NULL OR n.normalizer_version < %s ORDER BY l.id",
         (version,),
     ).fetchall()
 
 
 def save_normalized(
-    conn: psycopg.Connection, rows: list[tuple[int, str | None, int | None, str | None]], version: int
+    conn: psycopg.Connection, rows: list[tuple[int, str, str | None, dict, str | None]], version: int
 ):
-    """Upsert (listing_id, gpu_model, vram_gb, excluded_reason) rows."""
+    """Upsert (listing_id, category, model, features, excluded_reason) rows."""
     with conn.transaction(), conn.cursor() as cur:
         cur.executemany(
-            "INSERT INTO normalized (listing_id, gpu_model, vram_gb, excluded_reason, normalizer_version) "
-            "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (listing_id) DO UPDATE SET gpu_model = EXCLUDED.gpu_model, "
-            "vram_gb = EXCLUDED.vram_gb, excluded_reason = EXCLUDED.excluded_reason, "
+            "INSERT INTO normalized (listing_id, category, model, features, excluded_reason, normalizer_version) "
+            "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (listing_id) DO UPDATE SET category = EXCLUDED.category, "
+            "model = EXCLUDED.model, features = EXCLUDED.features, excluded_reason = EXCLUDED.excluded_reason, "
             "normalizer_version = EXCLUDED.normalizer_version, normalized_at = now()",
-            [(*row, version) for row in rows],
+            [(lid, cat, model, Jsonb(feats), reason, version) for lid, cat, model, feats, reason in rows],
         )
 
 
-def unmatched(conn: psycopg.Connection, limit: int) -> list[tuple]:
-    """(id, title, price_czk, url) of listings the normalizer couldn't place, newest first."""
+def unmatched(conn: psycopg.Connection, limit: int, section: str | None = None) -> list[tuple]:
+    """(id, title, price_czk, url, section) of listings the normalizer couldn't place, newest first."""
     return conn.execute(
-        "SELECT l.id, l.title, l.price_czk, l.url FROM normalized n JOIN listings l ON l.id = n.listing_id "
-        "WHERE n.gpu_model IS NULL AND n.excluded_reason IS NULL ORDER BY l.first_seen DESC LIMIT %s",
-        (limit,),
+        "SELECT l.id, l.title, l.price_czk, l.url, l.section FROM normalized n "
+        "JOIN listings l ON l.id = n.listing_id WHERE n.model IS NULL AND n.excluded_reason IS NULL "
+        "AND (%(section)s::text IS NULL OR l.section = %(section)s) ORDER BY l.first_seen DESC LIMIT %(limit)s",
+        {"section": section, "limit": limit},
     ).fetchall()
 
 
 def normalized_summary(conn: psycopg.Connection) -> list[tuple]:
-    """(gpu_model or excluded_reason or 'unmatched', count) for `hunt normalize`."""
+    """(model or excluded reason or 'unmatched', count) for `hunt normalize -v`."""
     return conn.execute(
-        "SELECT COALESCE(gpu_model || COALESCE(' ' || vram_gb || 'GB', ''), 'excluded: ' || excluded_reason, "
-        "'unmatched'), count(*) FROM normalized GROUP BY 1 ORDER BY 2 DESC, 1"
+        "SELECT category || ': ' || COALESCE(model, 'excluded ' || excluded_reason, 'unmatched'), count(*) "
+        "FROM normalized GROUP BY 1 ORDER BY 2 DESC, 1"
     ).fetchall()

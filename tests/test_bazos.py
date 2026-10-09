@@ -124,3 +124,34 @@ def test_removed_ad_page(fixture):
     html = fixture("detail_gone.html")
     assert bazos.is_removed_page(html)
     assert bazos.parse_detail(html, "https://pc.bazos.cz/inzerat/100000001/neexistuje.php") is None
+
+
+def test_section_urls():
+    assert bazos.category_url(0, "pc") == "https://pc.bazos.cz/pc/"
+    assert bazos.category_url(1, "notebook") == "https://pc.bazos.cz/notebook/20/"
+    assert bazos.rss_url() == bazos.RSS_URL
+    assert bazos.rss_url("pc") == "https://www.bazos.cz/rss.php?rub=pc&cat=12"
+    assert bazos.rss_url("notebook") == "https://www.bazos.cz/rss.php?rub=pc&cat=10"
+
+
+@pytest.mark.parametrize("section", ["pc", "notebook"])
+def test_parse_office_sections(fixture, section):
+    items = bazos.parse_category(fixture(f"{section}_0.html"))
+    assert len(items) == 20 and len({i.id for i in items}) == 20
+    assert all(i.url.startswith("https://pc.bazos.cz/inzerat/") and i.title for i in items)
+    rss = bazos.parse_rss(fixture(f"rss_{section}.xml"))
+    assert len(rss) == 50 and all(i.url.startswith("https://pc.bazos.cz/inzerat/") for i in rss)
+
+
+@pytest.mark.parametrize(
+    "ad_id, title_start, price, category",
+    [
+        (224857281, "Dell Optiplex 5040 SFF", 2490, "pc"),
+        (224725687, "Thinkpad T14s Gen 3", 9990, "notebook"),
+    ],
+)
+def test_parse_office_details(fixture, ad_id, title_start, price, category):
+    ad = bazos.parse_detail(fixture(f"detail_{ad_id}.html"), f"https://pc.bazos.cz/inzerat/{ad_id}/x.php")
+    assert ad.title.startswith(title_start)
+    assert (ad.price_czk, ad.price_kind, ad.raw_category) == (price, "fixed", category)
+    assert ad.description and ad.images and ad.seller and ad.psc

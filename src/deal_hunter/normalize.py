@@ -1,4 +1,9 @@
-"""Rule-based GPU normalizer: ad title -> canonical model + VRAM, or a reason to exclude the ad.
+"""Rule-based normalizers: ad title -> canonical model, or a reason to exclude the ad.
+
+GPUs (the graficka section) are matched here against gpu_catalog.yaml; ex-office PCs and laptops
+(the pc and notebook sections) in office.py. `classify` picks the right one for a listing's section
+and returns the shared shape the rest of the pipeline uses: category, model (the pricing key) and
+features.
 
 Deliberately conservative: a wrong model poisons the fair-price estimates, a missing one only
 costs a data point. So anything ambiguous comes out unmatched (model None, no exclusion) and is
@@ -7,11 +12,14 @@ listed by `hunt review`, where it can be turned into a new catalog rule.
 
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
 from importlib import resources
 
 import yaml
+
+from deal_hunter import office
+from deal_hunter.bazos import CATEGORY, SECTIONS
 
 
 @dataclass(frozen=True)
@@ -60,7 +68,8 @@ def load_catalog() -> Catalog:
 
 
 def version() -> int:
-    return load_catalog().version
+    """One number for both rule sets: GPU catalog version * 1000 + office rules version."""
+    return load_catalog().version * 1000 + office.VERSION
 
 
 # --- text preparation ---------------------------------------------------------------------------
@@ -230,14 +239,43 @@ def normalize(title: str) -> Result:
     return Result()
 
 
+# --- one interface for every section -------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Normalized:
+    category: str  # gpu | office (excluded/unmatched office ads) | office_pc | office_laptop
+    model: str | None = None  # the pricing key: 'rtx 3060 12gb', 'rtx 3070', 'thinkpad t480'
+    features: dict = field(default_factory=dict, compare=False)
+    excluded_reason: str | None = None
+
+
+def gpu_key(model: Model, vram: int | None) -> str:
+    """'rtx 3070' (one VRAM size exists), 'rtx 3060 12gb' / 'rtx 3060' (size known / not given)."""
+    if len(model.vram) > 1 and vram is not None:
+        return f"{model.name} {vram}gb"
+    return model.name
+
+
+def classify(title: str, section: str = CATEGORY) -> Normalized:
+    if SECTIONS.get(section, SECTIONS[CATEGORY]).kind == "office":
+        r = office.normalize(title)
+        return Normalized(r.category or "office", r.model, r.features, r.excluded_reason)
+    r = normalize(title)
+    if r.gpu_model is None:
+        return Normalized("gpu", excluded_reason=r.excluded_reason)
+    model = load_catalog().models[r.gpu_model.split(" ", 1)[1]]
+    return Normalized("gpu", gpu_key(model, r.vram_gb), {"vram_gb": r.vram_gb} if r.vram_gb else {})
+
+
 def run(conn, everything: bool = False) -> int:
-    """Normalize listings that are new or were done by an older catalog version. Returns the count."""
+    """Normalize listings that are new or were done by older rules. Returns the count."""
     from deal_hunter.db import repository as repo
 
     todo = repo.to_normalize(conn, version(), everything)
     rows = []
-    for listing_id, title in todo:
-        r = normalize(title)
-        rows.append((listing_id, r.gpu_model, r.vram_gb, r.excluded_reason))
+    for listing_id, title, section in todo:
+        r = classify(title, section)
+        rows.append((listing_id, r.category, r.model, r.features, r.excluded_reason))
     repo.save_normalized(conn, rows, version())
     return len(rows)
