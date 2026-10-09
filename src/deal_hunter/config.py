@@ -23,6 +23,30 @@ class Settings:
     loop_minutes: float  # scrape cycle interval
     recheck_hours: float  # how often active listings are re-checked
     recheck_limit: int  # max detail pages per recheck run
+    # --- worker: pricing, LLM triage, alerts ---
+    work_minutes: float  # worker cycle interval
+    ollama_url: str
+    llm_model: str  # empty = no triage (candidates wait)
+    llm_cache: str  # directory for cached LLM answers (in the data volume)
+    triage_per_cycle: int
+    ntfy_url: str  # where we publish and poll (LAN)
+    ntfy_public_url: str  # what the phone's 👍/👎 buttons call (works off the LAN too)
+    ntfy_topic: str
+    ntfy_token: str
+    ntfy_feedback_topic: str
+    ntfy_feedback_token: str  # write-only token for the feedback topic, embedded in the buttons
+    alerts_enabled: bool
+    alert_min_score: float
+    alert_max_per_day: int
+    alert_min_samples: int
+    alert_min_days: float
+    quiet_hours: str  # '23-7', Europe/Prague
+    quiet_bypass_score: float
+    candidate_discount: float
+
+
+def _flag(name: str, default: str) -> bool:
+    return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
 def load_settings() -> Settings:
@@ -37,4 +61,23 @@ def load_settings() -> Settings:
         loop_minutes=float(os.getenv("HUNTER_LOOP_MINUTES", "10")),
         recheck_hours=float(os.getenv("HUNTER_RECHECK_HOURS", "6")),
         recheck_limit=int(os.getenv("HUNTER_RECHECK_LIMIT", "1500")),
+        work_minutes=float(os.getenv("HUNTER_WORK_MINUTES", "5")),
+        ollama_url=os.getenv("HUNTER_OLLAMA_URL", "http://192.168.4.19:11434"),
+        llm_model=os.getenv("HUNTER_LLM_MODEL", "gemma3:12b"),
+        llm_cache=os.getenv("HUNTER_LLM_CACHE", "data/llm_cache"),
+        triage_per_cycle=int(os.getenv("HUNTER_TRIAGE_PER_CYCLE", "6")),
+        ntfy_url=os.getenv("HUNTER_NTFY_URL", "http://192.168.4.36"),
+        ntfy_public_url=os.getenv("HUNTER_NTFY_PUBLIC_URL", "https://ntfy.dobsinsky.dev"),
+        ntfy_topic=os.getenv("HUNTER_NTFY_TOPIC", "deals"),
+        ntfy_token=os.getenv("NTFY_TOKEN", ""),
+        ntfy_feedback_topic=os.getenv("HUNTER_NTFY_FEEDBACK_TOPIC", "deals-feedback"),
+        ntfy_feedback_token=os.getenv("NTFY_FEEDBACK_TOKEN", ""),
+        alerts_enabled=_flag("HUNTER_ALERTS_ENABLED", "false"),
+        alert_min_score=float(os.getenv("HUNTER_ALERT_MIN_SCORE", "0.12")),
+        alert_max_per_day=int(os.getenv("HUNTER_ALERT_MAX_PER_DAY", "5")),
+        alert_min_samples=int(os.getenv("HUNTER_ALERT_MIN_SAMPLES", "15")),
+        alert_min_days=float(os.getenv("HUNTER_ALERT_MIN_DAYS", "7")),
+        quiet_hours=os.getenv("HUNTER_QUIET_HOURS", "23-7"),
+        quiet_bypass_score=float(os.getenv("HUNTER_QUIET_BYPASS_SCORE", "0.3")),
+        candidate_discount=float(os.getenv("HUNTER_CANDIDATE_DISCOUNT", "0.2")),
     )

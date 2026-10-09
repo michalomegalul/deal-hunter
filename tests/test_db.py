@@ -12,34 +12,12 @@ if not os.getenv("DATABASE_URL"):
     pytest.skip("DATABASE_URL not set (start it with `docker compose up -d db`)", allow_module_level=True)
 
 import httpx
-import psycopg
-from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from deal_hunter import bazos, scraper
 from deal_hunter.bazos import Listing
 from deal_hunter.db import repository as repo
 from deal_hunter.http import PoliteClient
 from tests.conftest import fixture_text
-
-
-@pytest.fixture(scope="module")
-def test_url():
-    base = conninfo_to_dict(os.environ["DATABASE_URL"])
-    name = f"{base.get('dbname', 'hunter')}_test"
-    with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as admin:
-        admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
-        admin.execute(f'CREATE DATABASE "{name}"')
-    yield make_conninfo(**{**base, "dbname": name})
-    with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as admin:
-        admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
-
-
-@pytest.fixture
-def conn(test_url):
-    with repo.connect(test_url, autocommit=True) as conn:
-        repo.migrate(conn)
-        conn.execute("TRUNCATE listings, price_changes, normalized, scrape_runs RESTART IDENTITY CASCADE")
-        yield conn
 
 
 def ad(id=1, price=1000, kind="fixed", **kw):

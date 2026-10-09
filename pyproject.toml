@@ -1,6 +1,6 @@
 [project]
 name = "deal-hunter"
-version = "0.3.0"
+version = "0.4.0"
 description = "Watches Bazoš.cz GPU and ex-office PC/laptop listings, learns fair prices and flags the genuinely good deals."
 readme = "README.md"
 authors = [
@@ -13,6 +13,7 @@ dependencies = [
     "python-dotenv>=1.2.4",
     "pyyaml>=6.0.3",
     "selectolax>=1.0.0",
+    "tzdata>=2026.5",
 ]
 
 [project.scripts]

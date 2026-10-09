@@ -285,3 +285,236 @@ def normalized_summary(conn: psycopg.Connection) -> list[tuple]:
         "SELECT category || ': ' || COALESCE(model, 'excluded ' || excluded_reason, 'unmatched'), count(*) "
         "FROM normalized GROUP BY 1 ORDER BY 2 DESC, 1"
     ).fetchall()
+
+
+# --- fair prices ---------------------------------------------------------------------------------
+
+
+def price_samples(conn: psycopg.Connection, window_days: int) -> list:
+    """Matched ads with a numeric price, seen within the window: the input to pricing.estimate_all."""
+    from deal_hunter.pricing import Sample
+
+    rows = conn.execute(
+        "SELECT l.id, n.model, n.category, l.price_czk, l.title, l.seller, l.first_seen, l.gone_at, "
+        "l.gone_reason, n.features FROM listings l JOIN normalized n ON n.listing_id = l.id "
+        "WHERE n.model IS NOT NULL AND l.price_kind = 'fixed' AND l.price_czk > 0 "
+        "AND l.last_seen > now() - make_interval(days => %s)",
+        (window_days,),
+    ).fetchall()
+    return [Sample(*row) for row in rows]
+
+
+def save_fair_prices(conn: psycopg.Connection, prices: list) -> None:
+    """Upsert today's snapshot (UTC date) for each FairPrice."""
+    with conn.transaction(), conn.cursor() as cur:
+        cur.executemany(
+            "INSERT INTO fair_prices (model, day, category, n, n_listings, median, q25, q75, confidence, level, "
+            "params) VALUES (%s, CURRENT_DATE, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (model, day) DO "
+            "UPDATE SET category = EXCLUDED.category, n = EXCLUDED.n, n_listings = EXCLUDED.n_listings, "
+            "median = EXCLUDED.median, q25 = EXCLUDED.q25, q75 = EXCLUDED.q75, confidence = EXCLUDED.confidence, "
+            "level = EXCLUDED.level, params = EXCLUDED.params, computed_at = now()",
+            [
+                (
+                    p.model,
+                    p.category,
+                    p.n,
+                    p.n_listings,
+                    p.median,
+                    p.q25,
+                    p.q75,
+                    p.confidence,
+                    p.level,
+                    Jsonb(p.params()),
+                )
+                for p in prices
+            ],
+        )
+
+
+def fair_price_on(conn: psycopg.Connection, day_offset: int) -> dict[str, tuple[int, str]]:
+    """{model: (median, level)} from the latest snapshot at least `day_offset` days old."""
+    rows = conn.execute(
+        "SELECT DISTINCT ON (model) model, median, level FROM fair_prices "
+        "WHERE day <= CURRENT_DATE - %s ORDER BY model, day DESC",
+        (day_offset,),
+    ).fetchall()
+    return {m: (median, lvl) for m, median, lvl in rows}
+
+
+def model_listings(conn: psycopg.Connection, model: str, limit: int) -> list[tuple]:
+    """Recent ads of one model: (id, price, price_kind, title, first_seen, gone_at, features, url)."""
+    return conn.execute(
+        "SELECT l.id, l.price_czk, l.price_kind, l.title, l.first_seen, l.gone_at, n.features, l.url "
+        "FROM listings l JOIN normalized n ON n.listing_id = l.id WHERE n.model = %s "
+        "ORDER BY l.first_seen DESC LIMIT %s",
+        (model, limit),
+    ).fetchall()
+
+
+def data_since(conn: psycopg.Connection) -> dict[str, object]:
+    """{section: first_seen of its oldest listing}: how long each section has been collected."""
+    return dict(conn.execute("SELECT section, min(first_seen) FROM listings GROUP BY 1").fetchall())
+
+
+# --- deals, triage, feedback ----------------------------------------------------------------------
+
+
+def active_priced(conn: psycopg.Connection, max_age_days: float) -> list[tuple]:
+    """Active matched ads with a price, first seen recently: (id, model, category, price, features)."""
+    return conn.execute(
+        "SELECT l.id, n.model, n.category, l.price_czk, n.features FROM listings l "
+        "JOIN normalized n ON n.listing_id = l.id WHERE l.gone_at IS NULL AND n.model IS NOT NULL "
+        "AND l.price_kind = 'fixed' AND l.price_czk > 0 AND l.first_seen > now() - make_interval(secs => %s)",
+        (max_age_days * 86400,),
+    ).fetchall()
+
+
+def upsert_candidate(
+    conn: psycopg.Connection,
+    listing_id: int,
+    model: str,
+    category: str,
+    price: int,
+    fair: int,
+    discount: float,
+    conf: float,
+) -> None:
+    """Record (or refresh the numbers of) a candidate deal. New ones start in state 'triage'."""
+    with conn.transaction():
+        conn.execute(
+            "INSERT INTO deals (listing_id, model, category, price, fair, discount, confidence, state) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, 'triage') ON CONFLICT (listing_id) DO UPDATE SET "
+            "model = EXCLUDED.model, price = EXCLUDED.price, fair = EXCLUDED.fair, discount = EXCLUDED.discount, "
+            "confidence = EXCLUDED.confidence, updated_at = now(), "
+            # a price drop on an ad we didn't push re-opens it (a re-score, no new LLM call)
+            "state = CASE WHEN deals.state IN ('low_score', 'would_alert') AND EXCLUDED.price < deals.price "
+            "THEN 'triage' ELSE deals.state END",
+            (listing_id, model, category, price, fair, discount, conf),
+        )
+
+
+def deals_in_state(conn: psycopg.Connection, *states: str) -> list[dict]:
+    cur = conn.execute(
+        "SELECT d.*, l.title, l.url, l.location, l.psc, l.seller, l.description, l.gone_at, l.first_seen, "
+        "n.features FROM deals d JOIN listings l ON l.id = d.listing_id "
+        "JOIN normalized n ON n.listing_id = d.listing_id WHERE d.state = ANY(%s) ORDER BY d.discount DESC",
+        (list(states),),
+    )
+    names = [c.name for c in cur.description]
+    return [dict(zip(names, row)) for row in cur.fetchall()]
+
+
+def update_deal(conn: psycopg.Connection, listing_id: int, **fields) -> None:
+    sets = ", ".join(f"{k} = %({k})s" for k in fields)
+    with conn.transaction():
+        conn.execute(
+            f"UPDATE deals SET {sets}, updated_at = now() WHERE listing_id = %(listing_id)s",
+            {**fields, "listing_id": listing_id},
+        )
+
+
+def recent_alerts(conn: psycopg.Connection, days: float) -> list[dict]:
+    cur = conn.execute(
+        "SELECT d.listing_id, d.model, d.price, d.alerted_at, l.title, l.seller FROM deals d "
+        "JOIN listings l ON l.id = d.listing_id WHERE d.alerted_at > now() - make_interval(secs => %s)",
+        (days * 86400,),
+    )
+    names = [c.name for c in cur.description]
+    return [dict(zip(names, row)) for row in cur.fetchall()]
+
+
+def alerts_since(conn: psycopg.Connection, since) -> int:
+    return conn.execute("SELECT count(*) FROM deals WHERE alerted_at >= %s", (since,)).fetchone()[0]
+
+
+def get_triage(conn: psycopg.Connection, listing_id: int, llm_model: str, prompt_version: int) -> dict | None:
+    cur = conn.execute(
+        "SELECT * FROM triage WHERE listing_id = %s AND llm_model = %s AND prompt_version = %s",
+        (listing_id, llm_model, prompt_version),
+    )
+    row = cur.fetchone()
+    return dict(zip([c.name for c in cur.description], row)) if row else None
+
+
+def queue_triage(conn: psycopg.Connection, listing_id: int, llm_model: str, prompt_version: int) -> None:
+    with conn.transaction():
+        conn.execute(
+            "INSERT INTO triage (listing_id, llm_model, prompt_version) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+            (listing_id, llm_model, prompt_version),
+        )
+
+
+def due_triage(conn: psycopg.Connection, llm_model: str, prompt_version: int, limit: int) -> list[int]:
+    rows = conn.execute(
+        "SELECT t.listing_id FROM triage t JOIN deals d ON d.listing_id = t.listing_id "
+        "WHERE t.status = 'pending' AND t.llm_model = %s AND t.prompt_version = %s AND t.next_try_at <= now() "
+        "ORDER BY d.discount * d.confidence DESC LIMIT %s",
+        (llm_model, prompt_version, limit),
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def save_triage(
+    conn: psycopg.Connection, listing_id: int, llm_model: str, prompt_version: int, **fields
+) -> None:
+    for key in ("result", "notes", "stats"):
+        if key in fields and fields[key] is not None:
+            fields[key] = Jsonb(fields[key])
+    sets = ", ".join(f"{k} = %({k})s" for k in fields)
+    with conn.transaction():
+        conn.execute(
+            f"UPDATE triage SET {sets}, updated_at = now() WHERE listing_id = %(id)s AND llm_model = %(m)s "
+            "AND prompt_version = %(v)s",
+            {**fields, "id": listing_id, "m": llm_model, "v": prompt_version},
+        )
+
+
+def save_feedback(conn: psycopg.Connection, rows: list[tuple[int, str, str, object]]) -> int:
+    """Insert (listing_id, vote, ntfy message id, voted_at) rows; already-seen ids are skipped."""
+    added = 0
+    with conn.transaction():
+        for row in rows:
+            cur = conn.execute(
+                "INSERT INTO feedback (listing_id, vote, source_id, voted_at) VALUES (%s, %s, %s, %s) "
+                "ON CONFLICT (source_id) DO NOTHING",
+                row,
+            )
+            added += cur.rowcount
+    return added
+
+
+def kv_get(conn: psycopg.Connection, key: str, default=None):
+    row = conn.execute("SELECT value FROM kv WHERE key = %s", (key,)).fetchone()
+    return row[0] if row else default
+
+
+def kv_set(conn: psycopg.Connection, key: str, value) -> None:
+    with conn.transaction():
+        conn.execute(
+            "INSERT INTO kv (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "
+            "updated_at = now()",
+            (key, Jsonb(value)),
+        )
+
+
+def week_summary(conn: psycopg.Connection) -> dict:
+    """Numbers for the weekly digest."""
+    out = {}
+    out["deals"] = dict(
+        conn.execute(
+            "SELECT state, count(*) FROM deals WHERE first_flagged > now() - interval '7 days' GROUP BY 1"
+        ).fetchall()
+    )
+    out["new_by_model"] = conn.execute(
+        "SELECT n.model, count(*) FROM listings l JOIN normalized n ON n.listing_id = l.id "
+        "WHERE n.model IS NOT NULL AND l.first_seen > now() - interval '7 days' GROUP BY 1 ORDER BY 2 DESC LIMIT 5"
+    ).fetchall()
+    out["new_listings"] = conn.execute(
+        "SELECT count(*) FROM listings WHERE first_seen > now() - interval '7 days'"
+    ).fetchone()[0]
+    out["votes"] = dict(
+        conn.execute(
+            "SELECT vote, count(*) FROM feedback WHERE received_at > now() - interval '7 days' GROUP BY 1"
+        ).fetchall()
+    )
+    return out
