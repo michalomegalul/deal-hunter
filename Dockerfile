@@ -19,5 +19,7 @@ COPY --from=build /app/.venv /app/.venv
 RUN useradd --create-home hunter
 USER hunter
 WORKDIR /home/hunter
+# The worker's LLM answer cache. A named volume mounted here starts out owned by `hunter`.
+RUN mkdir -p /home/hunter/data/llm_cache
 ENTRYPOINT ["hunt"]
 CMD ["--help"]

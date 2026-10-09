@@ -1,5 +1,6 @@
 # Production stack on the homelab (CT 121, /opt/deal-hunter). Deployed by deploy.sh.
-# Secrets come from /opt/deal-hunter/.env (never committed): POSTGRES_PASSWORD=...
+# Secrets come from /opt/deal-hunter/.env (never committed): POSTGRES_PASSWORD, NTFY_TOKEN,
+# NTFY_FEEDBACK_TOKEN, plus settings such as HUNTER_ALERTS_ENABLED (see .env.example).
 name: deal-hunter
 
 services:
@@ -43,5 +44,20 @@ services:
     restart: unless-stopped
     profiles: []
 
+  # Every 5 minutes: fair prices, candidate deals, LLM triage (Ollama on CT 100), scoring, ntfy pushes,
+  # 👍/👎 feedback and the Sunday digest. The LLM answer cache lives in the hunterdata volume.
+  worker:
+    <<: *hunter
+    command: ["work", "--loop"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://hunter:${POSTGRES_PASSWORD}@db:5432/hunter
+      HUNTER_LLM_CACHE: /home/hunter/data/llm_cache
+    volumes:
+      - hunterdata:/home/hunter/data
+    mem_limit: 256m
+    profiles: []
+
 volumes:
   pgdata:
+  hunterdata:
