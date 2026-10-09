@@ -1,0 +1,302 @@
+# Real Bazoš GPU ad titles (pc.bazos.cz/graficka, collected 2026-10-09) with the normalizer's
+# expected output, hand-checked. model/vram missing = unknown; excluded = reason the ad is skipped;
+# neither = unmatched (shows up in `hunt review`). Used by tests/test_normalize.py.
+- {title: 'Nová GAINWARD GeForce RTX 5070 Python III - Pečetěno, záruka', model: rtx 5070, vram: 12}
+- {title: GAINWARD GeForce RTX 5060 Ghost 8GB (Záruka Alza do 03/2029), model: rtx 5060, vram: 8}
+- {title: PRODÁM RTX 4090 24GB, model: rtx 4090, vram: 24}
+- {title: Prodám RTX 5070 gigabyte windforce oc sff 12gb, model: rtx 5070, vram: 12}
+- {title: NOVÁ - MSI GeForce RTX 5060 Ti 8G GAMING TRIO OC, model: rtx 5060 ti, vram: 8}
+- {title: GIGABYTE Geforce RTX 2070 SUPER OC 3X 8G, model: rtx 2070 super, vram: 8}
+- {title: Nvidia RTX 3080 ti Gigabyte, model: rtx 3080 ti, vram: 12}
+- {title: 'RTX 5070 Asus Dual OC, jako nová', model: rtx 5070, vram: 12}
+- {title: 'Zotac GTX 1070 AMP Extreme 8GB, funkcni', model: gtx 1070, vram: 8}
+- {title: SAPPHIRE PULSE Radeon RX 6600 8GB, model: rx 6600, vram: 8}
+- {title: RETRO HW / ATI Radeon 9250 / 128MB / AGP, excluded: out_of_scope}
+- {title: GIGABYTE GeForce 9500 GT / 512MB / PCI-E, excluded: out_of_scope}
+- {title: MSI GeForce 7300GS / 256MB / PCI-E, excluded: out_of_scope}
+- {title: Prodám herní GPU MSI Radeon RX 570 ARMOR 8G OC, excluded: out_of_scope}
+- {title: Podpěra GPU Zalman, excluded: accessory}
+- {title: GRAFIKA 3KS, excluded: multiple_gpus}
+- {title: ASUS}
+- {title: NVIDIA Quadro P4000, excluded: out_of_scope}
+- {title: ASUS ROG Strix GeForce RTX 4070 SUPER OC 12 GB, model: rtx 4070 super, vram: 12}
+- {title: Rx 5500 xt, model: rx 5500 xt}
+- {title: Asus Radeon EAH2400ORO/HTP/256M, excluded: out_of_scope}
+- {title: RTX3070, model: rtx 3070, vram: 8}
+- {title: GPU GTX 1070 8GB, model: gtx 1070, vram: 8}
+- {title: Gigabyte rtx 3070, model: rtx 3070, vram: 8}
+- {title: SAPPHIRE PULSE RX 7800 XT GAMING 16GB - Záruka 3 Roky Alza, model: rx 7800 xt, vram: 16}
+- {title: 'PALiT GeForce RTX 4070 Ti GameRock, 12GB GDDR6X', model: rtx 4070 ti, vram: 12}
+- {title: Grafická karta MSI GTX 1070 Ti Armor 8GB – na opravu / ND, model: gtx 1070 ti, vram: 8}
+- {title: RTX 3070, model: rtx 3070, vram: 8}
+- {title: ASUS grafická karta HD 5450 LP, excluded: out_of_scope}
+- {title: Prodám Gtx 1080 Oc Asus Strix.., model: gtx 1080, vram: 8}
+- {title: MSI GEFORCE GTX 1080Ti, model: gtx 1080 ti, vram: 11}
+- {title: Asus GeForce GTX 960 4GB, excluded: out_of_scope}
+- {title: GeForce 2gb GTX 750 Ti, excluded: out_of_scope}
+- {title: GIGABYTE GeForce RTX 5050 OC Low Profile 8G, model: rtx 5050, vram: 8}
+- {title: Gainward RTX 4060 Python II 8GB, model: rtx 4060, vram: 8}
+- {title: NVIDIA ASUS TURBO GeForce GTX 970 OC 4GB, excluded: out_of_scope}
+- {title: nVidia Quadro FX1800, excluded: out_of_scope}
+- {title: GAINWARD GeForce GTX 1660 Super 6G GHOST OC, model: gtx 1660 super, vram: 6}
+- {title: 'MSI GeForce GTX 1050 Ti 4GT LP (4GB GDDR5, Low Profile)', model: gtx 1050 ti, vram: 4}
+- {title: 'GPU: NVIDIA RTX 2070 Super MSI Gaming X Trio 8gb', model: rtx 2070 super, vram: 8}
+- {title: GIGABYTE GeForce RTX 4090 GAMING OC 24G v záruce, model: rtx 4090, vram: 24}
+- {title: Gainward GeForce GTX 1650 Pegasus 4GB GDDR6, model: gtx 1650, vram: 4}
+- {title: AMD Radeon HD 4570, excluded: out_of_scope}
+- {title: Rx 6750xt, model: rx 6750 xt, vram: 12}
+- {title: 2ks - HP NVIDIA GeForce GT630 - 2GB, excluded: multiple_gpus}
+- {title: Inno3D RTX 4070 SUPER X3 OC, model: rtx 4070 super, vram: 12}
+- {title: GeForce GTX 1080 Ti Founders Edition + Accelero Xtreme III, model: gtx 1080 ti, vram: 11}
+- {title: Gtx 1080 Asus Turbo, model: gtx 1080, vram: 8}
+- {title: ASUS ROG Strix RTX 3080 10GB – kompletní balení, model: rtx 3080, vram: 10}
+- {title: Asus Radeon R7 240 2GB, excluded: out_of_scope}
+- {title: GIGABYTE GeForce RTX 5060 WINDFORCE OC 8G, model: rtx 5060, vram: 8}
+- {title: GPU ASUS PH GTX 1050TI 4GB GDDR5, model: gtx 1050 ti, vram: 4}
+- {title: Palit ge force rtx 2060super, model: rtx 2060 super, vram: 8}
+- {title: MSI Geforce GTX 1060 Gaming X 6GB, model: gtx 1060, vram: 6}
+- {title: Asus Rog Strix RTX 3080, model: rtx 3080}
+- {title: GRAFICKU NVIDIA GeForce-POKUD CHCETE LEVNOU A VÝKONNOU}
+- {title: Vertical Gpu Mount, excluded: accessory}
+- {title: MSI GeForce GTX 1070 Ti ARMOR 8G – 8 GB, model: gtx 1070 ti, vram: 8}
+- {title: Prodám RX 9070xt ASRock Taichi, model: rx 9070 xt, vram: 16}
+- {title: ❰ Grafická karta | Sappire Nitro R7 370 4GB ❱, excluded: out_of_scope}
+- {title: ❰ Grafická karta | MSI GamingX Geforce GTX 960 4GB ❱, excluded: out_of_scope}
+- {title: nVidia GeForce GTX 770 2GB, excluded: out_of_scope}
+- {title: PCIe riser redukce pro GPU, excluded: accessory}
+- {title: MSI GeForce RTX 5090 32G SUPRIM SOC, model: rtx 5090, vram: 32}
+- {title: ASUS STRIX GTX 1080 Ti, model: gtx 1080 ti, vram: 11}
+- {title: nVidia T2000 4GB pro Dell Precision 7550, excluded: out_of_scope}
+- {title: grafická karta ATI Radeon HD-3650 Silent, excluded: out_of_scope}
+- {title: SAPPHIRE NITRO+ Radeon RX 580 8GB – Legenda pro 1080p gaming, excluded: out_of_scope}
+- {title: 'TREZOR T, hardwarová peněženka, trezor'}
+- {title: prodám 2× grafické karty, excluded: multiple_gpus}
+- {title: SAPPHIRE Radeon RX570 8gb, excluded: out_of_scope}
+- {title: Sapphire NITRO Radeon R9 380X 4GB, excluded: out_of_scope}
+- {title: Zotac P106-090 3GB (GTX 1060), excluded: mining}
+- {title: EKWB vodní blok EK-FC1080 GTX Ti Aorus, excluded: accessory}
+- {title: Palit GeForce GTX 1060 JetStream 6GB, model: gtx 1060, vram: 6}
+- {title: Gigabyte GeForce GTX 1070 Ti G1 Gaming, model: gtx 1070 ti, vram: 8}
+- {title: MSI GeForce GTX 1080Ti Gaming X 11GB, model: gtx 1080 ti, vram: 11}
+- {title: Grafické karty}
+- {title: Rtx 3080 - grafika - geforce, model: rtx 3080}
+- {title: Msi gtx 770, excluded: out_of_scope}
+- {title: MSI GeForce GTX 1050 Ti GAMING X 4G, model: gtx 1050 ti, vram: 4}
+- {title: MSI GeForce GTX 1650 D6 VENTUS XS OC 4GB GDDR6, model: gtx 1650, vram: 4}
+- {title: AMD Radeon PRO WX 3200, excluded: out_of_scope}
+- {title: Gigabyte Radeon RX 9060 XT GAMING OC 16GB, model: rx 9060 xt, vram: 16}
+- {title: 'Prodám: Grafickou kartu - RX 580 8GB', excluded: out_of_scope}
+- {title: Grafická karta HP NVIDIA GeForce GT 730 2GB GDDR5, excluded: out_of_scope}
+- {title: Gigabyte GeForce GTX 970 Mini OC, excluded: out_of_scope}
+- {title: Nvidia}
+- {title: AMD}
+- {title: 'ZOTAC GeForce RTX 3090 Trinity OC 24 GB – NOVÁ, NEROZBALENÁ', model: rtx 3090, vram: 24}
+- {title: Grafická karta AMD Radeon RX 570 8GB XFX, excluded: out_of_scope}
+- {title: Grafická karta nvidia gtx 1060 3gb, model: gtx 1060, vram: 3}
+- {title: KOUPIM intel arc b580, excluded: wanted}
+- {title: nVIDIA Quadro K2200 4 GB, excluded: out_of_scope}
+- {title: 'Koupím staré grafické karty AGP, ISA, PCI do sbírky', excluded: wanted}
+- {title: GK Gigabyte GV-N730 SL-2GL, excluded: out_of_scope}
+- {title: INNO3D GeForce RTX 3080 10 GB GDDR6X – záruka 12M, model: rtx 3080, vram: 10}
+- {title: Grafická karta Gigabyte AMD Radeon HD 6850 Ultra Durable OC, excluded: out_of_scope}
+- {title: ASUS ROG Strix RTX 3080 OC 10GB GUNDAM Edition, model: rtx 3080, vram: 10}
+- {title: Nvidia RTX 5060 nvidia Gainward Ghost, model: rtx 5060, vram: 8}
+- {title: Grafická karta Sapphire Nitro+ RX 470 4Gb, excluded: out_of_scope}
+- {title: 'ATI Radeon 256MB PCI-E Video Card, 109-B62941-00, 102B629020', excluded: out_of_scope}
+- {title: Grafická karta rx 470 8 giga vram, excluded: out_of_scope}
+- {title: AMD Radeon RX 5500 XT 8Gb NA OPRAVU, model: rx 5500 xt, vram: 8}
+- {title: Ati 3D RAGE II, excluded: out_of_scope}
+- {title: GIGABYTE GTX 1050Ti G1 4GB GDDR5 - TOP STAV, model: gtx 1050 ti, vram: 4}
+- {title: ASUS RTX 5060 8G OC, model: rtx 5060, vram: 8}
+- {title: ATI Radeon HD 4580 512MB, excluded: out_of_scope}
+- {title: Grafická karta MSI Geforce GTX N760 TF 2GD5/OC s redukcí, excluded: out_of_scope}
+- {title: ASUS STRIX GTX 1050Ti 4GB, model: gtx 1050 ti, vram: 4}
+- {title: XFX Swift AMD Radeon RX 9060 XT OC White 16G Triple Fan, model: rx 9060 xt, vram: 16}
+- {title: Sapphire Radeon Pulse RX580 4G GDDR5, excluded: out_of_scope}
+- {title: 'Sapphire Nitro+ Radeon RX580, 4GB', excluded: out_of_scope}
+- {title: NVIDIA GeForce RTX 3060 12GB, model: rtx 3060, vram: 12}
+- {title: ENGT520, excluded: out_of_scope}
+- {title: GTX650-DC-1GD5, excluded: out_of_scope}
+- {title: Grafická karta GTX 560SE, excluded: out_of_scope}
+- {title: Nvidia Quadro P1000, excluded: out_of_scope}
+- {title: Gigabyte GV-N56GOC-1GI, excluded: out_of_scope}
+- {title: GIGABYTE WINDFORCE GTX 750Ti 2GB GDR5, excluded: out_of_scope}
+- {title: 'Nvidia Geforce Quadro 2000M 2GB, 0PMY8Y, N12P-Q3-A1', excluded: out_of_scope}
+- {title: 'Gygabite GV-N 650, 2GB', excluded: out_of_scope}
+- {title: 'Graficka karta GTX 745 4GB GDDR3, plně funkční', excluded: out_of_scope}
+- {title: RX580 8GB PowerColor Red Devil, excluded: out_of_scope}
+- {title: SAPPHIRE NITRO+ RX 580 8GB, excluded: out_of_scope}
+- {title: Grafická Karta Sapphire NITRO+ Radeon RX 570, excluded: out_of_scope}
+- {title: SAPPHIRE NITRO+ RX 7900 XTX, model: rx 7900 xtx, vram: 24}
+- {title: Grafická karta MSI RTX 3060 Ti 8GB, model: rtx 3060 ti, vram: 8}
+- {title: NVIDIA Quadro 2000 - 1GB GDDR5 - funkční, excluded: out_of_scope}
+- {title: HP NVIDIA Quadro K4000 - 3GB GDDR5 - funkční, excluded: out_of_scope}
+- {title: 1070ti asus 8GB, model: gtx 1070 ti, vram: 8}
+- {title: Grafická karta Ati Radeon HD 3600 512 Mb, excluded: out_of_scope}
+- {title: Palit GTX 1660 Super, model: gtx 1660 super, vram: 6}
+- {title: MSI GTX 1080 Ti Gaming X 11G, model: gtx 1080 ti, vram: 11}
+- {title: Geforce rtx 3060, model: rtx 3060}
+- {title: MSI Radeon RX 6650 XT GAMING X 8G, model: rx 6650 xt, vram: 8}
+- {title: ASUS ProArt RTX 4080 Super 16GB OC Edition, model: rtx 4080 super, vram: 16}
+- {title: 'GeForce RTX 4070 Ti SUPER 16GB – 2K hraní, bezvadný stav', model: rtx 4070 ti super, vram: 16}
+- {title: Intel Arc B580 12GB Limited Edition, model: arc b580, vram: 12}
+- {title: Grafická karta ASUS GTX-1660 Ti, model: gtx 1660 ti, vram: 6}
+- {title: Grafická karta Sapphire Radeon R7 240 1GB GDDR5, excluded: out_of_scope}
+- {title: AMD Radeon.6600 RX 8gb, model: rx 6600, vram: 8}
+- {title: RADEON RX570 8GB OC, excluded: out_of_scope}
+- {title: SAPPHIRE NITRO R7 370 4GB GDDR5, excluded: out_of_scope}
+- {title: Rx 5700 XT msi gaming x, model: rx 5700 xt, vram: 8}
+- {title: 'Sapphire PULSE Radeon RX 7700 XT, 12 GB, GDDR6, 192 bit', model: rx 7700 xt, vram: 12}
+- {title: MSI GeForce GTX 750Ti 2 GB GDDR5, excluded: out_of_scope}
+- {title: Predám Grafické karty}
+- {title: GIGABYTE GeForce RTX 4070 WINDFORCE OC 12G Používaná řádově, model: rtx 4070, vram: 12}
+- {title: Sapphire PULSE RX 5600 XT 6GB, model: rx 5600 xt, vram: 6}
+- {title: 'Retro grafická karta Trident TVGA9000B (16-bit ISA, 512 KB)'}
+- {title: GIGABYTE Radeon RX 7900 XTX GAMING OC 24G, model: rx 7900 xtx, vram: 24}
+- {title: Herní pc, excluded: bundle}
+- {title: 'ASUS GeForce GTX 1060 DUAL O6G, 6GB GDDR5', model: gtx 1060, vram: 6}
+- {title: Nvidia T400 4GB GDDR6 420 MHz 10 Gbps 64 bit 3840 x 2160 @ 1, excluded: out_of_scope}
+- {title: 'VODNI OKRUH , EXPANZKA, CERPADLO, RADIATOR, Eheim ATD.', excluded: accessory}
+- {title: Gigabyte GTX 970 G1 Gaming 4GB, excluded: out_of_scope}
+- {title: GIGABYTE GV- N610SL-1GI, excluded: out_of_scope}
+- {title: MSI GeForce RTX 5050 8G VENTUS 2X OC, model: rtx 5050, vram: 8}
+- {title: Gigabyte GTX 1660 6GB DDR5, model: gtx 1660, vram: 6}
+- {title: AMD ATI Radeon HD 8490 1GB, excluded: out_of_scope}
+- {title: MSI GeForce GTX 1660 Ti VENTUS XS 6G OC, model: gtx 1660 ti, vram: 6}
+- {title: VCNRTX A4000-SB, excluded: out_of_scope}
+- {title: gigabyte rtx 2080 super windforce, model: rtx 2080 super, vram: 8}
+- {title: MSI GeForce GTX 1080 Ti GAMING X 11GB – Čerstvě přepastovaná, model: gtx 1080 ti, vram: 11}
+- {title: Grafická karta GIGABYTE GT 1030 OC 2G (GDDR5), model: gt 1030, vram: 2}
+- {title: Herní RGB PC AM4 – 5600 / RTX 3070 / 1000 W Gold - záruka, excluded: bundle}
+- {title: GeForce RTX 3050 8GB, model: rtx 3050, vram: 8}
+- {title: 'MSI GeForce RTX 5090 32G GAMING TRIO OC / 32GB GDDR7, NOVÁ', model: rtx 5090, vram: 32}
+- {title: Grafická karta MSI GeForce GTX 1080 Ti ARMOR 11G OC 11 GB, model: gtx 1080 ti, vram: 11}
+- {title: Sapphire radeon rx 560 4gb, excluded: out_of_scope}
+- {title: MSI GeForce RTX 3070 SUPRIM 8G – TOP STAV, model: rtx 3070, vram: 8}
+- {title: GeForce RTX 3060 VENTUS 2X 12G OC, model: rtx 3060, vram: 12}
+- {title: Grafická karta Nvidia Geforce GTX 970 na 4 gb, excluded: out_of_scope}
+- {title: nVidia RTX 6000 PRO Max-Q 96 GB, excluded: out_of_scope}
+- {title: NVIDIA Quadro 600 1GB DDR3 DVI, excluded: out_of_scope}
+- {title: Grafické karty AGP.}
+- {title: Grafická karta do notebooku Ati Firepro M4000, excluded: laptop}
+- {title: RTX 2060, model: rtx 2060}
+- {title: PowerColor Red Devil AMD Radeon RX 6900 XT 16GB, model: rx 6900 xt, vram: 16}
+- {title: Sapphire Radeon R9 270X Dual-X 2GB GDDR5, excluded: out_of_scope}
+- {title: RTX 3080 PHOENIX 10GB GDDR6X PLATÍ DO SMAZÁNÍ, model: rtx 3080, vram: 10}
+- {title: Grafická karta NVIDIA NVS 300 512MB (pasivní) + redukce na 2, excluded: out_of_scope}
+- {title: GIGABYTE GeForce RTX 5090 GAMING OC 32G, model: rtx 5090, vram: 32}
+- {title: Prodám Sapphire hd 6670 1gb ddr5, excluded: out_of_scope}
+- {title: Asus ROG STRIX GTX 1650 SUPER, model: gtx 1650 super, vram: 4}
+- {title: ISA Grafická Karta - Cirrus Logic VGA542XVL/H}
+- {title: 'VGA ATI Sapphire R9 280 BOOST 3GB DDR5, PCI-E', excluded: out_of_scope}
+- {title: Grafické karty PCI-Express. Inzerát byl odebran z oblíbených}
+- {title: GIGABYTE GT 640 Ultra Durable 2 2GB GV-N640D5-2GI, excluded: out_of_scope}
+- {title: MSI RTX 2060 6GB, model: rtx 2060, vram: 6}
+- {title: GeForce GTX 1050 Ti GAMING X 4G, model: gtx 1050 ti, vram: 4}
+- {title: Herní Grafika Gigabyte Radeon RX 580 Gaming 4G, excluded: out_of_scope}
+- {title: Koupím RTX 5070ti, excluded: wanted}
+- {title: 128x Disk HDD 2.5 3.5 SAS 2TB a 4TB HGST 12GBs}
+- {title: Geforce Gigabyte gtx 1660ti  3x fan., model: gtx 1660 ti, vram: 6}
+- {title: 'ASRock Radeon RX 9060 XT Challenger 16GB OC – Zcela nová, ne', model: rx 9060 xt, vram: 16}
+- {title: MSI GeForce GTX 760 Gaming Twin, excluded: out_of_scope}
+- {title: Msi Gtx 1060 gaming x 6g, model: gtx 1060, vram: 6}
+- {title: GTX 1080Ti MSI Gaming X 11GB, model: gtx 1080 ti, vram: 11}
+- {title: EVGA 3080 Ti 12 GB Komplet, model: rtx 3080 ti, vram: 12}
+- {title: MSI GeForce GTX 1050 Ti 4GT OC (4GB GDDR5), model: gtx 1050 ti, vram: 4}
+- {title: EVGA GeForce RTX 3080 FTW3 ULTRA GAMING 10GB GDDR6X, model: rtx 3080, vram: 10}
+- {title: Riser SU-103E High power, excluded: accessory}
+- {title: ATI Rage 128 Pro 32MB AGP - 1025-B4020, excluded: out_of_scope}
+- {title: MSI GeForce RTX 5070 12G VENTUS 2X OC, model: rtx 5070, vram: 12}
+- {title: NVidia Quadro K600, excluded: out_of_scope}
+- {title: Gtx 1050 ti, model: gtx 1050 ti, vram: 4}
+- {title: GIGABYTE RTX 4070 WINDFORCE OC 12GB, model: rtx 4070, vram: 12}
+- {title: prodám Gigabyte 5060 TI 16GB AERO OC, model: rtx 5060 ti, vram: 16}
+- {title: Sapphire PULSE RX 580 4 GB, excluded: out_of_scope}
+- {title: Asus ROG Strix Riser Cable, excluded: accessory}
+- {title: RX 570, excluded: out_of_scope}
+- {title: RX 590, excluded: out_of_scope}
+- {title: RX 7900 XT 20GB | 4K ULTRA, model: rx 7900 xt, vram: 20}
+- {title: SAPPHIRE PULSE Radeon RX 6500 XT GAMING OC 4GB, model: rx 6500 xt, vram: 4}
+- {title: ASUS TUF GAMING GeForce RTX 4070 Ti 12GB OC, model: rtx 4070 ti, vram: 12}
+- {title: MSI GeForce RTX 4060 GAMING X 8G, model: rtx 4060, vram: 8}
+- {title: AMD FirePro V4900, excluded: out_of_scope}
+- {title: GIGABYTE AORUS RTX 3080 GAMING BOX 10GB, excluded: bundle}
+- {title: Grafická karta AMD ATI Radeon HD 5759 1GB Pasivní chlazení, excluded: out_of_scope}
+- {title: Grafická karta ZOTAC GEFORCE GTX 1080 8GB, model: gtx 1080, vram: 8}
+- {title: GeForce GTX 275, excluded: out_of_scope}
+- {title: Sapphire Atlantis ATI Radeon X1600 Pro 256MB, excluded: out_of_scope}
+- {title: Gainward GTX 750 SilentFX, excluded: out_of_scope}
+- {title: GeForce® RTX 2080 SUPER™ GAMING OC 8G Prodáno, model: rtx 2080 super, vram: 8}
+- {title: Sběratelské karty 8400 GS a 5450, excluded: out_of_scope}
+- {title: Quadro k5000, excluded: out_of_scope}
+- {title: Gigabyte 1070 g1 gaming 8gb, model: gtx 1070, vram: 8}
+- {title: Radeon pro w5700 8gb, excluded: out_of_scope}
+- {title: Nvidia quadro m2000, excluded: out_of_scope}
+- {title: 2x Gainward GTX 1650 Pegasus OC GDDR6, excluded: multiple_gpus}
+- {title: Quadro rtx 4000, excluded: out_of_scope}
+- {title: 2x msi radeon armor rx580 8gb, excluded: multiple_gpus}
+- {title: Asus gtx 1070 poškozené pcb, model: gtx 1070, vram: 8}
+- {title: XFX Radeon RX 6800 16GB Speedster SWFT319 GPU - ARTEFAKTY, model: rx 6800, vram: 16}
+- {title: Radeon rx570 4gb, excluded: out_of_scope}
+- {title: Radeon rx vega 56 po opravě, excluded: out_of_scope}
+- {title: GeForce® GTX 1060 WINDFORCE OC 6G, model: gtx 1060, vram: 6}
+- {title: Gigabyte AMD Radeon RX 6900XT Gaming OC 16GB, model: rx 6900 xt, vram: 16}
+- {title: GIGABYTE GeForce RTX 3070 GAMING OC 8G, model: rtx 3070, vram: 8}
+- {title: MSI GTX 1060 6GB v záruce, model: gtx 1060, vram: 6}
+- {title: MSI GeForce RTX 4080 16GB GAMING X SLIM WHITE, model: rtx 4080, vram: 16}
+- {title: RTX 3070 MSI SUPRIM X (Nejlepší verze RTX3070), model: rtx 3070, vram: 8}
+- {title: Nvidia RTX 5070 12GB., model: rtx 5070, vram: 12}
+- {title: Gigabyte Geforce RTX 4060 Eagle OC 8GB, model: rtx 4060, vram: 8}
+- {title: Do Zbírky}
+- {title: Grafická karta ASUS GEFORCE RTX 3070 DUAL 8G, model: rtx 3070, vram: 8}
+- {title: Grafická karta PALIT GAMINGPRO GEFORCE RTX 3070 8G, model: rtx 3070, vram: 8}
+- {title: Grafická karta - XFX RX 6800, model: rx 6800, vram: 16}
+- {title: XFX Radeon RX580 8GB OC+, excluded: out_of_scope}
+- {title: GIGABYTE RX VEGA 64 GAMING OC 8G, excluded: out_of_scope}
+- {title: 'PALIT GeForce GTX 1060 Dual, 6GB GDDR5 (192 Bit)', model: gtx 1060, vram: 6}
+- {title: RTX 3080, model: rtx 3080}
+- {title: MSI Radeon RX 6800 GAMING X TRIO 16G, model: rx 6800, vram: 16}
+- {title: MSI GeForce RTX 2060, model: rtx 2060}
+- {title: Radeon RX 580 8gb, excluded: out_of_scope}
+- {title: Prodám zánovni RTX 3090 24 GB MSI GAMING X TRIO, model: rtx 3090, vram: 24}
+- {title: Grafické karty do PCI-E 4 ks, excluded: multiple_gpus}
+- {title: Grafické karty do AGP 3 ks, excluded: multiple_gpus}
+- {title: Grafická karta Sapphire Nitro+ RX580 8GB, excluded: out_of_scope}
+- {title: Grafická karta MSI Geforce GTX 760 2GB, excluded: out_of_scope}
+- {title: Gtx 1660, model: gtx 1660, vram: 6}
+- {title: Asus ROG Nvidia GeForce GTX 1660 Ti 6GB GDDR6, model: gtx 1660 ti, vram: 6}
+- {title: ❰ Grafická karta | Sappire Nitro R9 380 4GB ❱, excluded: out_of_scope}
+- {title: RX 9070 XT 16GB NITRO+ CRIMSON DESERT ZÁRUKA, model: rx 9070 xt, vram: 16}
+- {title: Sapphire Radeon PULSE RX580 4 GB OC, excluded: out_of_scope}
+- {title: Grafická karta GAINWARD GeForce RTX 4070 Ti Phantom 12G, model: rtx 4070 ti, vram: 12}
+- {title: AMD Radeon RX 5700 XT 8gb, model: rx 5700 xt, vram: 8}
+- {title: Nvidia P4000 8Gb, excluded: out_of_scope}
+- {title: MSI Radeon RX 470 Gaming X 4G, excluded: out_of_scope}
+- {title: NVIDIA GeForce GT 730 2GB GDDR5 4x HDMI nová nerozbalená, excluded: out_of_scope}
+- {title: MSI GeForce GTX 1660 ARMOR 6G, model: gtx 1660, vram: 6}
+- {title: GIGABYTE GeForce RTX 5080 WINDFORCE OC SFF 16G, model: rtx 5080, vram: 16}
+- {title: 'Nová Zotac Gaming GeForce RTX 5070 Twin Edge OC, 12 GB', model: rtx 5070, vram: 12}
+- {title: Gt 1030 2gb, model: gt 1030, vram: 2}
+- {title: Levná GPU NVIDIA GeForce GTX 1060 6GB, model: gtx 1060, vram: 6}
+- {title: GPU + CPU pro levný PC, excluded: bundle}
+- {title: Grafická karta ZOTAC ZT-95TEK2P-FSL 1GB}
+- {title: 'PRODÁM: Gigabyte Radeon RX 9060 XT GAMING OC 16GB', model: rx 9060 xt, vram: 16}
+- {title: Gainward Phoenix GS RTX 2080, model: rtx 2080, vram: 8}
+- {title: ASRock Radeon RX 9070 XT Taichi 16G OC, model: rx 9070 xt, vram: 16}
+- {title: MXM GRAFICKÁ KARTA  AMD Radeon HD 6770M, excluded: out_of_scope}
+- {title: MXM GRAFICKÁ KARTA AMD Radeon HD 6450M EXIGE2, excluded: out_of_scope}
+- {title: Koupím - Intel Arc a310, excluded: wanted}
+- {title: MSI Radeon RX 6650 XT MECH 2X 8G OC, model: rx 6650 xt, vram: 8}
+- {title: RTX 5090 AORUS MASTER, model: rtx 5090, vram: 32}
+- {title: Prémiová herní - ASUS ROG Strix GeForce RTX 3080 12GB, model: rtx 3080, vram: 12}
+- {title: Grafická karta MSI N9500GT 512 MB, excluded: out_of_scope}
+- {title: Prodám/vyměním ROG Strix GeForce RTX 4090, model: rtx 4090, vram: 24}
+- {title: MSI RTX 1660 Super Gaming X, model: gtx 1660 super, vram: 6}
+- {title: MSI RTX 5060 8G SHADOW 2X OC, model: rtx 5060, vram: 8}
+- {title: MSI GeForce RTX 5080 VENTUS 3X PLUS/OC/16GB, model: rtx 5080, vram: 16}
+- {title: Nvidia Quadro Tesla K40c 12GB rezervace, excluded: out_of_scope}
+- {title: MSI GeForce RTX 5080 16G VENTUS 3X OC WHITE, model: rtx 5080, vram: 16}
+- {title: PRODÁM LEVNĚ VÝKONNOU GRAFICKOU NVIDIA GeForce Ti}
+- {title: Prodám MSI GeForce GTX 1070 Ti ARMOR 8G, model: gtx 1070 ti, vram: 8}
+- {title: RX 6700 XT, model: rx 6700 xt, vram: 12}
+- {title: grafickou kartu Ge FORCE GTX - velmi výkonnou Ti}

@@ -1,0 +1,137 @@
+# Canonical GPU models for the normalizer (src/deal_hunter/normalize.py).
+#
+# A model is found by its number plus an optional suffix ("3060 ti", "6700 xt", "a770"), after the
+# title has been normalized: lower case, letters and digits split apart ("rtx3080ti" -> "rtx 3080 ti"),
+# aliases applied. `vram` lists the memory sizes the model was sold with; when there is more than
+# one, the title has to name the size (e.g. "12GB") or vram_gb stays empty.
+#
+# Bump `version` whenever the rules change, so `hunt normalize` re-processes old listings.
+version: 1
+
+# Applied (as regexes, on the normalized title) before matching.
+aliases:
+  '\b(\d{4}) ?s\b': '\1 super'          # 1660s, 2070s, 4070s
+  '\b(\d{4}) ?ti ?s\b': '\1 ti super'   # 4070tis
+
+nvidia:
+  # GTX 10
+  - {model: gtx 1050, vram: [2, 3]}
+  - {model: gtx 1050 ti, vram: [4]}
+  - {model: gt 1030, vram: [2]}
+  - {model: gtx 1060, vram: [3, 5, 6]}
+  - {model: gtx 1070, vram: [8]}
+  - {model: gtx 1070 ti, vram: [8]}
+  - {model: gtx 1080, vram: [8]}
+  - {model: gtx 1080 ti, vram: [11]}
+  # GTX 16
+  - {model: gtx 1630, vram: [4]}
+  - {model: gtx 1650, vram: [4]}
+  - {model: gtx 1650 super, vram: [4]}
+  - {model: gtx 1660, vram: [6]}
+  - {model: gtx 1660 super, vram: [6]}
+  - {model: gtx 1660 ti, vram: [6]}
+  # RTX 20
+  - {model: rtx 2060, vram: [6, 12]}
+  - {model: rtx 2060 super, vram: [8]}
+  - {model: rtx 2070, vram: [8]}
+  - {model: rtx 2070 super, vram: [8]}
+  - {model: rtx 2080, vram: [8]}
+  - {model: rtx 2080 super, vram: [8]}
+  - {model: rtx 2080 ti, vram: [11]}
+  # RTX 30
+  - {model: rtx 3050, vram: [6, 8]}
+  - {model: rtx 3060, vram: [8, 12]}
+  - {model: rtx 3060 ti, vram: [8]}
+  - {model: rtx 3070, vram: [8]}
+  - {model: rtx 3070 ti, vram: [8]}
+  - {model: rtx 3080, vram: [10, 12]}
+  - {model: rtx 3080 ti, vram: [12]}
+  - {model: rtx 3090, vram: [24]}
+  - {model: rtx 3090 ti, vram: [24]}
+  # RTX 40
+  - {model: rtx 4060, vram: [8]}
+  - {model: rtx 4060 ti, vram: [8, 16]}
+  - {model: rtx 4070, vram: [12]}
+  - {model: rtx 4070 super, vram: [12]}
+  - {model: rtx 4070 ti, vram: [12]}
+  - {model: rtx 4070 ti super, vram: [16]}
+  - {model: rtx 4080, vram: [16]}
+  - {model: rtx 4080 super, vram: [16]}
+  - {model: rtx 4090, vram: [24]}
+  # RTX 50
+  - {model: rtx 5050, vram: [8]}
+  - {model: rtx 5060, vram: [8]}
+  - {model: rtx 5060 ti, vram: [8, 16]}
+  - {model: rtx 5070, vram: [12]}
+  - {model: rtx 5070 ti, vram: [16]}
+  - {model: rtx 5080, vram: [16]}
+  - {model: rtx 5090, vram: [32]}
+
+amd:
+  # RX 5000
+  - {model: rx 5500 xt, vram: [4, 8]}
+  - {model: rx 5600 xt, vram: [6]}
+  - {model: rx 5700, vram: [8]}
+  - {model: rx 5700 xt, vram: [8]}
+  # RX 6000
+  - {model: rx 6400, vram: [4]}
+  - {model: rx 6500 xt, vram: [4, 8]}
+  - {model: rx 6600, vram: [8]}
+  - {model: rx 6600 xt, vram: [8]}
+  - {model: rx 6650 xt, vram: [8]}
+  - {model: rx 6700, vram: [10]}
+  - {model: rx 6700 xt, vram: [12]}
+  - {model: rx 6750 xt, vram: [12]}
+  - {model: rx 6800, vram: [16]}
+  - {model: rx 6800 xt, vram: [16]}
+  - {model: rx 6900 xt, vram: [16]}
+  - {model: rx 6950 xt, vram: [16]}
+  # RX 7000
+  - {model: rx 7600, vram: [8]}
+  - {model: rx 7600 xt, vram: [16]}
+  - {model: rx 7700 xt, vram: [12]}
+  - {model: rx 7800 xt, vram: [16]}
+  - {model: rx 7900 gre, vram: [16]}
+  - {model: rx 7900 xt, vram: [20]}
+  - {model: rx 7900 xtx, vram: [24]}
+  # RX 9000
+  - {model: rx 9060 xt, vram: [8, 16]}
+  - {model: rx 9070, vram: [16]}
+  - {model: rx 9070 gre, vram: [12]}
+  - {model: rx 9070 xt, vram: [16]}
+
+intel:
+  - {model: arc a310, vram: [4]}
+  - {model: arc a380, vram: [6]}
+  - {model: arc a580, vram: [8]}
+  - {model: arc a750, vram: [8]}
+  - {model: arc a770, vram: [8, 16]}
+  - {model: arc b570, vram: [10]}
+  - {model: arc b580, vram: [12]}
+
+# Recognised GPUs we deliberately don't price (older or professional cards): excluded as out_of_scope
+# instead of cluttering `hunt review`. These run on the prepared title (letters and digits split:
+# 'R9 380' -> 'r 9 380', 'RX580' -> 'rx 580').
+out_of_scope:
+  - '\bgtx? \d{3}\b'                         # GTX 970, GT 710, GTX 750 Ti
+  - '\bgt (?!1030\b)\d{4}\b'                 # GT 1030 is in the catalog
+  - '\b(quadro|tesla|titan|firepro|radeon pro|grid)\b'
+  - '\b\d{4} gt\b'                           # 9500GT, N9500GT
+  - '\b(rx|radeon) (vega|[45]\d0)\b'         # RX 470/480/570/580/590, RX Vega
+  - '\brx \d{3}\b'
+  - '\br [579] \d{3}\b'                      # R9 380, R7 370
+  - '\bhd \d{4}\b'                           # Radeon HD 7850
+  - '\bvega( \d{1,2})?\b'
+  - '^(?=.*\b(nvidia|quadro|tesla|pny)\b).*\b[ptkma] \d{3,4}\b'   # Quadro P4000, RTX A4000, Tesla K40
+  - '\b\d{3,4} m\b'                          # mobile chips: HD 6770M, 960M
+  - '\bmxm\b'
+  - '\b\d{3,4} (gs|gso|le)\b'                # GeForce 7300 GS, 8400 GS
+  - '\bati\b'
+  - '\bnvs\b'
+  - '\bgv n ?\d{2,3}\b'                      # Gigabyte part numbers: GV-N730, GV-N56GOC
+  - '\ben ?gt \d{3}\b'                       # Asus ENGT520
+  - '\bgtx n \d{3}\b'                        # MSI N760
+  - '\brtx (pro )?\d{4} (pro|ada)\b'         # RTX PRO 6000, RTX 4000 Ada
+  - '\brtx pro\b'
+  - '\b(rtx )?a [2-6]000\b'                  # RTX A4000 (and PNY's 'VCNRTX A4000')
+  - '\bradeon (x \d{3,4}|9\d{3}|\d{4} (pro|se))\b'  # Radeon X1600, Radeon 9250
