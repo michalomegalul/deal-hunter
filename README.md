@@ -33,8 +33,8 @@ else is built on what it collects.
   when present. Everything else in those sections (gaming PCs, MacBooks, consumer laptops,
   workstations) is `out_of_scope`, so `hunt review` only shows business titles it couldn't pin down.
 - **Worker** (every 5 min, `hunt work --loop`): fair prices per model, candidate deals, LLM triage
-  of the candidates, the deal score, ntfy pushes (once the gate opens), 👍/👎 feedback and a
-  weekly digest. Details below.
+  of the candidates, the deal score, ntfy pushes (once the gate opens) and a weekly digest.
+  Details below.
 - **Auctions** (inside the worker, low cadence): IT lots from the ÚZSVM state property auctions,
   the LLM's reading of each lot, a valuation with a max sensible bid, pushes before the end, and the
   final prices of ended lots as real sale prices. See "Auctions" below.

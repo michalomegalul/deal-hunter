@@ -209,6 +209,20 @@ def cmd_price(args: argparse.Namespace) -> None:
                 f"{model} ({fp.category}): fair ~{_kc(fp.median)} Kč, IQR {_kc(fp.q25)}-{_kc(fp.q75)}, "
                 f"n={fp.n} of {fp.n_listings} ads ({fp.sold} gone fast), confidence {fp.confidence:.2f} ({fp.level})"
             )
+            if fp.new_price:
+                from deal_hunter.alerts import new_text
+
+                print(
+                    f"  {new_text(fp)}"
+                    + ("  ** used >= 95 % of new: candidates dropped **" if fp.over_new else "")
+                )
+            if fp.prior:
+                print(
+                    f"  raw median {_kc(fp.raw_median)} shrunk toward the {fp.prior_source} prior {_kc(fp.prior)} "
+                    f"(weight {fp.prior_weight:g} samples; the gate counts n={fp.n_eff:g})"
+                )
+            elif fp.prior_note:
+                print(f"  {fp.prior_note}")
             if fp.slopes:
                 ref = (
                     ", ".join(f"{k.split('_')[0].upper()} {v} GB" for k, v in fp.ref.items())
