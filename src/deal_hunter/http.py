@@ -17,6 +17,8 @@ class Page:
     status: int
     text: str
     location: str | None = None  # redirect target, when status is 3xx
+    content: bytes = b""  # the raw body (PDF attachments)
+    content_type: str = ""
 
 
 class PoliteClient:
@@ -61,12 +63,19 @@ class PoliteClient:
         self._last = time.monotonic()
 
     def get(self, url: str) -> Page:
+        return self._request("GET", url)
+
+    def post_json(self, url: str, body: dict) -> Page:
+        """POST a JSON body (a site's own list API, as its list page calls it)."""
+        return self._request("POST", url, json=body)
+
+    def _request(self, method: str, url: str, **kwargs) -> Page:
         delay = self.backoff
         for attempt in range(1, self.retries + 1):
             self._wait_turn()
             self.requests += 1
             try:
-                r = self._client.get(url)
+                r = self._client.request(method, url, **kwargs)
             except httpx.TransportError as exc:
                 if attempt == self.retries:
                     raise
@@ -85,7 +94,14 @@ class PoliteClient:
                 continue
             if r.status_code in RETRY_STATUS:
                 r.raise_for_status()
-            return Page(url, r.status_code, r.text, r.headers.get("Location"))
+            return Page(
+                url,
+                r.status_code,
+                r.text,
+                r.headers.get("Location"),
+                r.content,
+                r.headers.get("Content-Type", ""),
+            )
         raise AssertionError("unreachable")
 
     def close(self) -> None:

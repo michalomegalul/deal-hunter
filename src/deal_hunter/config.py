@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 REPO_URL = "https://github.com/michalomegalul/deal-hunter"
 VERSION = version("deal-hunter")
 USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~1 request per 3 s)"
+AUCTION_USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, a few requests per hour)"
 
 # Hard ceiling for `hunt backfill`, whatever --pages says: we seed history, we don't mirror the site.
 MAX_BACKFILL_PAGES = 15
@@ -43,6 +44,21 @@ class Settings:
     quiet_hours: str  # '23-7', Europe/Prague
     quiet_bypass_score: float
     candidate_discount: float
+    # --- auctions (nms.gov.cz), run inside the worker ---
+    auctions_enabled: bool
+    auction_min_delay: float  # seconds between requests to the auction site (never below 5)
+    auction_list_hours: float  # how often the lot lists are read
+    auction_details_per_cycle: int
+    auction_extract_per_cycle: int
+    auction_max_per_day: int  # auction pushes per day, on top of HUNTER_ALERT_MAX_PER_DAY
+    auction_hourly_rate: float
+    auction_minutes_per_unit: float
+    auction_resale_factor: float
+    auction_sell_per_week: float
+    auction_lot_cost: float
+    auction_lot_hours: float
+    auction_target_margin: float
+    auction_min_profit: float
 
 
 def _flag(name: str, default: str) -> bool:
@@ -80,4 +96,18 @@ def load_settings() -> Settings:
         quiet_hours=os.getenv("HUNTER_QUIET_HOURS", "23-7"),
         quiet_bypass_score=float(os.getenv("HUNTER_QUIET_BYPASS_SCORE", "0.3")),
         candidate_discount=float(os.getenv("HUNTER_CANDIDATE_DISCOUNT", "0.2")),
+        auctions_enabled=_flag("HUNTER_AUCTIONS", "true"),
+        auction_min_delay=max(5.0, float(os.getenv("HUNTER_AUCTION_MIN_DELAY", "6"))),
+        auction_list_hours=float(os.getenv("HUNTER_AUCTION_LIST_HOURS", "2.5")),
+        auction_details_per_cycle=int(os.getenv("HUNTER_AUCTION_DETAILS_PER_CYCLE", "12")),
+        auction_extract_per_cycle=int(os.getenv("HUNTER_AUCTION_EXTRACT_PER_CYCLE", "3")),
+        auction_max_per_day=int(os.getenv("HUNTER_AUCTION_MAX_PER_DAY", "3")),
+        auction_hourly_rate=float(os.getenv("HUNTER_AUCTION_HOURLY_RATE", "200")),
+        auction_minutes_per_unit=float(os.getenv("HUNTER_AUCTION_MINUTES_PER_UNIT", "40")),
+        auction_resale_factor=float(os.getenv("HUNTER_AUCTION_RESALE_FACTOR", "0.9")),
+        auction_sell_per_week=float(os.getenv("HUNTER_AUCTION_SELL_PER_WEEK", "5")),
+        auction_lot_cost=float(os.getenv("HUNTER_AUCTION_LOT_COST", "500")),
+        auction_lot_hours=float(os.getenv("HUNTER_AUCTION_LOT_HOURS", "2")),
+        auction_target_margin=float(os.getenv("HUNTER_AUCTION_TARGET_MARGIN", "0.3")),
+        auction_min_profit=float(os.getenv("HUNTER_AUCTION_MIN_PROFIT", "1500")),
     )

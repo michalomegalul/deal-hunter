@@ -20,20 +20,24 @@ class DbThrottle:
 
     Each request takes a row lock on `http_throttle`, waits until `min_delay` has passed since the
     last request by anyone, stamps the row and commits. A second process blocks on the lock meanwhile.
+    Row 1 is Bazoš; row 2 is the auction site (nms.gov.cz), which has its own, slower budget.
     """
 
-    def __init__(self, conn: psycopg.Connection, min_delay: float, sleep=time.sleep):
-        self.conn, self.min_delay, self.sleep = conn, min_delay, sleep
+    def __init__(self, conn: psycopg.Connection, min_delay: float, sleep=time.sleep, row: int = 1):
+        self.conn, self.min_delay, self.sleep, self.row = conn, min_delay, sleep, row
 
     def wait_turn(self) -> None:
         with self.conn.transaction():
             waited = self.conn.execute(
-                "SELECT extract(epoch FROM clock_timestamp() - last_request) FROM http_throttle WHERE id = 1 FOR UPDATE"
+                "SELECT extract(epoch FROM clock_timestamp() - last_request) FROM http_throttle WHERE id = %s FOR UPDATE",
+                (self.row,),
             ).fetchone()[0]
             gap = self.min_delay - float(waited)
             if gap > 0:
                 self.sleep(gap)
-            self.conn.execute("UPDATE http_throttle SET last_request = clock_timestamp() WHERE id = 1")
+            self.conn.execute(
+                "UPDATE http_throttle SET last_request = clock_timestamp() WHERE id = %s", (self.row,)
+            )
 
 
 def make_client(settings: Settings, throttle_conn: psycopg.Connection | None = None) -> PoliteClient:

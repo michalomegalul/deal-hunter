@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="cs" xml:lang="cs">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="content-language" content="cs">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="yandex-verification" content="2d749f79bff071bc" />
+    <meta name="facebook-domain-verification" content="wkmekrm16p8blgakipe7opcmpdpko8" />
+    <title>ÚZSVM - NMS Detail aukce</title>
+
+    <link rel="stylesheet" href="/css/index.min.css?v=GbNZoOqDesODUiwIfVxgZPkg4x_YmAkjhZrlBW36B00" />
+
+    
+    
+
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CNJZ8772TE"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', "G-CNJZ8772TE");
+    </script>
+    <!-- reCAPTCHA -->
+    <script src='https://www.google.com/recaptcha/api.js' async defer></script>
+    <script type="text/javascript">
+        // Inicializace pro $.url
+        window.ApplicationRoot = '/';
+        window.addEventListener("load", function () {
+            window.cookieconsent.initialise({
+                "palette": {
+                    "popup": {
+                        "background": "#e2e8ed",
+                        "text": "#838391"
+                    },
+                    "button": {
+                        "background": "transparent",
+                        "text": "#4b81e8",
+                        "border": "#4b81e8"
+                    }
+                },
+                "content": {
+                    "message": "Tyto webové stránky používají k poskytování služeb a analýze návštěvnosti soubory cookie. " +
+                        "Informace o tom, jak tyto webové stránky používáte, jsou sdíleny se společností Google. " +
+                        "Používáním těchto webových stránek souhlasíte s použitím souborů cookies.",
+                    "dismiss": "Rozumím",
+                    "link": "Více informací",
+                    "href": "https://www.google.com/policies/technologies/cookies/"
+                }
+            })
+        });
+    </script>
+</head>
+<body>
+    <script src="/index.min.js?v=jXDAFaNFV9wogHGrDY4piu4lwOCS5_T-78LnGed_h9w"></script>
+    <script src="/vendor/datatables/datatables.min.js?v=NiT9JXfl3cpezc9XRNPr8lVwupSV7TPNKliCpxgyXKI"></script>
+    
+<header>
+    <div class="container">
+        <div class="row">
+            <nav class="navbar navbar-expand-lg navbar-light navbar-main">
+                <!-- Brand -->
+                <div class="navbar-brand">
+                    <!-- Toggler/collapsibe Button -->
+                    <button class="navbar-toggler d-sm-init d-md-none border-0" type="button" data-toggle="collapse" data-target="#collapsibleNavbar">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <a title="ÚZSVM" href="https://www.uzsvm.gov.cz">
+                        <img class="navbar-brand-first-logo d-none d-lg-block" title="ÚZSVM" alt="ÚZSVM" style="width: 270px;" src="/Images/Layout/logo.svg" />
+                        <img class="navbar-brand-first-logo d-none d-md-block d-lg-none" title="ÚZSVM" alt="ÚZSVM" style="width: 270px;" src="/Images/Layout/logo.svg" />
+                    </a>
+                </div>
+                <div class="navbar-page-title">
+                    <a title="Nabídka majetku" href="/Home/Properties">
+                        <h1 class="text-primary">Nabídka majetku</h1>
+                    </a>
+                </div>
+                <div class="navbar-login">
+                    
+    <ul class="navbar-nav navbar-expand-sm float-right">
+        <li class="nav-item">
+            <a class="nav-link indigo-text" href="/Account/Login" id="loginLink">P&#x159;ihl&#xE1;sit</a> <em class="fas fa-sign-in-alt d-none d-md-block" alt="Přihlášení"></em>
+        </li>
+        <li class="nav-item d-none d-md-block">
+            <a class="nav-link indigo-text" href="/Account/RegisterChoice" id="registerLink">Registrovat</a>
+        </li>
+        <li class="nav-item d-none d-lg-block">
+            <a class="nav-link text-danger" href="https://www.uzsvm.gov.cz/uzivatelska-dokumentace" target="_blank" rel="noopener noreferrer">Informace pro veřejnost</a>
+        </li>
+    </ul>
+
+                </div>
+                <!-- Navbar links
+                    Sem příjde kompletně celé menu pro rozlišení nižší než tablet a telefon
+                -->
+                <div class="collapse navbar-collapse" id="collapsibleNavbar">
+                    <ul class="navbar-nav d-md-none">
+                        <li class="nav-item main">
+                            <a href="/Home/Properties?ListType=all" class="nav-link text-nowrap"><strong>NABÍDKY PRO VEŘEJNOST</strong></a>
+                        </li>
+                        <li class="nav-item main">
+                            <div class="dropdown">
+                                <a class="nav-link dropdown-toggle text-nowrap auction-href" href="#" id="auctionDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    ELEKTRONICKÉ AUKCE
+                                </a>
+                                <div class="dropdown-menu" aria-labelledby="auctionDropdown">
+                                    <a href="/Home/Auctions?ListType=all" class="dropdown-item side">Aktivní</a>
+                                    <a href="/Home/Auctions?ListType=prepared" class="dropdown-item side">Vyhlášené</a>
+                                    <a href="/Home/Auctions?ListType=active" class="dropdown-item side">Probíhající</a>
+                                    <a href="/Home/Auctions?ListType=closed" class="dropdown-item side">Ukončené</a>
+                                    <a href="/Home/Auctions?ListType=canceled" class="dropdown-item side">Zrušené</a>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item main">
+                            <div class="dropdown">
+                                <a class="nav-link dropdown-toggle text-nowrap tender-href" href="#" id="tenderDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    JINÉ FORMY PRODEJE A PRONÁJMY
+                                </a>
+                                <div class="dropdown-menu" aria-labelledby="tenderDropdown">
+                                    <a href="/Home/Tenders?ListType=alltenders" class="dropdown-item side">Vše</a>
+                                            <a href="/Home/Tenders?ListType=Gift" class="dropdown-item side">Nab&#xED;dky daru</a>
+                                            <a href="/Home/Tenders?ListType=PublicAuction" class="dropdown-item side">Ve&#x159;ejn&#xE9; dra&#x17E;by</a>
+                                            <a href="/Home/Tenders?ListType=Sale" class="dropdown-item side">Prodej</a>
+                                            <a href="/Home/Tenders?ListType=Lease" class="dropdown-item side">Pron&#xE1;jem a pacht</a>
+                                            <a href="/Home/Tenders?ListType=Exchange" class="dropdown-item side">Sm&#x11B;na</a>
+                                            <a href="/Home/Tenders?ListType=Loan" class="dropdown-item side">V&#xFD;p&#x16F;j&#x10D;ka</a>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item main">
+                            <a href="/Home/Properties?ListType=prepared" class="nav-link text-nowrap"><strong>NABÍDKY PŘIPRAVOVANÉ</strong></a>
+                        </li>
+                        <li class="nav-item main">
+                            <a href="/Home/OffersUsc?ListType=offer-usc" class="nav-link text-nowrap"><strong>NABÍDKY PRO OBCE A KRAJE</strong></a>
+                        </li>
+                        <li class="nav-item main">
+                            <div class="dropdown">
+                                <a class="nav-link dropdown-toggle text-nowrap offer-href" href="#" id="offerDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    NABÍDKY PRO STÁTNÍ INSTITUCE
+                                </a>
+                                <div class="dropdown-menu" aria-labelledby="offerDropdown">
+                                    <a href="/Home/Offers?ListType=offer" class="dropdown-item side">NABÍDKY V RÁMCI STÁTU</a>
+                                    <a href="/Home/OffersFromUsc?ListType=offer-fromusc" class="dropdown-item side">NABÍDKY OBCÍ A KRAJŮ PRO STÁTNÍ INSTITUCE</a>                                   
+                                </div>
+                            </div>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="https://www.uzsvm.gov.cz/majetek-ceske-republiky" class="nav-link text-nowrap" target="_blank" rel="noopener noreferrer"><strong>NEMOVITOSTI STÁTU</strong></a>
+                        </li>
+                        <li class="nav-item side text-danger"><a class="nav-link" href="/Home/Subscribe"><em class="far fa-bell mr-2 mr-2" alt="zvoneček"></em>Odběr novinek</a></li>
+                        <li class="nav-item side"><a class="nav-link" href="https://www.uzsvm.gov.cz/uzivatelska-dokumentace"><em class="far fa-arrow-alt-circle-right mr-2" alt="šipka doprava"></em>Uživatelská dokumentace</a></li>
+                        <li class="nav-item side"><a class="nav-link" href="https://www.uzsvm.gov.cz/aukcni-rad"><em class="far fa-arrow-alt-circle-right mr-2" alt="šipka doprava"></em>Aukční řád</a></li>
+                        <li class="nav-item side"><a class="nav-link" href="https://www.uzsvm.gov.cz/jak-si-koupit-pronajmout-propachtovat-majetek-od-uzsvm-1"><em class="far fa-arrow-alt-circle-right mr-2" alt="šipka doprava"></em>Jak nakupovat</a></li>
+                        <li class="nav-item side"><a class="nav-link" href="https://www.uzsvm.gov.cz/nejcastejsi-dotazy-1"><em class="far fa-arrow-alt-circle-right mr-2" alt="šipka doprava"></em>Nejčastější dotazy</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+        <div class="row d-none d-md-flex">
+            <nav class="navbar navbar-expand-md navbar-light navbar-primary p-0">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a href="/Home/Properties?ListType=all" class="nav-link text-nowrap"><strong>NABÍDKY PRO VEŘEJNOST</strong></a>
+                    </li>
+                    <li class="nav-item">
+                        <div class="dropdown">
+                            <a class="nav-link dropdown-toggle text-nowrap auction-href" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                ELEKTRONICKÉ AUKCE
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <a href="/Home/Auctions?ListType=all" class="dropdown-item">Aktivní</a>
+                                <a href="/Home/Auctions?ListType=prepared" class="dropdown-item">Vyhlášené</a>
+                                <a href="/Home/Auctions?ListType=active" class="dropdown-item">Probíhající</a>
+                                <a href="/Home/Auctions?ListType=closed" class="dropdown-item">Ukončené</a>
+                                <a href="/Home/Auctions?ListType=canceled" class="dropdown-item">Zrušené</a>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="dropdown">
+                            <a class="nav-link dropdown-toggle text-nowrap tender-href" href="#" id="navbarDropdown2" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                JINÉ FORMY PRODEJE A PRONÁJMY
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="navbarDropdown2">
+                                <a href="/Home/Tenders?ListType=alltenders" class="dropdown-item">Vše</a>
+                                        <a href="/Home/Tenders?ListType=Gift" class="dropdown-item">Nab&#xED;dky daru</a>
+                                        <a href="/Home/Tenders?ListType=PublicAuction" class="dropdown-item">Ve&#x159;ejn&#xE9; dra&#x17E;by</a>
+                                        <a href="/Home/Tenders?ListType=Sale" class="dropdown-item">Prodej</a>
+                                        <a href="/Home/Tenders?ListType=Lease" class="dropdown-item">Pron&#xE1;jem a pacht</a>
+                                        <a href="/Home/Tenders?ListType=Exchange" class="dropdown-item">Sm&#x11B;na</a>
+                                        <a href="/Home/Tenders?ListType=Loan" class="dropdown-item">V&#xFD;p&#x16F;j&#x10D;ka</a>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/Home/Properties?ListType=prepared" class="nav-link text-nowrap"><strong>NABÍDKY PŘIPRAVOVANÉ</strong></a>
+                    </li>
+                    <li class="nav-item main">
+                        <a href="/Home/OffersUsc?ListType=offer-usc" class="nav-link text-nowrap"><strong>NABÍDKY PRO OBCE A KRAJE</strong></a>
+                    </li>
+                    <li class="nav-item">
+                        <div class="dropdown">
+                            <a class="nav-link dropdown-toggle text-nowrap offer-href" href="#" id="navbarDropdown3" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                NABÍDKY PRO STÁTNÍ INSTITUCE
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="navbarDropdown3">
+                                <a href="/Home/Offers?ListType=offer" class="dropdown-item">NABÍDKY V RÁMCI STÁTU</a>
+                                <a href="/Home/OffersFromUsc?ListType=offer-fromusc" class="dropdown-item">NABÍDKY OBCÍ A KRAJŮ PRO STÁTNÍ INSTITUCE</a>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a href="https://www.uzsvm.gov.cz/majetek-ceske-republiky" class="nav-link text-nowrap" target="_blank" rel="noopener noreferrer"><strong>NEMOVITOSTI STÁTU</strong></a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</header>
+
+    <main>
+        <div id="j-dialog" title="Title"></div>
+        <div id="j-confirm-dialog" title="Title"></div>
+        <div class="container">
+            
+
+<div class="row mt-2 auction-detail" id="detail">
+    <div class="col-12 col-lg-4 mb-4 mb-lg-0">
+        <section class="property-aside-gallery">
+            <div class="row">
+                    <div class="col-12">
+                        <div class="no-image" style="background-image: url(/Images/image_not_available.png)"></div>
+                    </div>
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-lg-8">
+        <div class="row">
+            <div class="col-8">
+                <h2 class="mb-0">Aukce 19ks notebook&#x16F;</h2>
+            </div>
+            <div class="col-4">
+                <a class="float-right text-danger" id="print-property" href="#" onclick="window.print();return false;" style="position: relative; margin-left: 10px; margin-right: 10px">Tisk</a>
+            </div>
+            <div class="col-12 mb-1 detail-button-upper">
+                <div class="row">
+                    <div class="col-12">
+                        <span class="search-id">ID (166150-A62785)</span>
+                    </div>
+                    <div class="col-12">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <div id="j-report-error" title="Nahlášení chyby nabídky" class="collapse">
+                    <div>
+                        <label for="j-report-error-text">Popis chyby</label>
+                        <textarea id="j-report-error-text" rows="6" class="form-control"></textarea>
+                    </div>
+                </div>
+                <div id="j-bid-dialog" title="Nový příhoz" class="collapse">
+                    <div class="row">
+                        <div class="col-4 pt-2 pr-0">
+                            <label>Výše nabídky:</label>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <input id="user-bid-value" maxlength="10" class="form-control" style="text-align: right; cursor: text;" disabled />
+                        </div>
+                        <div class="col-4">
+                            <input type="button" id="amount-bid-btn" class="btn btn-warning" value="Vlastní částka" />
+                        </div>
+                    </div>
+                </div>
+                <div id="j-bid-invalid-dialog" title="Upozornění" class="collapse">
+                    <p style="margin:0;">
+                        Došlo k příhozu v aukci, tento příhoz je neplatný.
+                    </p>
+                </div>
+                <section id="main-section" class="mb-4">
+                    <div class="card">
+                        <div class="card-body p-1 pt-2 pt-sm-3 p-sm-3">
+                            <div class="row pl-3 pr-3">
+                                <div class="col-12">
+                                    <section id="bid-section" class="bid-section">
+                                            <div class="row">
+                                                <div class="col-12">
+                                                    <p id="unsubscribed-text" style="display:none;color:orangered;">Oznamování příhozů bylo zakázáno.</p>
+                                                </div>
+                                            </div>
+                                                <div class="row">
+                                                    <div class="col-12 text-center">
+                                                        <p class="text-danger d-none diff-tz-text"><i>Upozornění - Prohlížeč má nastavenu jinou časovou zónu než aplikace.<br />Všechny časové údaje aplikace jsou vztaženy k SEČ/SELČ.</i></p>
+                                                    </div>
+                                                </div>
+                                                <!-- Aktivní Aukce !-->
+                                                <div class="row">
+                                                    <div class="col-12 col-sm-9">
+                                                        <div class="row mb-2">
+                                                            <div class="col-12">
+                                                                <h3 class="text-primary">Aktivní aukce</h3>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row mb-2">
+                                                            <div class="col-12 col-sm-4">
+                                                                <label>Aktuální cena:</label>
+                                                            </div>
+                                                            <div class="col-12 col-sm-8">
+                                                                <h3 id="actual-price" class="text-danger">
+                                                                    7&#xA0;600,00 Kč
+                                                                </h3>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row mb-2">
+                                                            <div class="col-12 col-sm-4">
+                                                                <label>Čas do konce aukce: </label>
+                                                            </div>
+                                                            <div class="col-12 col-sm-8">
+                                                                <span class="remaining-time"></span>
+                                                                <span class="auction-notice" style="color: #e12a2a; font-weight: bold; margin-left: 20px;"></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12 col-sm-3">
+                                                    </div>
+                                                </div>
+                                            <div class="row mb-2">
+                                                <div class="col-12 col-sm-3">
+                                                    <label>Nejnižší podání:</label>
+                                                </div>
+                                                    <div class="col-12 col-sm-9">
+                                                        7&#xA0;600,00 Kč
+                                                    </div>
+                                            </div>
+                                                <div class="row mb-2">
+                                                    <div class="col-12 col-sm-3">
+                                                        <label>Minimální navýšení ceny:</label>
+                                                    </div>
+                                                    <div class="col-12 col-sm-9">
+                                                        300,00 Kč
+                                                    </div>
+                                                </div>
+                                            <div class="row mb-2">
+                                                <div class="col-12 col-sm-3">
+                                                    <label>Počet příhozů:</label>
+                                                </div>
+                                                <div class="col-12 col-sm-9" id="nbr-of-bids">
+                                                    1
+                                                </div>
+                                            </div>
+                                                <div class="row mb-2">
+                                                    <div class="col-12 col-sm-3">
+                                                        <label>Termín aukce:</label>
+                                                    </div>
+                                                    <div class="col-12 col-sm-9" id="nbr-of-bids">
+                                                        30.09.2026 10:00 - 14.10.2026 10:00
+                                                        <span class="text-danger d-none diff-tz-text">&nbsp;(SEČ/SELČ)</span>
+                                                    </div>
+                                                </div>
+                                            <div class="row mt-4">
+                                                <div class="col-12">
+                                                    <h3 class="text-primary">
+                                                        Historie příhozů <span class="text-danger d-none diff-tz-text">&nbsp;(SEČ/SELČ)</span>
+                                                    </h3>
+                                                </div>
+                                                <div class="col-12 col-lg-9">
+                                                    <div class="table">
+                                                        <table id="bid-history-table" class="bid-history-table w-100 table-responsive table-borderless">
+                                                            <caption>Historie příhozů</caption>
+                                                            <thead class="text-left">
+                                                                <tr>
+                                                                    <th scope="col" class="pl-0 pb-0 pt-0"><label class="text-nowrap">Účastník aukce</label></th>
+                                                                    <th scope="col" class="pl-0 pb-0 pt-0"><label class="text-nowrap">Výše příhozu</label></th>
+                                                                    <th scope="col" class="pl-0 pb-0 pt-0"><label class="text-nowrap">Čas příhozu</label></th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                        <tr data-bid-id="301426" data-participant-id="2ba442e7">
+                                                                                <td class="pb-2 pl-0 text-nowrap">2ba442e7</td>
+                                                                                <td class="pb-2 pl-0 text-nowrap">7&#xA0;600,00 Kč</td>
+                                                                                <td class="pb-2 pl-0 text-nowrap">05.10.2026 22:11</td>
+                                                                        </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                    </section>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section id="secondary-section" class="mb-4">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card  p-1 pt-2 pt-sm-3 p-sm-3">
+                                <div class="card-body">
+                                    <div class="row mb-2">
+                                        <div class="col-12 col-sm-3">
+                                            <label>Kategorie:</label>
+                                        </div>
+                                        <div class="col-9">
+                                            V&#xFD;po&#x10D;etn&#xED; technika v&#x10D;. p&#x159;&#xED;slu&#x161;enstv&#xED;
+                                        </div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-12 col-sm-3">
+                                            <label>Forma:</label>
+                                        </div>
+                                        <div class="col-9">
+                                            P&#x159;evzet&#xED; (p&#x159;evod vlastnick&#xE9;ho pr&#xE1;va)
+                                        </div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-12 col-sm-3">
+                                            <label>Instituce:</label>
+                                        </div>
+                                        <div class="col-9">
+                                            Gener&#xE1;ln&#xED; inspekce bezpe&#x10D;nostn&#xED;ch sbor&#x16F;
+                                        </div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-12 col-sm-3">
+                                            <label>Kontaktní údaje:</label>
+                                        </div>
+                                        <div class="col-12 col-sm-9">
+                                            <p class="mb-2">David Milota</p>
+                                                <p class="mb-2 text-danger"><a href="tel:725850848" class="text-danger">725850848</a></p>
+                                                <p class="mb-2"><a href="mailto:david.milota@gibs.gov.cz" class="text-danger">david.milota@gibs.gov.cz</a></p>
+                                                <p class="mb-0">Skokansk&#xE1; 2311/3, 16900      Praha</p>
+                                        </div>
+                                    </div>
+                                        <div class="row mb-2">
+                                            <div class="col-12 col-sm-3">
+                                                <label>Popis:</label>
+                                            </div>
+                                            <div class="col-12 col-sm-9">
+                                                <div class="text-prewrap">Jedná se o 19 ks notebooků bez paměťových disků. Podrobný popis je uveden v příloze. Majetek je opotřebený úměrem stáří a doby používání. Zadavatel aukce ani Provozovatel nezaručují jeho funkčnost a tuto movitou věc nelze reklamovat. Z tohoto důvodu se doporučuje zájemcům zúčastnit se prohlídky předmětu aukce.</div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-12 col-sm-3">
+                                                <label style="vertical-align: top;">Možnosti prohlídky:</label>
+                                            </div>
+                                            <div class="col-12 col-sm-9">
+                                                <div class="text-prewrap">Po domluvě s panem Šilhavým: <a href="mailto:pavel.silhavy@gibs.gov.cz">pavel.silhavy@gibs.gov.cz</a>, +420 702 159 230</div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-12 col-sm-3">
+                                                <label style="vertical-align: top;">Podmínky aukce:</label>
+                                            </div>
+                                            <div class="col-12 col-sm-9">
+                                                <div class="text-prewrap">Účast v elektronické aukci je možná pouze pro registrované uživatele Elektronického aukčního systému (dále jen „EAS“). Způsob registrace je uveden v Aukčním řádu zveřejněném na webových stránkách <a href="http://www.nabidkamajetku.cz">www.nabidkamajetku.cz</a>, na těchto webových stránkách je možné také registraci provést.</div>
+                                            </div>
+                                        </div>
+                                            <div class="row mb-2 mt-4">
+                                                <div class="col-12">
+                                                    <h3 class="text-primary">Přiložené dokumenty k aukci</h3>
+                                                </div>
+                                            </div>
+                                            <div class="row mb-2">
+                                                <div class="col-12">
+                                                    <ol style="list-style-type: decimal;">
+                                                            <li><a class="text-danger" href="/api/Property/Attachment/26398f7c-5d67-4b74-8db4-59fd40512609">3-auk&#x10D;n&#xED; vyhl. - NTB 2026 _sig.pdf</a></li>
+                                                            <li><a class="text-danger" href="/api/Property/Attachment/31f2769f-bd6d-4e9c-8369-01457ee0208a">3-p&#x159;&#xED;loha &#x10D;.1 seznam nab.majetku NTB.pdf</a></li>
+                                                            <li><a class="text-danger" href="/api/Property/Attachment/29b40189-e139-4186-b2e1-d9a3b7b0cf8c">3-p&#x159;&#xED;loha &#x10D;.2 k auk.vyhl-NTB.pdf</a></li>
+                                                            <li><a class="text-danger" href="/api/Property/Attachment/6396fbcb-c40d-43d5-a8b6-6a9bf52bd4f4">3-p&#x159;&#xED;loha &#x10D;.3 kupn&#xED; smlouva - NTB.pdf</a></li>
+                                                    </ol>
+                                                </div>
+                                            </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        </div>
+    </main>
+    <footer>
+    <div class="container">
+        <div class="row pt-sm-0 pt-md-5">
+            <div class="col-lg-3 col-md-12 d-none d-lg-block">
+                <div class="footer-logo">
+                    <img class="d-md-inline d-lg-block" title="ÚZSVM" style="width: 270px;" alt="ÚZSVM" src="/Images/Layout/logo_wh.svg" />
+                </div>
+            </div>
+            <div class="col-lg-9 col-md-12 d-none d-md-block">
+                <div class="row">
+                    <div class="col-lg-4">
+                        <h3 class="text-center text-md-left">Rozcestník</h3>
+                        <ul>
+                            <li>
+                                <a href="/Home/Properties?ListType=all">Nabídky pro veřejnost</a>
+                            </li>
+                            <li>
+                                <a href="/Home/Auctions?ListType=all">Elektronické aukce</a>
+                            </li>
+                            <li>
+                                <a href="/Home/Tenders?ListType=alltenders">Jiné formy prodeje a pronájmy</a>
+                            </li>
+                            <li>
+                                <a href="/Home/Properties?ListType=prepared">Nabídky připravované</a>
+                            </li>
+                            <li>
+                                <a href="/Home/OffersUsc?ListType=offer-usc">Nabídky pro obce a kraje</a>
+                            </li>
+                            <li>
+                                <a href="/Home/Offers?ListType=offer">Nabídky v rámci státu</a>
+                            </li>
+                            <li>
+                                <a href="/Home/OffersFromUsc?ListType=offer-fromusc">Nabídky obcí a krajů pro státní instituce</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-lg-4 ">
+                        <h3 class="text-center text-md-left">Pro uživatele</h3>
+                        <ul>
+                            <li><a href="mailto:nabidkamajetku@uzsvm.gov.cz"><em class="far fa-envelope"></em>Kontakt na e-mail</a></li>
+                            <li><a href="/Home/Subscribe"><em class="far fa-bell"></em>Odběr novinek</a></li>
+                            <li><a href="https://www.uzsvm.gov.cz/uzivatelska-dokumentace"><em class="far fa-arrow-alt-circle-right"></em>Uživatelská dokumentace</a></li>
+                            <li><a href="https://www.uzsvm.gov.cz/aukcni-rad"><em class="far fa-arrow-alt-circle-right"></em>Aukční řád</a></li>
+                            <li><a href="https://www.uzsvm.gov.cz/jak-si-koupit-pronajmout-propachtovat-majetek-od-uzsvm-1"><em class="far fa-arrow-alt-circle-right"></em>Jak nakupovat</a></li>
+                            <li><a href="https://www.uzsvm.gov.cz/nejcastejsi-dotazy-1"><em class="far fa-arrow-alt-circle-right"></em>Nejčastější dotazy</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-lg-4">
+                        <h3 class="text-center text-md-left">Sociální sítě</h3>
+                        <ul>
+                            <li><a href="https://www.facebook.com/uzsvmcz"><em class="fab fa-facebook"></em>Facebook</a></li>
+                            <li><a href="https://x.com/uzsvm"><em class="fab fa-x-twitter"></em>X</a></li>
+                            <li><a href="https://www.instagram.com/uzsvm/"><em class="fab fa-instagram"></em>Instagram</a></li>
+                            <li><a href="https://cz.linkedin.com/company/%C3%BA%C5%99ad-pro-zastupov%C3%A1n%C3%AD-st%C3%A1tu-ve-v%C4%9Bcech-majetkov%C3%BDch-%C3%BAzsvm-"><em class="fab fa-linkedin"></em>LinkedIn</a></li>
+                            <li><a href="https://www.threads.net/&#64;uzsvm"><em class="fab fa-threads"></em>Threads</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row pt-3 pb-3">
+            <div class="col-lg-12 text-center">
+                Copyright &copy; <date>2026</date>, ÚZSVM
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+    
+    <script type="text/javascript" src="/vendor/signalr/signalr.js"></script>
+    <!-- Upload maps, if necessary -->
+
+    <script type="text/javascript">
+        var bestBidUserId = '';
+        var userPrincipalId = '';
+        var isUserUnsubscribed = false;
+        var isUserParticipant = false;
+        // Actual Price and minimal price increment
+        var actualItemPrice = parseInt('7600') || 0;
+        var minimalPriceIncrement = parseInt('300') || 0;
+        var minimalBid = actualItemPrice;
+        // Time zone offsets
+        var serverTzOffset = parseInt(NTP.getCookie("NTPServerOffset")) || -1;
+        var clientTzOffset = new Date().getTimezoneOffset();
+
+        // Bid dialog invalidation
+        var bidDialogInvalidated = false;
+        var pendingBidAmount = null;
+
+        function isBidDialogOpen() {
+        try { return $('#j-bid-dialog').dialog('isOpen') === true; }
+        catch (e) { return false; }
+        }
+
+        function closeBidDialogSilently() {
+        try { $('#j-bid-dialog').dialog('close'); } catch (e) { }
+        $('#bid-btn').prop('disabled', false).button('refresh');
+        $('#amount-bid-btn').prop('disabled', false);
+        $('#user-bid-value').prop('disabled', true);
+        customBid = false;
+        }
+
+        function openBidDialogWithAmount(amount) {
+        $('#user-bid-value').val(amount);
+        $('#j-bid-dialog').dialog('open');
+        }
+        
+        $(function () {
+        synchronizeClient();
+
+        if ('true' === 'true') {
+        var connection = new signalR.HubConnectionBuilder()
+        .withUrl("/Auction")
+        .withAutomaticReconnect({
+        nextRetryDelayInMilliseconds: function (retryContext) {
+        return 500;
+        }
+        })
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+        // for debug
+        $.connection = connection;
+        // Create a function that the hub can call back to update auction price.
+        connection.on('updateAuctionPrice', updateAuctionPrice);
+
+        // Start the connection.
+        startConnection();
+
+        connection.onclose(function () {
+        console.log('connection closed');
+        });
+        connection.onreconnected(function () {
+        subscribeToAuction();
+        });
+
+        $(window).bind('beforeunload', function (e) {
+        connection.stop();
+        e = undefined; // i.e; if form state change show warning box, else don't show it.
+        });
+
+        function updateAuctionPrice(actualPrice, activeBids, userId, scheduledEnd) {
+        if ($('#j-bid-invalid-dialog').dialog('isOpen') === true && userId !== userPrincipalId) {
+        pendingBidAmount = (activeBids === 0) ? actualPrice : (actualPrice + minimalPriceIncrement);
+        }
+
+        if (!bidDialogInvalidated && isBidDialogOpen() && userId !== userPrincipalId) {
+        bidDialogInvalidated = true;
+
+        pendingBidAmount = (activeBids === 0) ? actualPrice : (actualPrice + minimalPriceIncrement);
+
+        closeBidDialogSilently();
+        $('#j-bid-invalid-dialog').dialog('open');
+        }
+
+
+        actualItemPrice = actualPrice;
+        var actualPriceString = actualPrice.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kč ';
+        if (userId === userPrincipalId) {
+        actualPriceString += "<span class=\"indigo-text\">&nbsp; | &nbsp; Moje cena!</span>";
+        }
+        $('#actual-price').html(actualPriceString);
+
+        if (!isUserParticipant) {
+        $("#unsubscribe-notifications").css("display", "none");
+
+        } else if (userId !== userPrincipalId && !isUserUnsubscribed) {
+        $("#unsubscribe-notifications").css("display", "block");
+        }
+
+        if (activeBids === 0) {
+        $('#user-bid-value-lbl').text(actualPrice.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' Kč');
+        } else {
+        minimalBid = actualPrice + minimalPriceIncrement;
+        $('#user-bid-value-lbl').text((actualPrice + minimalPriceIncrement).toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' Kč');
+        }
+
+        var scheduledEndTime = new Date(new Date(scheduledEnd).toUTCString());
+        $.initializeClock(scheduledEndTime);
+
+        $('#nbr-of-bids').text(activeBids);
+        if (activeBids === 1) {
+        window.location.reload();
+        } else {
+        getBidHistory();
+        }
+        };
+
+        function startConnection() {
+        connection.start().then(function () {
+        console.log('signalr connection started, subscribing to auction');
+        subscribeToAuction();
+        });
+        }
+
+        function subscribeToAuction() {
+        var auctionId = 62785;
+        // Call the Assign method on the hub.
+        connection
+        .invoke('Assign', auctionId)
+        .then(
+        function () { console.log('signalR subscribed to auction ' + auctionId); },
+        function (fail) { console.log(fail); }
+        );
+        }
+        }
+
+        // User id of best bid
+        var bidTableRows = $('#bid-history-table').children('tbody').children('tr');
+        if (bidTableRows.length > 0) {
+        var firstRow = $('#bid-history-table>tbody>tr:first');
+        if (firstRow.length > 0) {
+        bestBidUserId = $(firstRow[0]).data('participant-id');
+        }
+        }
+
+        $('#j-report-error').dialog({
+        resizable: false,
+        autoOpen: false,
+        height: 'auto',
+        modal: true,
+        show: true,
+        closeText: 'Storno',
+        buttons: [
+        {
+        text: "Odeslat",
+        "class": 'btn btn-primary',
+        click: function () {
+        sendPropertyError(this);
+        }
+        },
+        {
+        text: "Storno",
+        "class": 'btn btn-danger',
+        click: function () {
+        $(this).dialog('close');
+        }
+        }
+        ]
+        });
+
+        $.bindIfExplorer();
+
+        ;
+
+        $('#j-report-error-link').on('click', function (ev) {
+        ev.preventDefault();
+        if (ev.target !== ev.currentTarget) {
+        return;
+        }
+        $('#j-report-error').dialog('open');
+        return false;
+        });
+
+        var actualBid = $('#user-bid-value').val();
+        var customBid = false; // Bid amount changed by user
+
+        $('#user-bid-btn').on('click', function (ev) {
+        ev.preventDefault();
+        if (ev.target !== ev.currentTarget) {
+        return;
+        }
+        actualBid = getActualPrice();
+        // Select first row in history table
+        var firstRow = $('#bid-history-table>tbody>tr:first');
+        if (firstRow.length > 0) {
+        var rowParticipant = $(firstRow[0]).data('participant-id');
+        // If participant id eq current participant code, show confirm dialog (add '_x' to avoid inequality when id is a number format)
+        if ((rowParticipant + '_x') === ('' + '_x')) {
+        var options = {
+        dialogWidth: 300,
+        okButtonText: 'Ano',
+        cancelButtonText: 'Ne'
+        };
+        Support.showConfirmDialog('Poslední příhoz v aukci je Váš.<br />Chcete opravdu znovu přihodit?', 'Nový příhoz', options)
+        .done(function () {
+        showBidDialog();
+        })
+        .fail(function () {
+        return false;
+        })
+        } else {
+        showBidDialog();
+        }
+        } else {
+        showBidDialog();
+        }
+
+        function showBidDialog() {
+        bidDialogInvalidated = false;
+        pendingBidAmount = null;
+        $('#user-bid-value').val(actualBid);
+        $('#j-bid-dialog').dialog('open');
+        return false;
+        }
+        });
+
+        $('#user-bid-value').on('focus', function () {
+        customBid = true;
+        if ($(this).val() === actualBid) {
+        $(this).val('');
+        }
+        });
+
+        $('#user-bid-value').on('blur', function () {
+        if ($(this).val() === '') {
+        $(this).val(actualBid);
+        customBid = false;
+        }
+        });
+
+        $('#j-bid-dialog').dialog({
+        resizable: false,
+        autoOpen: false,
+        height: 'auto',
+        modal: true,
+        show: true,
+        closeText: 'Storno',
+        closeOnEscape: true,
+        close: function () {
+        $('#user-bid-value').prop('disabled', true);
+        },
+        buttons: [
+        {
+        text: "Storno",
+        "class": "btn btn-danger",
+        click: function () {
+        $(this).dialog('close');
+        }
+        },
+        {
+        text: "Přihodit",
+        "class": "btn btn-success float-left",
+        id: "bid-btn",
+        click: function () {
+        newBid();
+        }
+        }
+        ]
+
+        });
+
+        $('#j-bid-invalid-dialog').dialog({
+        resizable: false,
+        autoOpen: false,
+        height: 'auto',
+        modal: true,
+        show: true,
+        closeText: 'OK',
+        closeOnEscape: true,
+        buttons: [
+        {
+        text: "OK",
+        "class": "btn btn-primary",
+        click: function () {
+        $(this).dialog('close');
+        }
+        },
+        {
+        text: "NOVÝ PŘÍHOZ",
+        "class": "btn btn-danger float-left",
+        click: function () {
+
+        bidDialogInvalidated = false;
+        var amount = getActualPrice();
+
+        $(this).dialog('close');
+
+        actualBid = amount;
+
+        setTimeout(function () {
+        openBidDialogWithAmount(amount);
+        }, 0);
+        }
+        }
+
+
+        ],
+        close: function () {
+        bidDialogInvalidated = false;
+        pendingBidAmount = null;
+        }
+        });
+
+
+        function newBid() {
+        var bidAmount = $('#user-bid-value').val();
+        if (bidAmount.indexOf(',') !== -1 || bidAmount.indexOf('.') !== -1) {
+        Support.showAlert('Částka příhozu musí být zaokrouhlena na celé koruny.', 'Chyba');
+        return;
+        }
+        var bidAmountNbr = Number(bidAmount);
+        if (!bidAmountNbr || !isInteger(bidAmountNbr)) {
+        Support.showAlert('Částka příhozu není platné číslo.', 'Chyba');
+        return;
+        }
+        if (bidAmountNbr < minimalBid) {
+        $('#bid-btn').prop('disabled', false).button('refresh');
+        $('#amount-bid-btn').prop('disabled', false);
+        $('#j-bid-dialog').dialog('close');
+        Support.showAlert('Částka příhozu je menší nebo rovna aktuální ceně aukce.', 'Chyba');
+        return;
+        }
+        if (customBid) {
+        customBid = false;
+        var amountChangeValue = bidAmountNbr - actualBid;
+        if (amountChangeValue > 1000 && (amountChangeValue / actualBid) > 0.25) {
+        var options = {
+        dialogWidth: 300,
+        okButtonText: 'Ano',
+        cancelButtonText: 'Ne'
+        };
+        var bidAmountFormated = new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK' }).format(bidAmount)
+        Support.showConfirmDialog('Opravdu chcete učinit příhoz <b>' + bidAmountFormated + '<b/>?', 'Nový příhoz', options)
+        .done(function () {
+        postBid();
+        })
+        .fail(function () {
+        return;
+        })
+        } else {
+        postBid();
+        }
+        } else {
+        postBid();
+        }
+
+        function postBid() {
+        $('#bid-btn').prop('disabled', true).button('refresh');
+        $('#amount-bid-btn').prop('disabled', true);
+
+        var bidData = {
+        userId: userPrincipalId,
+        auctionId: '62785',
+        bidAmount: bidAmount
+        };
+
+        $.ajax({
+        url: '/api/Property/AuctionBid',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(bidData)
+        }).done(function (result) {
+        if (result.Error !== undefined && result.Error !== null) {
+        Support.showAlert(result.Error, 'Chyba');
+        } else {
+        var resultString = result.ActualPrice.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kč ';
+        if (result.HighestBid === true) {
+        resultString += '<span class=\"indigo-text\">&nbsp; | &nbsp; Moje cena!</span>';
+        }
+        actualItemPrice = result.ActualPrice;
+        $('#actual-price').html(resultString);
+        $('#nbr-of-bids').html(result.ActiveBids);
+        $('#user-bid-value').val(result.UserBidValue);
+        actualBid = $('#user-bid-value').val();
+
+        isUserUnsubscribed = false;
+
+        $("#subscribe-notifications").css("display", "none");
+        $("#unsubscribe-notifications").css("display", "none");
+        $("#unsubscribed-text").css("display", "none");
+        }
+        $('#bid-btn').prop('disabled', false).button('refresh');
+        $('#amount-bid-btn').prop('disabled', false);
+        $('#j-bid-dialog').dialog('close');
+        }).fail(function () {
+        $('#bid-btn').prop('disabled', false);
+        $('#amount-bid-btn').prop('disabled', false);
+        $('#j-bid-dialog').dialog('close');
+        Support.showAlert('Došlo k problému při pokusu o příhoz. Kontaktujte administrátora aukce.', 'Chyba');
+        });
+        }
+        }
+
+        $('#amount-bid-btn').on('click', function () {
+        $('#user-bid-value').prop('disabled', false);
+        $('#user-bid-value').focus();
+        });
+
+        $('#edit-property').on('click', function () {
+        if ('False' === 'True') {
+        Support.showAlert('Nemáte oprávnění k úpravám v aktuálním stavu nabídky.', 'Nedostatečné oprávnění');
+        } else {
+        window.location.href = '/Home/Edit/166150';
+        }
+        });
+
+        $('#subscribe-notifications').on('click', function () {
+        var data = { id: '62785' };
+
+        $.ajax({
+        url: '/api/Property/AuctionSubscribe',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data)
+        }).done(function (result) {
+        if (result.Error !== undefined && result.Error !== null) {
+        Support.showAlert(result.Error, 'Chyba');
+        } else {
+        isUserUnsubscribed = false;
+
+        $("#subscribe-notifications").css("display", "none");
+        $("#unsubscribe-notifications").css("display", "block");
+        $("#unsubscribed-text").css("display", "none");
+        }
+        $('#j-bid-dialog').dialog('close');
+        }).fail(function () {
+        $('#j-bid-dialog').dialog('close');
+        Support.showAlert('Došlo k problému při pokusu o povolení upozornění. Kontaktujte administrátora aukce.', 'Chyba');
+        });
+        });
+
+        if (false === true) {
+        $('.btn-favorite').addClass('own-favorite');
+        }
+
+        let favoriteInProcess = false;
+        $('body').on('click', '.btn-favorite', function () {
+        var self = this;
+        if (favoriteInProcess) {
+        return;
+        }
+        favoriteInProcess = true;
+        var favStatus = $(this).hasClass('own-favorite');
+        Support.apiPost('/api/Property/Favorite', { p01Id: '166150', favStatus: favStatus }).done(function () {
+        favoriteInProcess = false;
+        $(self).toggleClass('own-favorite');
+        $(self).blur();
+        }).fail(function () {
+        favoriteInProcess = false;
+        Support.showAlert('Došlo k problému při přidání nabídky mezi oblíbené', 'Oblíbená nabídka');
+        return false;
+        });
+        });
+
+        $('.btn-print').on('click', function (ev) {
+        var options = {
+        okButtonText: 'Ano',
+        cancelButtonText: 'Ne'
+        };
+        Support.showConfirmDialog('Chcete vygenerovat dokument se souhrnem?', 'Dokument', options).done(function () {
+        var printType = $(ev.currentTarget).data('print');
+        var printId = $(ev.currentTarget).data('print_id');
+        var printUrl = '/api/' + printType + '/' + printId + '/pdf';
+        window.location = printUrl;
+        })
+        });
+        });
+
+        function sendPropertyError(dialog) {
+        var errorText = $(dialog).find('#j-report-error-text').val();
+        if (errorText === null || errorText === '') {
+        $(dialog).dialog('close');
+        return false;
+        }
+        $(dialog).dialog('close');
+
+        $.ajax({
+        url: '/api/Property/ReportError/166150',
+        type: 'POST',
+        contentType: 'text/plain',
+        data: errorText
+        }).done(function () {
+        return false;
+        }).fail(function () {
+        Support.showAlert('Došlo k problému při pokusu nahlásit chybu této nabídky', 'Nahlášení chyby');
+        return false;
+        });
+        }
+
+        function getActualPrice() {
+        var resultPrice = 0;
+        if ('true' === 'true') {
+        resultPrice = actualItemPrice + minimalPriceIncrement;
+        } else {
+        resultPrice = actualItemPrice;
+        }
+        return resultPrice;
+        }
+
+        function getBidHistory() {
+        $.ajax({
+        url: '/api/Property/BidHistory/62785',
+        type: 'GET',
+        contentType: 'application/json'
+        }).done(function (data) {
+        if (data !== undefined && data !== null) {
+        if (data.length > 0) {
+        data.sort(compareBids);
+        bestBidUserId = data[0].ParticipantId;
+        }
+        var bidRows = [];
+        for (var bidIdx = 0; bidIdx < data.length; bidIdx++) {
+        var bidDate = new Date(new Date(data[bidIdx].BidTime).toUTCString().substr(0, 25));
+        bidDate.setMilliseconds(bidDate.getMilliseconds() + serverTzOffset);
+        var bidDay = ("0" + bidDate.getDate()).slice(-2);
+        var bidMonth = ("0" + (bidDate.getMonth() + 1)).slice(-2);
+        var bidYear = bidDate.getFullYear();
+        var bidHours = bidDate.getHours();
+        var bidMinutes = ("0" + bidDate.getMinutes()).slice(-2);
+        bidDateString = bidDay + '.' + bidMonth + '.' + bidYear + ' ' + bidHours + ':' + bidMinutes;
+        var newRowContent = data[bidIdx].MineBid ?
+        '<td class="pb-2 pl-0 text-nowrap"><strong>' + data[bidIdx].ParticipantId + ' (můj příhoz)</strong></td>' +
+        '<td class="pb-2 pl-0 text-nowrap"><strong>' + data[bidIdx].BidAmount.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kč</strong></td>' +
+        '<td class="pb-2 pl-0 text-nowrap"><strong>' + bidDateString + '</strong></td>'
+        :
+        '<td class="pb-2 pl-0 text-nowrap">' + data[bidIdx].ParticipantId + '</td>' +
+        '<td class="pb-2 pl-0 text-nowrap">' + data[bidIdx].BidAmount.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kč</td>' +
+        '<td class="pb-2 pl-0 text-nowrap">' + bidDateString + '</td>';
+
+        var newRow = '<tr data-bid-id="' + data[bidIdx].BidId + '" data-participant-id="' + data[bidIdx].ParticipantId + '">' + newRowContent;
+        bidRows.push(newRow);
+        }
+        $('#bid-history-table > tbody').html(bidRows.join(' '));
+        }
+        }).fail(function (error) {
+        });
+
+        // Descending comparison
+        function compareBids(bid1, bid2) {
+        return bid2.bidAmount - bid1.bidAmount;
+        }
+        }
+
+        function isInteger(number) {
+        return (number ^ 0) === number;
+        }
+
+        function loadMainMap() {
+        // Souřadnice pro zobrazení mapy
+        var center = [0, 0];
+
+        // Inicializace mapy s Leaflet
+        var map = L.map('map').setView(center, 15); // Nastavení výchozí pozice a úrovně přiblížení
+
+        // Přidání OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Vytvoření vlastní ikony
+        var redIcon = L.icon({
+        iconUrl: '/Images/drop-red.png', // Cesta k tvé ikoně
+        iconSize: [22, 31],  // Velikost ikony
+        iconAnchor: [11, 31],  // Ukotvení ikony (tak, aby byla správně umístěna)
+        popupAnchor: [0, -31]  // Umístění popupu (pokud bude použito)
+        });
+
+        // Přidání markeru s vlastní ikonou na mapu
+        var marker = L.marker(center, { icon: redIcon }).addTo(map);
+        }
+
+        $(".convert").on('load', function () {
+        var ua = window.navigator.userAgent;
+        var msie = ua.indexOf("MSIE ");
+        if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./)) // If Internet Explorer, return version number
+        {
+
+        } else {
+        $('.image-download').each(function () {
+        var child = $(this).find('.convert');
+        var base64 = "data:image/png;base64," + $.getBase64Image(child[0]);
+        $(this).attr('href', base64);
+        });
+        }
+        });
+
+        function synchronizeClient() {
+        if ('true' === 'true') {
+        NTP.sync('/api/Common/GetTime');
+        var currentUTCTime = NTP.fixTime();
+        var currentTime = new Date(new Date(currentUTCTime).toUTCString());
+
+        if ('true' === 'true') {
+        var deadlineTime = new Date(Date.parse(new Date(Date.UTC(2026,10-1,14,08,00,00)).toUTCString()));
+        if (deadlineTime > currentTime) {
+        $.initializeClock(deadlineTime);
+        }
+        }
+        var startTime = new Date(Date.parse(new Date(Date.UTC(2026,09-1,30,08,00,00)).toUTCString()));
+        if (startTime > currentTime) {
+        $.initializeStartClock(startTime);
+        }
+        }
+
+        $.synchronizeClientTz(clientTzOffset);
+        }
+    </script>
+
+    <script>
+        // highlight current page in nav menu and initialize declarative jquery UI widgets
+        (function () {
+            if (window.location.search !== '') {
+                a = $("a[href*='" + window.location.pathname + window.location.search + "']");
+                if (!a) a = $("a[href*='" + window.location.pathname + "']");
+            } else {
+                var a = $("a[href='" + window.location.pathname + "']");
+                if (!a) a = $("a[href*='" + window.location.pathname + "']");
+            }
+            if (a) $(a).addClass("selected");
+
+            $('[data-role="datepicker"]').each(function () {
+                $element = $(this);
+                var options = {};
+                $.each($element.data(), function (key, value) {
+                    if (key.search('dp') === 0 && key.length > 2) {
+                        var optionName = key.substr(2,1).toLowerCase() +  key.substr(3);
+                        options[optionName] = value;
+                    }
+                });
+                $element.datepicker(options);
+            });
+        })();
+    </script>
+    <script>
+        function onPageTop() {
+            $('html, body').animate({ scrollTop: 0 }, 'fast');
+        }
+    </script>
+</body>
+</html>

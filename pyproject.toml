@@ -1,7 +1,7 @@
 [project]
 name = "deal-hunter"
-version = "0.4.1"
-description = "Watches Bazoš.cz GPU and ex-office PC/laptop listings, learns fair prices and flags the genuinely good deals."
+version = "0.5.0"
+description = "Watches Bazoš.cz GPU and ex-office PC/laptop listings and state IT auctions, learns fair prices and flags the genuinely good deals."
 readme = "README.md"
 authors = [
     { name = "michalomegalul", email = "dog560154@gmail.com" }
@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
     "psycopg[binary]>=3.3.6",
+    "pypdf>=6.20.0",
     "python-dotenv>=1.2.4",
     "pyyaml>=6.0.3",
     "selectolax>=1.0.0",

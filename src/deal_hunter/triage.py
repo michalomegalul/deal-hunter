@@ -150,15 +150,17 @@ class OllamaClient:
         return body["message"]["content"], stats
 
 
-def chat_cached(client, system: str, user: str, cache_dir: Path | None) -> tuple[str, dict, bool]:
-    """Same model + same prompt -> same answer from disk."""
+def chat_cached(
+    client, system: str, user: str, cache_dir: Path | None, schema: dict | None = None
+) -> tuple[str, dict, bool]:
+    """Same model + same prompt -> same answer from disk. `schema` defaults to the triage form."""
     model_id = getattr(client, "cache_id", client.model)
     key = hashlib.sha256(json.dumps([model_id, system, user]).encode()).hexdigest()[:24]
     path = cache_dir / f"{key}.json" if cache_dir else None
     if path and path.exists():
         hit = json.loads(path.read_text())
         return hit["raw"], hit["stats"], True
-    raw, stats = client.chat(system, user, RESPONSE_SCHEMA)
+    raw, stats = client.chat(system, user, schema or RESPONSE_SCHEMA)
     if path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"model": client.model, "raw": raw, "stats": stats}))

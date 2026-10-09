@@ -45,7 +45,8 @@ services:
     profiles: []
 
   # Every 5 minutes: fair prices, candidate deals, LLM triage (Ollama on CT 100), scoring, ntfy pushes,
-  # 👍/👎 feedback and the Sunday digest. The LLM answer cache lives in the hunterdata volume.
+  # 👍/👎 feedback and the Sunday digest, plus the low-cadence auction step (nms.gov.cz IT lots).
+  # The LLM answer cache lives in the hunterdata volume.
   worker:
     <<: *hunter
     command: ["work", "--loop"]

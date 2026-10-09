@@ -229,6 +229,7 @@ class CycleStats:
     would_alert: int = 0
     votes: int = 0
     digest: bool = False
+    auctions: str = ""
 
     def summary(self) -> str:
         return (
@@ -236,6 +237,7 @@ class CycleStats:
             + (" (LLM unreachable, queued)" if self.llm_down else "")
             + f", {self.would_alert} would-alert, {self.pushed} pushed, {self.votes} new votes"
             + (", digest sent" if self.digest else "")
+            + (f"; {self.auctions}" if self.auctions else "")
         )
 
 
@@ -477,8 +479,9 @@ def maybe_send_digest(conn, ntfy, prices, data_since, rules: Rules, now: datetim
 
 
 def work_once(
-    conn, rules: Rules, llm, cache_dir, ntfy: Ntfy | None, triage_limit: int, now=None
+    conn, rules: Rules, llm, cache_dir, ntfy: Ntfy | None, triage_limit: int, now=None, auction_step=None
 ) -> CycleStats:
+    """One worker cycle. `auction_step(conn, prices, quiet, now)` is the auction part (auction_cycle.tick)."""
     from deal_hunter.db import repository as repo
 
     now = now or datetime.now(UTC)
@@ -493,6 +496,12 @@ def work_once(
     send_alerts(conn, ntfy, prices, data_since, rules, now, stats)
     poll_feedback(conn, ntfy, stats)
     stats.digest = maybe_send_digest(conn, ntfy, prices, data_since, rules, now)
+    if auction_step is not None:
+        try:
+            stats.auctions = auction_step(conn, prices, in_quiet_hours(now, rules), now).summary()
+        except Exception:  # the auction site being odd must not stop Bazoš deals
+            log.exception("auction step failed")
+            stats.auctions = "auctions: failed (see log)"
     return stats
 
 

@@ -518,3 +518,282 @@ def week_summary(conn: psycopg.Connection) -> dict:
         ).fetchall()
     )
     return out
+
+
+# --- auction lots (Phase 7) -----------------------------------------------------------------------
+
+
+def _dicts(cur) -> list[dict]:
+    names = [c.name for c in cur.description]
+    return [dict(zip(names, row)) for row in cur.fetchall()]
+
+
+def upsert_lot_summary(conn: psycopg.Connection, source: str, lot) -> tuple[bool, bool]:
+    """Store what a list response says about a lot (nms.Lot). Returns (new, status/price/end changed)."""
+    old = conn.execute(
+        "SELECT status, current_price, final_price, end_at, bids FROM auction_lots WHERE source = %s AND lot_id = %s",
+        (source, lot.lot_id),
+    ).fetchone()
+    current = lot.price if lot.status in ("active", "prepared") else None
+    with conn.transaction():
+        conn.execute(
+            """
+            INSERT INTO auction_lots (source, lot_id, url, title, description, category, institution, district,
+                zip_code, status, current_price, final_price, min_increment, bids, start_at, end_at)
+            VALUES (%(source)s, %(lot_id)s, %(url)s, %(title)s, %(description)s, %(category)s, %(institution)s,
+                %(district)s, %(zip_code)s, %(status)s, %(current)s, %(final)s, %(min_increment)s, %(bids)s,
+                %(start_at)s, %(end_at)s)
+            ON CONFLICT (source, lot_id) DO UPDATE SET
+                title = EXCLUDED.title,
+                description = COALESCE(auction_lots.description, EXCLUDED.description),
+                category = EXCLUDED.category,
+                institution = COALESCE(EXCLUDED.institution, auction_lots.institution),
+                district = COALESCE(EXCLUDED.district, auction_lots.district),
+                zip_code = COALESCE(EXCLUDED.zip_code, auction_lots.zip_code),
+                status = EXCLUDED.status,
+                current_price = COALESCE(EXCLUDED.current_price, auction_lots.current_price),
+                final_price = COALESCE(EXCLUDED.final_price, auction_lots.final_price),
+                min_increment = COALESCE(EXCLUDED.min_increment, auction_lots.min_increment),
+                bids = COALESCE(EXCLUDED.bids, auction_lots.bids),
+                start_at = COALESCE(EXCLUDED.start_at, auction_lots.start_at),
+                end_at = COALESCE(EXCLUDED.end_at, auction_lots.end_at),
+                last_seen = now()
+            """,
+            {
+                "source": source,
+                "lot_id": lot.lot_id,
+                "url": lot.url,
+                "title": lot.title,
+                "description": lot.description,
+                "category": lot.category,
+                "institution": lot.institution,
+                "district": lot.district,
+                "zip_code": lot.zip_code,
+                "status": lot.status,
+                "current": current,
+                "final": lot.final_price,
+                "min_increment": lot.min_increment,
+                "bids": lot.bids,
+                "start_at": lot.start_at,
+                "end_at": lot.end_at,
+            },
+        )
+    if old is None:
+        return True, False
+    changed = (old[0], old[1], old[2], old[3], old[4]) != (
+        lot.status,
+        current if current is not None else old[1],
+        lot.final_price if lot.final_price is not None else old[2],
+        lot.end_at or old[3],
+        lot.bids if lot.bids is not None else old[4],
+    )
+    return False, changed
+
+
+def save_lot_detail(
+    conn: psycopg.Connection, source: str, lot, attachment_text: str | None, content_hash: str, final: bool
+) -> None:
+    """Store a detail page (nms.Lot). `final`: fetched after the end, so the final price is in."""
+    current = lot.price if lot.status in ("active", "prepared") else None
+    with conn.transaction():
+        conn.execute(
+            """
+            UPDATE auction_lots SET
+                title = COALESCE(NULLIF(%(title)s, ''), title),
+                description = COALESCE(%(description)s, description),
+                category = COALESCE(%(category)s, category),
+                institution = COALESCE(%(institution)s, institution),
+                address = COALESCE(%(address)s, address),
+                inspection = COALESCE(%(inspection)s, inspection),
+                conditions = COALESCE(%(conditions)s, conditions),
+                status = %(status)s,
+                start_price = COALESCE(%(start_price)s, start_price),
+                current_price = COALESCE(%(current)s, current_price),
+                final_price = COALESCE(%(final)s, final_price),
+                min_increment = COALESCE(%(min_increment)s, min_increment),
+                bids = COALESCE(%(bids)s, bids),
+                start_at = COALESCE(%(start_at)s, start_at),
+                end_at = COALESCE(%(end_at)s, end_at),
+                attachments = %(attachments)s,
+                images = %(images)s,
+                attachment_text = COALESCE(%(attachment_text)s, attachment_text),
+                content_hash = %(hash)s,
+                detail_at = now(),
+                final_checked = final_checked OR %(final_checked)s,
+                last_seen = now()
+            WHERE source = %(source)s AND lot_id = %(lot_id)s
+            """,
+            {
+                "source": source,
+                "lot_id": lot.lot_id,
+                "title": lot.title,
+                "description": lot.description,
+                "category": lot.category,
+                "institution": lot.institution,
+                "address": lot.address,
+                "inspection": lot.inspection,
+                "conditions": lot.conditions,
+                "status": lot.status,
+                "start_price": lot.start_price,
+                "current": current,
+                "final": lot.final_price,
+                "min_increment": lot.min_increment,
+                "bids": lot.bids,
+                "start_at": lot.start_at,
+                "end_at": lot.end_at,
+                "attachments": Jsonb(lot.attachments),
+                "images": Jsonb(lot.images),
+                "attachment_text": attachment_text,
+                "hash": content_hash,
+                "final_checked": final,
+            },
+        )
+
+
+def lots_needing_detail(conn: psycopg.Connection, limit: int, now=None) -> list[dict]:
+    """New lots (running ones first, then sold ones for the price dataset), and lots that ended since
+    we last looked (their final price). Lots that ended unsold before we ever saw them are skipped."""
+    cur = conn.execute(
+        """
+        SELECT source, lot_id, url, status, end_at, detail_at, attachment_text FROM auction_lots
+        WHERE (detail_at IS NULL AND status IN ('active', 'prepared', 'ended'))
+           OR (detail_at IS NOT NULL AND NOT final_checked
+               AND end_at < COALESCE(%s, now()) - interval '10 minutes')
+        ORDER BY (status IN ('active', 'prepared')) DESC, (detail_at IS NULL) ASC,
+            CASE WHEN status IN ('active', 'prepared') THEN end_at END ASC NULLS LAST, end_at DESC NULLS LAST
+        LIMIT %s
+        """,
+        (now, limit),
+    )
+    return _dicts(cur)
+
+
+def get_lot(conn: psycopg.Connection, source: str, lot_id: str) -> dict | None:
+    cur = conn.execute("SELECT * FROM auction_lots WHERE source = %s AND lot_id = %s", (source, lot_id))
+    rows = _dicts(cur)
+    return rows[0] if rows else None
+
+
+def lots_in_status(conn: psycopg.Connection, *statuses: str, limit: int = 500) -> list[dict]:
+    cur = conn.execute(
+        "SELECT * FROM auction_lots WHERE status = ANY(%s) ORDER BY end_at DESC NULLS LAST LIMIT %s",
+        (list(statuses), limit),
+    )
+    return _dicts(cur)
+
+
+def lots_to_extract(conn: psycopg.Connection, llm_model: str, prompt_version: int, limit: int) -> list[dict]:
+    """Detailed lots without a finished extraction of their current text (running ones first)."""
+    cur = conn.execute(
+        """
+        SELECT l.* FROM auction_lots l
+        LEFT JOIN auction_extractions e ON e.source = l.source AND e.lot_id = l.lot_id
+            AND e.llm_model = %(m)s AND e.prompt_version = %(v)s AND e.content_hash = l.content_hash
+        WHERE l.content_hash IS NOT NULL AND l.status IN ('active', 'prepared', 'ended')
+          AND (e.status IS NULL OR (e.status = 'pending' AND e.next_try_at <= now()))
+        ORDER BY (l.status IN ('active', 'prepared')) DESC, l.end_at ASC NULLS LAST
+        LIMIT %(limit)s
+        """,
+        {"m": llm_model, "v": prompt_version, "limit": limit},
+    )
+    return _dicts(cur)
+
+
+def get_extraction(
+    conn: psycopg.Connection, source: str, lot_id: str, llm_model: str, prompt_version: int, content_hash: str
+) -> dict | None:
+    cur = conn.execute(
+        "SELECT * FROM auction_extractions WHERE source = %s AND lot_id = %s AND llm_model = %s "
+        "AND prompt_version = %s AND content_hash = %s",
+        (source, lot_id, llm_model, prompt_version, content_hash),
+    )
+    rows = _dicts(cur)
+    return rows[0] if rows else None
+
+
+def latest_extraction(conn: psycopg.Connection, source: str, lot_id: str) -> dict | None:
+    """The newest finished extraction of a lot, whatever model or prompt made it."""
+    cur = conn.execute(
+        "SELECT * FROM auction_extractions WHERE source = %s AND lot_id = %s AND status = 'done' "
+        "ORDER BY prompt_version DESC, updated_at DESC LIMIT 1",
+        (source, lot_id),
+    )
+    rows = _dicts(cur)
+    return rows[0] if rows else None
+
+
+def save_extraction(
+    conn: psycopg.Connection,
+    source: str,
+    lot_id: str,
+    llm_model: str,
+    prompt_version: int,
+    content_hash: str,
+    **fields,
+) -> None:
+    for key in ("result", "notes", "stats"):
+        if key in fields and fields[key] is not None:
+            fields[key] = Jsonb(fields[key])
+    cols = ", ".join(fields)
+    vals = ", ".join(f"%({k})s" for k in fields)
+    sets = ", ".join(f"{k} = EXCLUDED.{k}" for k in fields)
+    with conn.transaction():
+        conn.execute(
+            f"INSERT INTO auction_extractions (source, lot_id, llm_model, prompt_version, content_hash, {cols}) "
+            f"VALUES (%(s)s, %(l)s, %(m)s, %(v)s, %(h)s, {vals}) "
+            "ON CONFLICT (source, lot_id, llm_model, prompt_version, content_hash) "
+            f"DO UPDATE SET {sets}, updated_at = now()",
+            {**fields, "s": source, "l": lot_id, "m": llm_model, "v": prompt_version, "h": content_hash},
+        )
+
+
+def save_valuation(
+    conn: psycopg.Connection, source: str, lot_id: str, valuation: dict | None, qualifies: bool
+) -> None:
+    with conn.transaction():
+        conn.execute(
+            "UPDATE auction_lots SET valuation = %s, qualifies = %s, valued_at = now() "
+            "WHERE source = %s AND lot_id = %s",
+            (Jsonb(valuation) if valuation is not None else None, qualifies, source, lot_id),
+        )
+
+
+def auction_alert_kinds(conn: psycopg.Connection, source: str, lot_id: str) -> set[str]:
+    rows = conn.execute(
+        "SELECT kind FROM auction_alerts WHERE source = %s AND lot_id = %s", (source, lot_id)
+    ).fetchall()
+    return {r[0] for r in rows}
+
+
+def record_auction_alert(
+    conn: psycopg.Connection,
+    source: str,
+    lot_id: str,
+    kind: str,
+    ntfy_id: str | None,
+    price: int | None,
+    max_bid: int | None,
+    profit: float | None,
+) -> None:
+    with conn.transaction():
+        conn.execute(
+            "INSERT INTO auction_alerts (source, lot_id, kind, ntfy_id, price, max_bid, profit) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+            (source, lot_id, kind, ntfy_id, price, max_bid, round(profit) if profit is not None else None),
+        )
+
+
+def auction_alerts_since(conn: psycopg.Connection, since) -> int:
+    return conn.execute(
+        "SELECT count(*) FROM auction_alerts WHERE ntfy_id IS NOT NULL AND sent_at >= %s", (since,)
+    ).fetchone()[0]
+
+
+def mark_lot_gone(conn: psycopg.Connection, source: str, lot_id: str) -> None:
+    """The detail page is gone (404 / redirect): stop asking for it."""
+    with conn.transaction():
+        conn.execute(
+            "UPDATE auction_lots SET status = 'gone', final_checked = true, detail_at = now(), qualifies = false "
+            "WHERE source = %s AND lot_id = %s",
+            (source, lot_id),
+        )
