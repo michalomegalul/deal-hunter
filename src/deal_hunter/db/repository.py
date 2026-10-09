@@ -230,3 +230,45 @@ def stats(conn: psycopg.Connection) -> dict:
         "THEN 'excluded' ELSE 'unmatched' END AS status, count(*) FROM normalized GROUP BY 1 ORDER BY 1"
     ).fetchall()
     return out
+
+
+def to_normalize(conn: psycopg.Connection, version: int, everything: bool = False) -> list[tuple[int, str]]:
+    """(id, title) of listings never normalized, or normalized by an older catalog version."""
+    if everything:
+        return conn.execute("SELECT id, title FROM listings ORDER BY id").fetchall()
+    return conn.execute(
+        "SELECT l.id, l.title FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id "
+        "WHERE n.listing_id IS NULL OR n.normalizer_version < %s ORDER BY l.id",
+        (version,),
+    ).fetchall()
+
+
+def save_normalized(
+    conn: psycopg.Connection, rows: list[tuple[int, str | None, int | None, str | None]], version: int
+):
+    """Upsert (listing_id, gpu_model, vram_gb, excluded_reason) rows."""
+    with conn.transaction(), conn.cursor() as cur:
+        cur.executemany(
+            "INSERT INTO normalized (listing_id, gpu_model, vram_gb, excluded_reason, normalizer_version) "
+            "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (listing_id) DO UPDATE SET gpu_model = EXCLUDED.gpu_model, "
+            "vram_gb = EXCLUDED.vram_gb, excluded_reason = EXCLUDED.excluded_reason, "
+            "normalizer_version = EXCLUDED.normalizer_version, normalized_at = now()",
+            [(*row, version) for row in rows],
+        )
+
+
+def unmatched(conn: psycopg.Connection, limit: int) -> list[tuple]:
+    """(id, title, price_czk, url) of listings the normalizer couldn't place, newest first."""
+    return conn.execute(
+        "SELECT l.id, l.title, l.price_czk, l.url FROM normalized n JOIN listings l ON l.id = n.listing_id "
+        "WHERE n.gpu_model IS NULL AND n.excluded_reason IS NULL ORDER BY l.first_seen DESC LIMIT %s",
+        (limit,),
+    ).fetchall()
+
+
+def normalized_summary(conn: psycopg.Connection) -> list[tuple]:
+    """(gpu_model or excluded_reason or 'unmatched', count) for `hunt normalize`."""
+    return conn.execute(
+        "SELECT COALESCE(gpu_model || COALESCE(' ' || vram_gb || 'GB', ''), 'excluded: ' || excluded_reason, "
+        "'unmatched'), count(*) FROM normalized GROUP BY 1 ORDER BY 2 DESC, 1"
+    ).fetchall()

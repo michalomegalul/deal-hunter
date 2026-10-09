@@ -1,4 +1,4 @@
-"""Command line entry point: `hunt scrape | backfill | recheck | stats | db`."""
+"""Command line entry point: `hunt scrape | backfill | recheck | normalize | review | stats | db`."""
 
 import argparse
 import logging
@@ -33,8 +33,14 @@ def cmd_scrape(args: argparse.Namespace) -> None:
         return
 
     def step():
-        stats = _with_db(lambda client, conn: scraper.scrape_once(client, conn, pages))
-        print(stats.summary(), flush=True)
+        from deal_hunter import normalize
+
+        def work(client, conn):
+            stats = scraper.scrape_once(client, conn, pages)
+            normalize.run(conn)  # cheap: only new listings (or all, after a catalog version bump)
+            return stats
+
+        print(_with_db(work).summary(), flush=True)
 
     if args.loop:
         scraper.forever(settings.loop_minutes * 60, step, "scrape")
@@ -81,6 +87,33 @@ def cmd_stats(args: argparse.Namespace) -> None:
         print("Normalizer: " + ", ".join(f"{k} {n} ({n / total:.0%})" for k, n in s["normalized"]))
 
 
+def cmd_normalize(args: argparse.Namespace) -> None:
+    from deal_hunter import normalize
+    from deal_hunter.db import repository as repo
+
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        done = normalize.run(conn, everything=args.all)
+        print(f"Normalized {done} listings with catalog v{normalize.version()}.")
+        if args.verbose:
+            for label, n in repo.normalized_summary(conn):
+                print(f"  {n:>5}  {label}")
+        s = repo.stats(conn)["normalized"]
+    total = sum(n for _, n in s) or 1
+    print("Overall: " + ", ".join(f"{k} {n} ({n / total:.0%})" for k, n in s))
+
+
+def cmd_review(args: argparse.Namespace) -> None:
+    from deal_hunter.db import repository as repo
+
+    with repo.connect() as conn:
+        rows = repo.unmatched(conn, args.limit)
+    for listing_id, title, price, url in rows:
+        price_s = f"{price:,}".replace(",", " ") if price is not None else "-"
+        print(f"{listing_id}  {price_s:>8}  {title}" + (f"\n{'':>20}{url}" if args.urls else ""))
+    print(f"\n{len(rows)} unmatched (not a known model, not excluded). Add rules to gpu_catalog.yaml.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="hunt", description="Bazoš GPU deal hunter")
     sub = parser.add_subparsers(required=True)
@@ -105,6 +138,16 @@ def main() -> None:
 
     p = sub.add_parser("stats", help="what has been collected so far")
     p.set_defaults(func=cmd_stats)
+
+    p = sub.add_parser("normalize", help="map listing titles to canonical GPU models")
+    p.add_argument("--all", action="store_true", help="redo every listing, not just new/outdated ones")
+    p.add_argument("-v", "--verbose", action="store_true", help="print counts per model")
+    p.set_defaults(func=cmd_normalize)
+
+    p = sub.add_parser("review", help="titles the normalizer couldn't place")
+    p.add_argument("--limit", type=int, default=100)
+    p.add_argument("--urls", action="store_true")
+    p.set_defaults(func=cmd_review)
 
     register_db(sub)
 

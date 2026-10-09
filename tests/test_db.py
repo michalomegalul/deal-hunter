@@ -194,3 +194,20 @@ def test_db_throttle_spaces_requests(test_url):
         throttle.wait_turn()
         throttle.wait_turn()
     assert len(slept) == 1 and 2.5 < slept[0] <= 3.0
+
+
+def test_normalize_run_and_review(conn, monkeypatch):
+    from deal_hunter import normalize
+
+    for i, title in enumerate(["MSI RTX 3060 12GB", "Koupím RTX 3080", "Grafická karta"], start=1):
+        repo.save_listing(
+            conn, Listing(id=i, url=f"https://pc.bazos.cz/inzerat/{i}/x.php", title=title), True
+        )
+    assert normalize.run(conn) == 3
+    assert normalize.run(conn) == 0  # nothing new
+    rows = conn.execute("SELECT listing_id, gpu_model, vram_gb, excluded_reason FROM normalized ORDER BY 1")
+    assert rows.fetchall() == [(1, "rtx 3060", 12, None), (2, None, None, "wanted"), (3, None, None, None)]
+    assert [r[1] for r in repo.unmatched(conn, 10)] == ["Grafická karta"]
+
+    monkeypatch.setattr(normalize, "version", lambda: 999)  # a catalog bump redoes everything
+    assert normalize.run(conn) == 3
