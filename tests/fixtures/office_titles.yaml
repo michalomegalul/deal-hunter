@@ -1,0 +1,442 @@
+# Real Bazoš titles from the PC (pc.bazos.cz/pc) and notebook (pc.bazos.cz/notebook) sections,
+# collected 2026-10-09, with the office normalizer's expected output, hand-checked.
+# model = canonical business model (+ ram_gb/ssd_gb/cpu read from the title, when present);
+# excluded = reason the ad is skipped; neither = unmatched (shows up in `hunt review`).
+# Used by tests/test_office.py.
+- {title: 'Prodám iMac 24" M1 (2021),zelený, téměř nepoužívaný', section: pc, excluded: out_of_scope}
+- {title: 'Herní 8 jádro i7 11700F, 16GB, 1TB SSD, RTX3070 8GB - záruka', section: pc, excluded: out_of_scope}
+- {title: Téměř nový profesionální AiO PC ACER klávesnice myš záruka, section: pc, excluded: out_of_scope}
+- {title: 'Herní PC – RTX 5070 12GB / i7-9700K / 32GB RAM / 2,5TB SSD', section: pc, excluded: out_of_scope}
+- {title: Herní PC, section: pc, excluded: out_of_scope}
+- {title: Vánoční PC sestava 5060, section: pc, excluded: out_of_scope}
+- {title: Herní PC - RX 6700XT 12GB/Ryzen 5 5600 /32GB/ 1TB- záruka, section: pc, excluded: out_of_scope}
+- {title: 'AI PC, RTX PRO 6000 96gb, 192GB RAM, Ultra 9 285K, 4TB nvme', section: pc, excluded: out_of_scope}
+- {title: 'Lenovo Legion 5 15" OLED, RTX 5070, 32GB, záruka 10/2028', section: pc, excluded: out_of_scope}
+- {title: 'Herní 8jádro Ryzen 7800x3d, 32GB DDR5, RTX4080 16GB, 2TB SSD', section: pc, excluded: out_of_scope}
+- {title: 'Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ', section: pc, model: optiplex 5040 sff, ram_gb: 8, ssd_gb: 128, cpu: i3-6100}
+- {title: 'HP ProDesk 600 G2 - i3-6100, 4GB DDR4, 500GB HDD, VÍCE KUSŮ', section: pc, model: prodesk 600 g2, ram_gb: 4, cpu: i3-6100}
+- {title: Intel core i3 9100f / 8gb ddr4/GTX980/ssd512.g, section: pc, excluded: out_of_scope}
+- {title: PRODÁNO, section: pc, excluded: out_of_scope}
+- {title: 'HERNÍ PC - Ryzen 7 9700X, RTX 5060Ti 16GB, 32GB RAM, 1TB SSD', section: pc, excluded: out_of_scope}
+- {title: Prodám herní počítač + LCD 34“ a 22“, section: pc, excluded: out_of_scope}
+- {title: PC set, section: pc, excluded: out_of_scope}
+- {title: 8G Ram DDR 4 2400t, section: pc, excluded: out_of_scope}
+- {title: NOVÝ MINI HERNÍ PC - i5-11400F / 32GB / 1TB SSD / RTX 3060TI, section: pc, excluded: out_of_scope}
+- {title: 'Počítač, PC, gtx 1660ti- i3-10105 16gb', section: pc, excluded: out_of_scope}
+- {title: MSI katana RTX4070/RYZEN 9/32GB RAM, section: pc, excluded: out_of_scope}
+- {title: 'Dostupný Výkonný Herní PC + klávesnice, myš', section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC RYZEN 7 5800X RX 6700 10GB, section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC RYZEN 5 9600X RTX 3060 12GB 16GB DDR5, section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC RYZEN 9 7900X RX 9070 XT 16GB NITRO+ CRIMSON DESERT, section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC SESTAVA R9 3900X/16GB RAM/RTX 3070/500GB SSD, section: pc, excluded: out_of_scope}
+- {title: TOP HERNÍ PC R7 9800X3D/64GB RAM/RTX 5090/4TB SSD, section: pc, excluded: out_of_scope}
+- {title: 🔧 ČIŠTĚNÍ PC A NOTEBOOKŮ + VÝMĚNA TEPELNÉ PASTY, section: pc, excluded: out_of_scope}
+- {title: 'HERNÍ PC ✅ RTX 2070 Super, i5 11gen, 16gb ram, 500gb ssd', section: pc, excluded: out_of_scope}
+- {title: 'HERNÍ PC ✅ RTX 2060, Ryzen 3600, 16gb ram, 500gb ssd', section: pc, excluded: out_of_scope}
+- {title: 'HERNÍ PC ✅ RTX 3060 Ti, i5 11gen, 16gb ram, 500gb ssd', section: pc, excluded: out_of_scope}
+- {title: Herní PC RTX 5070 / Ryzen 5 9600X / 32GB DDR5, section: pc, excluded: out_of_scope}
+- {title: 9800X3D / 32GB / RTX 5080, section: pc, excluded: out_of_scope}
+- {title: '❰ Herní PC | RYZEN 5 3600, RTX 2060 Super, 16GB RAM SSD ❱', section: pc, excluded: out_of_scope}
+- {title: '❰ Herní PC | RYZEN 5 3600, RTX 2060 Super, 16GB RAM, SSD ❱', section: pc, excluded: out_of_scope}
+- {title: '❰ Herní PC | RYZEN 5 5600, RTX 3070, 32GB RAM, SSD 1TB ❱', section: pc, excluded: out_of_scope}
+- {title: 'Lenovo V530 - 2400G, 16GB RAM, 256GB NVMe, ZÁRUKA, OS', section: pc, excluded: out_of_scope}
+- {title: 'HP 405 G4 - 2200GE, 8GB RAM, 128GB NVMe, VGA, OS, ZÁRUKA', section: pc, model: prodesk 405 g4, ram_gb: 8, ssd_gb: 128}
+- {title: 'Lenovo M725s - 2400G, 16GB RAM, 512GB NVMe, ZÁRUKA, OS', section: pc, model: thinkcentre m725s, ram_gb: 16, ssd_gb: 512}
+- {title: 'DELL T3420 - i7 7700K, 16GB RAM, 512GB NVMe, OS, ZÁRUKA', section: pc, excluded: out_of_scope}
+- {title: 'DELL T3420 - E3-1245 v5, 16GB RAM, 512GB NVMe, OS, ZÁRUKA', section: pc, excluded: out_of_scope}
+- {title: 'Lenovo M720s- i5 9500, 16GB, 512GB NVMe, WiFi, ZÁRUKA, OS', section: pc, model: thinkcentre m720s, ram_gb: 16, ssd_gb: 512, cpu: i5-9500}
+- {title: 'i7-8700K,32GBDDR4,RTX 2060Super,500GB m.2,1TB HDD,650W,WIN11', section: pc, excluded: out_of_scope}
+- {title: Základ pro stavbu herního pc, section: pc, excluded: out_of_scope}
+- {title: Kabely DVI, section: pc, excluded: out_of_scope}
+- {title: 'PC Ryzen 5 1600AF, GTX 960, 16GB RAM + klávesnice a myš', section: pc, excluded: out_of_scope}
+- {title: 'stolní počítač PC, monitor, mobilní telefon Samsung', section: pc, excluded: out_of_scope}
+- {title: KOMPLET HERNÍ PC SESTAVA RYZEN 5 3600 RX 6600 8GB, section: pc, excluded: out_of_scope}
+- {title: ⭐Herní PC-RTX 3080 10GB/i7 11700/1TB NVMe/16GB DDR4/ZÁRUKA, section: pc, excluded: out_of_scope}
+- {title: ⭐Herní PC-RTX 3070 8GB/Ryzen 5600G/1TB NVMe/16GB DDR4/ZÁRUKA, section: pc, excluded: out_of_scope}
+- {title: 'Dell OptiPlex 7050, i7, 16GB, 500GB NVMe, +1TB HDD, Quadro..', section: pc, model: optiplex 7050, ram_gb: 16, ssd_gb: 500, cpu: i7}
+- {title: průmyslový ITX 8GB RAM CPU Intel G3450 wGPU NAS, section: pc, excluded: out_of_scope}
+- {title: 2x 1TB Sata do PC bez vadných sektorů., section: pc, excluded: out_of_scope}
+- {title: 'Mini PC Fujitsu Q920, i5, 16GB RAM, 512GB SSD', section: pc, excluded: out_of_scope}
+- {title: HP Compaq Elite 8300 SFF, section: pc, excluded: out_of_scope}
+- {title: 'Kompaktní PC (i5, 16GB RAM, GTX 1050 Ti, SSD)', section: pc, excluded: out_of_scope}
+- {title: Prodam, section: pc, excluded: out_of_scope}
+- {title: 'Herní PC: RTX 3070 | Ryzen 5600 | 16GB RAM | Rok záruka a FA', section: pc, excluded: out_of_scope}
+- {title: 'Herní PC AMD Ryzen 5, RTX4060, 32 GB RAM, 1,25 TB SSD', section: pc, excluded: out_of_scope}
+- {title: 'Herní PC Ryzen 5, 16GB DDR4, GTX 1070, SSD + HDD, ZÁRUKA', section: pc, excluded: out_of_scope}
+- {title: 'TOP PC-LEVNĚ-NEVÝKONĚJŠÍ MB,TOP CPU 12/24 jader,RGB RAM', section: pc, excluded: out_of_scope}
+- {title: Lenovo ThingCentre Edge 91z, section: pc, excluded: out_of_scope}
+- {title: Dell PC 7010 i5 různých formátů (usff až minitower), section: pc, excluded: out_of_scope}
+- {title: 'Herní PC,6600K 3.9 GHz,AMD RX5700 XT 8GB ( podobná RTX 4060)', section: pc, excluded: out_of_scope}
+- {title: 'Herní PC,6600K 3.9 GHz, AMD Vega 56 8GB (podobná RTX 3060)', section: pc, excluded: out_of_scope}
+- {title: Stolní počítač, section: pc, excluded: out_of_scope}
+- {title: Stylový bílý Herní PC / Ryzen 7 / RX 6600 XT / SSD / RGB, section: pc, excluded: out_of_scope}
+- {title: 'Dell Optiplex 3080 SFF (i3 10105, 8GB DDR4, 256SSD, W11)', section: pc, model: optiplex 3080 sff, ram_gb: 8, cpu: i3-10105}
+- {title: 'Apple iMac 21,5" 2017', section: pc, excluded: out_of_scope}
+- {title: 'Herní PC - 12 jader, AMD RX5700 XT 8GB (výkon RTX 4060)', section: pc, excluded: out_of_scope}
+- {title: 4jadro AMD A8-9600 + Asus A320M-R + Windows 10/11, section: pc, excluded: out_of_scope}
+- {title: 'PC Lenovo C40-05, 21.5" FHD, AMD A6, 8GB RAM, 240GB SSD, W1', section: pc, excluded: out_of_scope}
+- {title: Herní PC / i3-8100 / RX 570 / 16GB RAM / SSD / RGB / WiFi, section: pc, excluded: out_of_scope}
+- {title: Dell optiplex 3020, section: pc, model: optiplex 3020}
+- {title: Herni PC/i5-14400/RX 6700 XT/32GB RAM DDR4/2TB SSD, section: pc, excluded: out_of_scope}
+- {title: 'Core i5 9400F, Geforce 1080, 16 GB RAM,  512 GB SSD, WIN11', section: pc, excluded: out_of_scope}
+- {title: ASIC Ant_miner Z15 Pro 840 Ksol  BITMAIN, section: pc, excluded: out_of_scope}
+- {title: 'HP prodesk 600 3x sestava pc+ monitor, myš klávesnice', section: pc, excluded: bundle}
+- {title: Alza Battlebox GTX1080+ SLI, section: pc, excluded: out_of_scope}
+- {title: Herní PC - Core i9-10900KF/RTX 3070/32GB RAM/750W, section: pc, excluded: out_of_scope}
+- {title: HP ProDesk 400 G2 Tower, section: pc, model: prodesk 400 g2 tower}
+- {title: Lenovo IdeaCentre C50-30, section: pc, excluded: out_of_scope}
+- {title: PC - i5/GTX1660S/16GB RAM/SSD+HDD, section: pc, excluded: out_of_scope}
+- {title: 'MacBook Pro 16" M1 Max 32GB/1TB, 32 GPU, baterie 94 %', section: pc, excluded: out_of_scope}
+- {title: Herní PC RTX 3050 / 1TB nvme / Ryzen 5500, section: pc, excluded: out_of_scope}
+- {title: PC, section: pc, excluded: out_of_scope}
+- {title: FULL PC/ STREAM SETUP, section: pc, excluded: out_of_scope}
+- {title: Apple sestava s tiskarnou klavesnici a mysi, section: pc, excluded: out_of_scope}
+- {title: PC Gigabyte GTX 750ti 2GB / i5 7400 / 16GB DDR4, section: pc, excluded: out_of_scope}
+- {title: PC sestava, section: pc, excluded: out_of_scope}
+- {title: 'Herní PC sestava s Win11 Pro, tiskárna a SSD', section: pc, excluded: out_of_scope}
+- {title: 5500 / RX 6700XT 12GB, section: pc, excluded: out_of_scope}
+- {title: PMI 80, section: pc, excluded: out_of_scope}
+- {title: 'Nerozbalené herní PC Lenovo (RTX 5070,32GB RAM)', section: pc, excluded: out_of_scope}
+- {title: 'PC AMD 3,1 GHz, 2 GB Ram', section: pc, excluded: out_of_scope}
+- {title: Stolní PC, section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC i5 10600K + RTX 3070 + 16GB DDR4, section: pc, excluded: out_of_scope}
+- {title: 'DELL OptiPlex 5090 SFF, i5-10505, 32GB RAM, 512GB NVME', section: pc, model: optiplex 5090 sff, ram_gb: 32, ssd_gb: 512, cpu: i5-10505}
+- {title: 'DELL PowerEdge R650xs, Gold 5317, 192 RAM, 2x 480GB SSD', section: pc, excluded: out_of_scope}
+- {title: Herní stolní počítač, section: pc, excluded: out_of_scope}
+- {title: 'PC herní, intel I5-4590, 4x3,7GHz, 8GB Ram,gr. RX 570-8GB.', section: pc, excluded: out_of_scope}
+- {title: 'PC-set intel core I5-3470, 4x3,6GHz, 8GB Ram,500GB HDD,Win11', section: pc, excluded: out_of_scope}
+- {title: 'PC herní, FX-8320, 8x4GHz, 8GB Ram,1000HDD,Win11, graf 8GB', section: pc, excluded: out_of_scope}
+- {title: Fujitsu Celsius M740n Xeon/32GB/SSD512+500/K2200 4GB, section: pc, excluded: out_of_scope}
+- {title: PC MSI - Ryzen 5 3400G / GTX 1050ti 4GB /16GB DDR, section: pc, excluded: out_of_scope}
+- {title: Herní PC – RTX 5070 Ti 16GB / Ultra 9 285K / 64GB RAM / 2TB, section: pc, excluded: out_of_scope}
+- {title: Prodej monitoru UWQHD, section: pc, excluded: out_of_scope}
+- {title: 'HP Z230 - i7-4770, 16GB, SSD 240, HDD 2TB, Nvidia Quadro 4GB', section: pc, excluded: out_of_scope}
+- {title: Svižný počítač Intel i5 / 8GB RAM / SSD / Windows 11, section: pc, excluded: out_of_scope}
+- {title: AMD Ryzen 7 5800X3D + ASUS ROG STRIX B550-F Gaming + 32GB, section: pc, excluded: out_of_scope}
+- {title: 'Nově složené, herní PC Ryzen 5 l W11,', section: pc, excluded: out_of_scope}
+- {title: 'Mini PC HP 4jádro AMD Ryzen 3 PRO 3200G, 16GB ram, SSD+HDD', section: pc, excluded: out_of_scope}
+- {title: 'Mini PC 4jádro AMD Ryzen 3 PRO 3200G, 16GB ram, 4GB grafika', section: pc, excluded: out_of_scope}
+- {title: '6ti jádro i5 9500, 16GB, GTX1660 SUPER 6GB- záruka 1rok', section: pc, excluded: out_of_scope}
+- {title: Nová skladba / 48 GB / 1256GB / Xeon 24x CPU / 8 GB VGA, section: pc, excluded: out_of_scope}
+- {title: '6 jádro AMD Ryzen 5 9600X, 32GB DDR5,RTX5060Ti 16GB, 1TB SSD', section: pc, excluded: out_of_scope}
+- {title: Didaktik M, section: pc, excluded: out_of_scope}
+- {title: Lenovo C 470 - Lenovo all in one, section: pc, excluded: out_of_scope}
+- {title: Prodám iMac M1 úplně nový, section: pc, excluded: out_of_scope}
+- {title: Počítač Intel Xeon E3-1270 V3 / GTX 1050 Ti 4GB, section: pc, excluded: out_of_scope}
+- {title: SKLENĚNEJ NESMYSL, section: pc, excluded: out_of_scope}
+- {title: Herní PC / Ryzen 7 9800X3D / RX 9070 XT / 1TB NVME / Wifi, section: pc, excluded: out_of_scope}
+- {title: Kompletní PC SET – počítač + monitor + klávesnice + myš, section: pc, excluded: out_of_scope}
+- {title: Mini PC GMKtec K8 plus, section: pc, excluded: out_of_scope}
+- {title: Herní PC TIGO Ultimate – RTX 5070 / i5-14600K / 32 GB DDR5, section: pc, excluded: out_of_scope}
+- {title: 'Herní dělo - 12 jádro Ryzen 9 7900X3D, 32GB, RX9070 XT 16GB', section: pc, excluded: out_of_scope}
+- {title: 'Herní 8 jádro 5800X3D, 32GB, 1TB SSD, RTX5060Ti 16GB -záruka', section: pc, excluded: out_of_scope}
+- {title: '27 Apple iMac 5K RETINA 6jádro Fusion 1,03Tb Ram 16GB záruka', section: pc, excluded: out_of_scope}
+- {title: 27 APPLE iMac 5K RETINA model 2020 ZÁRUKA lze až 128Gb, section: pc, excluded: out_of_scope}
+- {title: '6jádro i5 9400F, 16GB, 1TB SSD, GTX1660 SUPER 6GB - záruka', section: pc, excluded: out_of_scope}
+- {title: Herní PC HP i5-7500 / GTX 1650 4GB / 16GB / 512GB SSD, section: pc, excluded: out_of_scope}
+- {title: HP Z420 Workstation /e5 1650v2 / 16.gb Ram /quadro k5200-8gb, section: pc, excluded: out_of_scope}
+- {title: NOVE Reproduktory SteelSeries Arena 7, section: pc, excluded: out_of_scope}
+- {title: 'Lenovo M720s - i5 9400, 16GB RAM, 512GB NVMe, ZÁRUKA, Win 11', section: pc, model: thinkcentre m720s, ram_gb: 16, ssd_gb: 512, cpu: i5-9400}
+- {title: 'HP 405 G4 - 2200GE, 16GB RAM, 256GB SSD, WiFi, OS, ZÁRUKA', section: pc, model: prodesk 405 g4, ram_gb: 16, ssd_gb: 256}
+- {title: 'HP 405 G4 - 2200GE, 8GB RAM, 256GB SSD, VGA, OS, ZÁRUKA', section: pc, model: prodesk 405 g4, ram_gb: 8, ssd_gb: 256}
+- {title: 'Lenovo M725s - 2400G, 16GB RAM, 256GB NVMe, ZÁRUKA, OS', section: pc, model: thinkcentre m725s, ram_gb: 16, ssd_gb: 256}
+- {title: Mac mini M4 2024 CTO, section: pc, excluded: out_of_scope}
+- {title: herní pc - v záruce, section: pc, excluded: out_of_scope}
+- {title: 🎮 Herní PC – RTX 3060 Ti | Ryzen 5 3600 | 16 GB RAM | NVMe, section: pc, excluded: out_of_scope}
+- {title: 3x HP 500B Minitower - cena za vše, section: pc, excluded: out_of_scope}
+- {title: Herní PC Intel i5-10400 / RTX 3060 Ti 8GB / 32GB RAM, section: pc, excluded: out_of_scope}
+- {title: Herní PC – RTX 5060 8GB / Ryzen 5 5500 / 32GB RAM / 1TB SSD, section: pc, excluded: out_of_scope}
+- {title: Herní PC AM5 - Ryzen 5 8500G / RTX 4060 8GB / 32GB RAM DDR5, section: pc, excluded: out_of_scope}
+- {title: 'Lenovo ThinkCentre M710s - i5-7500, 8GB, 1TB HDD, ZÁRUKA', section: pc, model: thinkcentre m710s, ram_gb: 8, cpu: i5-7500}
+- {title: PC – Ryzen 3800X | 16GB RAM | 2080Ti | 250GB SSD, section: pc, excluded: out_of_scope}
+- {title: 'Dell Precision T3600 Xeon,16GB RAM,512GB SSD,Quadro K2000', section: pc, excluded: out_of_scope}
+- {title: 'Dell Optiplex 3020 - i5-4590, 8GB RAM, 500GB, R5-240, ZÁRUKA', section: pc, model: optiplex 3020, ram_gb: 8, cpu: i5-4590}
+- {title: 'HP EliteDesk 800 G4 DM - i5-8500, 8GB RAM, 256GB SSD, ZÁRUKA', section: pc, model: elitedesk 800 g4 mini, ram_gb: 8, ssd_gb: 256, cpu: i5-8500}
+- {title: 'HP Z230 Tower – i7-4770, 16 GB RAM, 2 TB HDD, Windows 10 Pro', section: pc, excluded: out_of_scope}
+- {title: operační pamět 16 GB DDR5 RAM, section: pc, excluded: out_of_scope}
+- {title: 'Dell Optiplex 3020M - i3-4160T, 8GB RAM, 256GB SSD, WIFI', section: pc, model: optiplex 3020 micro, ram_gb: 8, ssd_gb: 256, cpu: i3-4160t}
+- {title: 'Dell Optiplex 3040M - i3-6100T, 8GB RAM, 128GB SSD, WIFI', section: pc, model: optiplex 3040 micro, ram_gb: 8, ssd_gb: 128, cpu: i3-6100t}
+- {title: 'Lenovo ThinkCentre A70z - E8400, 4GB RAM, 500GB HDD, WIFI', section: pc, excluded: out_of_scope}
+- {title: 'HP EliteDesk 800 G2 - i5-6500, 8GB RAM, 128GB SSD, VÍCE KUSŮ', section: pc, model: elitedesk 800 g2, ram_gb: 8, ssd_gb: 128, cpu: i5-6500}
+- {title: Herní pc, section: pc, excluded: out_of_scope}
+- {title: 'HP ProDesk 600 G2 - i5-6600, 8GB DDR4, 500GB HDD, NVIDIA', section: pc, model: prodesk 600 g2, ram_gb: 8, cpu: i5-6600}
+- {title: 🎮 Herní PC Ryzen 5 3600 / GTX 1660 Super / 16 GB RAM / SSD, section: pc, excluded: out_of_scope}
+- {title: 'Lenovo ThinkCentre M800 - i3-6100, 8GB, 500GB HDD, ZÁRUKA', section: pc, model: thinkcentre m800, ram_gb: 8, cpu: i3-6100}
+- {title: Mini PC Intel NUC, section: pc, excluded: out_of_scope}
+- {title: HERNI PC I5 14600 RTX 3070 8GB, section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC AMD FX-8320 osmijádro/16GB/256GB+1TB/RX590 OC 8GB, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RX Vega 56, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RX 9060 xt 16gb, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RTX 5060, section: pc, excluded: out_of_scope}
+- {title: 'Lenovo ThinkCentre M800 (i5-6500, 8 GB, 256 GB)', section: pc, model: thinkcentre m800, ram_gb: 8, ssd_gb: 256, cpu: i5-6500}
+- {title: HERNÍ PC ULTRA 5 245KF RX 9070 16GB 32GB DDR5, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RTX 5070, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RTX 5060 ti, section: pc, excluded: out_of_scope}
+- {title: 'PC HP 400 G2.5 - Intel Core i7, 16GB RAM, SSD 240GB+500GB', section: pc, model: prodesk 400 g2.5, ram_gb: 16, ssd_gb: 240, cpu: i7}
+- {title: 'PC/i3-7100 4x3,90GHZ/16GB DDR4/128GB NVME+500GB/GPU 2GB/W11', section: pc, excluded: out_of_scope}
+- {title: Herní PC. 9800X3D / 32GB RAM / 1TB SSD / 1200W / 5080, section: pc, excluded: out_of_scope}
+- {title: '◤Herní PC:Intel 12100F,16GB RAM,1TB SSD+650GB HDD,RTX 2060', section: pc, excluded: out_of_scope}
+- {title: Výprodej rychlých počítačů s SSD a Windows 11, section: pc, excluded: out_of_scope}
+- {title: Herní PC RX 6800 XT 16GB, section: pc, excluded: out_of_scope}
+- {title: 'Prodám - Apple iMac 21,5" 2017 / 8GB RAM / 1T SSD', section: pc, excluded: out_of_scope}
+- {title: Herní PC – Ryzen 5 4500 / RTX 3050 6GB / 16GB RAM / 1TB NVMe, section: pc, excluded: out_of_scope}
+- {title: Hp pavilion 570, section: pc, excluded: out_of_scope}
+- {title: HP EliteDesk 705 G4 35W Mini, section: pc, model: elitedesk 705 g4 mini}
+- {title: Herní PC s RTX 5070 ti, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RTX 3080, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RTX 4060, section: pc, excluded: out_of_scope}
+- {title: PC SESTAVA, section: pc, excluded: out_of_scope}
+- {title: 'Lenovo M725s - 2200G, 8GB RAM, 256GB NVMe, ZÁRUKA, OS', section: pc, model: thinkcentre m725s, ram_gb: 8, ssd_gb: 256}
+- {title: 'DELL T3420 - E3-1245 v5, 16GB RAM, 256GB NVMe, OS, ZÁRUKA', section: pc, excluded: out_of_scope}
+- {title: 'Advantech Touch - i7 6600U, 8GB, 256GB SSD, WiFi, OS, Záruka', section: pc, excluded: out_of_scope}
+- {title: 'HP 405 G4 - 2200GE, 16GB RAM, 512GB NVMe, VGA, OS, ZÁRUKA', section: pc, model: prodesk 405 g4, ram_gb: 16, ssd_gb: 512}
+- {title: Herní PC set – RTX 5060 + i5-12400F + MSI MAG 200HZ, section: pc, excluded: out_of_scope}
+- {title: Umax U-Box N10 Pro, section: pc, excluded: out_of_scope}
+- {title: Herní PC i5-9400F / RTX 2060 6GB / 16GB RAM / Samsung SSD, section: pc, excluded: out_of_scope}
+- {title: Herní PC R7 2700/rx6600xt/16DDR4/1TBssd win11 záruka, section: pc, excluded: out_of_scope}
+- {title: Prodám zánovní počítač Acer Aspire C24-1800 s příslušenstvím, section: pc, excluded: out_of_scope}
+- {title: Herní PC Ryzen 5 2600/RX 5700 XT 8GB/ 32GB + 27" IPS mon., section: pc, excluded: out_of_scope}
+- {title: 'Herní PC Intel i5-8400, GTX 1660, 16GB DDR4, SSD, ZÁRUKA', section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC | RTX 4060 | 5600 | 16GB | ZÁRUKA, section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC | RTX 4060 Ti 16GB | 5600X | 16GB | ZÁRUKA, section: pc, excluded: out_of_scope}
+- {title: HERNÍ PC | RTX 5060 Ti 16GB | 14400F | 32GB DDR5 | ZÁRUKA, section: pc, excluded: out_of_scope}
+- {title: HP Z6 G4 – výkonná pracovní stanice Xeon / Quadro, section: pc, excluded: out_of_scope}
+- {title: 'PC, RTX 3060 12gb intel core i5 11400f', section: pc, excluded: out_of_scope}
+- {title: Herní PC s RX 5700 xt, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RTX 5080, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RTX 3090, section: pc, excluded: out_of_scope}
+- {title: Herní PC s RX 9070 xt, section: pc, excluded: out_of_scope}
+- {title: Herní PC GTX 1060 6GB + 24GB RAM + Zowie 144Hz monitor, section: pc, excluded: out_of_scope}
+- {title: BARBONE GAME R5 5600 32GB + RTX 5060, section: pc, excluded: out_of_scope}
+- {title: 'NOVÝ HERNÍ PC - i5-12500, 32GB DDR5, 1TB SSD, RX 6650 XT', section: pc, excluded: out_of_scope}
+- {title: MINI HERNÍ PC - Ryzen 5 5600X / 16GB / 1TB SSD / RTX 3060TI, section: pc, excluded: out_of_scope}
+- {title: MINI HERNÍ PC - Core i7-10700F / 16GB / 1TB SSD / RTX 2080, section: pc, excluded: out_of_scope}
+- {title: HerníPC Ryzen 7 5800X | 32GB | Arc A770 | 2TB, section: pc, excluded: out_of_scope}
+- {title: 'Herní PC RTX 3070Ti, AMD Ryzen 7 5800X, 32Gb RAM, 1TB SSD', section: pc, excluded: out_of_scope}
+- {title: Počítač Dell Optiplex 7020 Micro plus Intel Core i5 + přísl., section: pc, model: optiplex 7020 plus micro, cpu: i5}
+- {title: Vánoční PC sestava 1070, section: pc, excluded: out_of_scope}
+- {title: Vánoční PC sestava 5700, section: pc, excluded: out_of_scope}
+- {title: Vánoční PC sestava 4060, section: pc, excluded: out_of_scope}
+- {title: Výkonný herní PC s příslušenstvím, section: pc, excluded: out_of_scope}
+- {title: Herní PC / Ryzen 7 7800X3D / RX 9070 XT / 1TB NVME / Wifi, section: pc, excluded: out_of_scope}
+- {title: Dell optiplex 2010, section: pc, excluded: out_of_scope}
+- {title: 'Herní PC Ryzen 7, GTX 1660 Super, 16GB RAM, 500G SSD, ZÁRUKA', section: pc, excluded: out_of_scope}
+- {title: Herní počítač Rtx 5060 16gb ddr5 r5 7600, section: pc, excluded: out_of_scope}
+- {title: Dell Precision 7650 32GB/1TB/i7/RTX A2000, section: notebook, excluded: out_of_scope}
+- {title: 'Thinkpad T14s Gen 3 14" Ryzen 5 6650 16GB, SSD 512GB, W11p', section: notebook, model: thinkpad t14s gen 3, ram_gb: 16, ssd_gb: 512, cpu: ryzen 5 6650}
+- {title: '█ Lenovo T14s gen 5 (i5, 16GB, záruka Lenovo 2028) █', section: notebook, model: thinkpad t14s gen 5, ram_gb: 16, cpu: i5}
+- {title: Notebook konvertibilní 2v1, section: notebook, excluded: out_of_scope}
+- {title: 'Zánovní herní 8 jádro i5 13420H, 16GB, 1TB SSD, RTX5060 8gb', section: notebook, excluded: out_of_scope}
+- {title: 'HP EliteBook 840 G2 - i5-5300U, 8GB, 256GB SSD, ZÁRUKA', section: notebook, model: elitebook 840 g2, ram_gb: 8, ssd_gb: 256, cpu: i5-5300u}
+- {title: 16" QHD+_DELL 16S DS16260_U9-386H_32GB_NOVINKA 2026, section: notebook, excluded: out_of_scope}
+- {title: ASUS Zenbook S 16 OLED | Ryzen AI 9 | 32 GB RAM | 1 TB SSD |, section: notebook, excluded: out_of_scope}
+- {title: MacBook Air Mid 2013, section: notebook, excluded: out_of_scope}
+- {title: Dell Latitude 7430 XCTO, section: notebook, model: latitude 7430}
+- {title: APPLE MACBOOK PRO 16 M4PRO/48GB/512GB/BATERIE 97%, section: notebook, excluded: out_of_scope}
+- {title: NOVÝ APPLE MACBOOK PRO 16” M3 MAX (14core) /1TB/36GB, section: notebook, excluded: out_of_scope}
+- {title: NOVÝ APPLE MACBOOK AIR 15” M3/256GB/16GB/BATERIE 100%, section: notebook, excluded: out_of_scope}
+- {title: NOVÝ APPLE MACBOOK AIR 15 M4/16GB/512GB/BATERIE 100%, section: notebook, excluded: out_of_scope}
+- {title: APPLE MACBOOK AIR 13 i5/128GB/4GB, section: notebook, excluded: out_of_scope}
+- {title: NOVÝ APPLE MACBOOK AIR 13” M4/256GB/16GB/ZARUKA DO 2.10.2027, section: notebook, excluded: out_of_scope}
+- {title: APPLE MACBOOK AIR 13” 2020 M1/8GB RAM/256GB, section: notebook, excluded: out_of_scope}
+- {title: Notebook Asus Zen 13, section: notebook, excluded: out_of_scope}
+- {title: 'ASUS Chromebook Flip CX5 CX5400 – i5, 8GB, 256GB', section: notebook, excluded: out_of_scope}
+- {title: Acer SWIFT GO 14' OLED displej, section: notebook, excluded: out_of_scope}
+- {title: MSI Katana 15 B13V – i7 / RTX 4070 8GB / 16GB DDR5 / 144Hz, section: notebook, excluded: out_of_scope}
+- {title: Lenovo Yoga C640 i7 16GB 512GB + stylus a krabice, section: notebook, excluded: out_of_scope}
+- {title: Acer TravelMate P614-51-G2, section: notebook, excluded: out_of_scope}
+- {title: Lenovo E330 Intel i5 SSD256gb 8gbRAM Win 11, section: notebook, model: thinkpad e330, ram_gb: 8, ssd_gb: 256, cpu: i5}
+- {title: Pěkný Acer Aspire ES 13 Intel SSD128gb 13"HD W10 Bat 5 hod, section: notebook, excluded: out_of_scope}
+- {title: Dell 5450 Intel i5 SSD256gb 8gbRAM W10 14"FHD IPS bat 5 hod, section: notebook}
+- {title: Pěkné Lenovo B50-45 AMD E1 SSD120gb 4gbRAM WIN10, section: notebook, excluded: out_of_scope}
+- {title: Lenovo ThinkPad X260 i5-6gen SSD256gb 8gbRAM Win11, section: notebook, model: thinkpad x260, ram_gb: 8, ssd_gb: 256, cpu: i5}
+- {title: Pěkný Dell E5470 i5-6g SSD256gb 8gbRAM 14"HD W11 bat 5 hod, section: notebook, model: latitude e5470, ram_gb: 8, ssd_gb: 256, cpu: i5}
+- {title: Jak nový HP EliteBook 830 G5 i5-8350 16gbRAM SSD256gb W11, section: notebook, model: elitebook 830 g5, ram_gb: 16, ssd_gb: 256, cpu: i5-8350}
+- {title: 'HP ProBook 455 G2 AMD-A6 4gbRAM SSD120gb 15,6"HD', section: notebook, model: probook 455 g2, ram_gb: 4, ssd_gb: 120}
+- {title: STARŠÍ HERNÍ NOTEBOOK I5 9300HF/8GB RAM/GTX 1650/512GB SSD, section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Pro 14" M4 PRO CZ 2024 Vesmírně černý, s Nanotextur', section: notebook, excluded: out_of_scope}
+- {title: Herní notebook MSI Katana 17 B13VGK-1099CZ, section: notebook, excluded: out_of_scope}
+- {title: Lenovo V320-17ISK Iron Grey, section: notebook, excluded: out_of_scope}
+- {title: ASUS-X509•i5-8265U•NVIDIA MX250•NVME SSD OSC-512GB•12GB-RAM, section: notebook, excluded: out_of_scope}
+- {title: 13” MacBook air 16/256 83cyklů 99%baterie, section: notebook, excluded: out_of_scope}
+- {title: VELMI PĚKNÉ LENOVO T570 /i5-7200/8GB/SSD500GB/WIN11/ZÁRUKA, section: notebook, model: thinkpad t570, ram_gb: 8, ssd_gb: 500, cpu: i5-7200}
+- {title: ACER A315-51 /i5-7200/8GB/SSD256GB/1920x1080/WIN11/ZÁRUKA, section: notebook, excluded: out_of_scope}
+- {title: ASUS X540L /i3-4005/8GB/SSD512GB/FULLHD/WIN11/ZÁRUKA, section: notebook, excluded: out_of_scope}
+- {title: DELL LATITUDE E5580 /i5-6300/16GB/SSD256GB/WIN11/ZÁRUKA, section: notebook, model: latitude e5580, ram_gb: 16, ssd_gb: 256, cpu: i5-6300}
+- {title: Notebook Dell Latitude E7450, section: notebook, model: latitude e7450}
+- {title: Huawei MateBook 14" 2K Ryzen7 4800H 5000B SSD TOPSTAV, section: notebook, excluded: out_of_scope}
+- {title: Macbook Pro 15 i7/16/256GB/ATI Pro 4GB/touchbar/nová bat., section: notebook, excluded: out_of_scope}
+- {title: Dell Vostro 5481 Full HD IPS kovové šasi, section: notebook, excluded: out_of_scope}
+- {title: Brašna HP, section: notebook, excluded: out_of_scope}
+- {title: Brašna Acer, section: notebook, excluded: out_of_scope}
+- {title: HP Elitebook Folio 1040 G1, section: notebook, model: elitebook 1040 g1}
+- {title: Napájecí zdroj Dell 65W, section: notebook, excluded: out_of_scope}
+- {title: DELL adapter 90W, section: notebook, excluded: out_of_scope}
+- {title: Macbook Air A1932, section: notebook, excluded: out_of_scope}
+- {title: MSI Katana 17 HX | i7-14650HX | RTX 5060 | QHD 240Hz, section: notebook, excluded: out_of_scope}
+- {title: Dell XPS 13", section: notebook, excluded: out_of_scope}
+- {title: 'Lenovo Thinkpad X1 Yoga Gen 7 14" IPS i7, 32GB, 512GB, W11p', section: notebook, model: thinkpad x1 yoga gen 7, ram_gb: 32, ssd_gb: 512, cpu: i7}
+- {title: Acer Extensa 5510 - Core 2 DUO / 2GB RAM / HDD 150GB / Win 7, section: notebook, excluded: out_of_scope}
+- {title: MacBook Pro 13", section: notebook, excluded: out_of_scope}
+- {title: 'Apple MacBook A1342, 8GB RAM', section: notebook, excluded: out_of_scope}
+- {title: Lenovo ThinkPad E14 G3 Ryzen 5 5500u 16GB 256GB SSD Podsvit, section: notebook, model: thinkpad e14 gen 3, ram_gb: 16, ssd_gb: 256, cpu: ryzen 5 5500u}
+- {title: 'DELL Latitude 7490, i7-8650U,16GB,SSD 256GB,14"FHD, W11', section: notebook, model: latitude 7490, ram_gb: 16, ssd_gb: 256, cpu: i7-8650u}
+- {title: 'MacbookPro M1Pro, 16 GB RAM, 512 GB SSD, Brno/Praha', section: notebook, excluded: out_of_scope}
+- {title: TOP Lenovo IdeaPad Slim 5 15AHP10 Zakoupen 5/2026, section: notebook, excluded: out_of_scope}
+- {title: Lenovo L590, section: notebook, model: thinkpad l590}
+- {title: '3,5" disketová mechanika Dell', section: notebook, excluded: out_of_scope}
+- {title: Notebook Asus X550c, section: notebook, excluded: out_of_scope}
+- {title: MacBook Air Intel core i5 8gb, section: notebook, excluded: out_of_scope}
+- {title: Dell Precision 3591 Ultra 9 DDR5 32GB 1TB RTX 2000 Ada Záruk, section: notebook, excluded: out_of_scope}
+- {title: MSI MODERN 14 B11MO, section: notebook, excluded: out_of_scope}
+- {title: Toshiba Satellite Pro, section: notebook, excluded: out_of_scope}
+- {title: Flex kabel DELL Latitude 5500 5510 5511 Precision 3540, section: notebook, excluded: accessory}
+- {title: 'Lenovo Legion Pro 5 16IRX8+nová klávesnice, nov myš', section: notebook, excluded: out_of_scope}
+- {title: Acer Aspire, section: notebook, excluded: out_of_scope}
+- {title: Lenovo IdeaPad Z710, section: notebook, excluded: out_of_scope}
+- {title: Dell Latitude  5310 černý  jako nový, section: notebook, model: latitude 5310}
+- {title: 'HP Pavilion 15 – Ryzen 7, 16 GB RAM, SSD 512 GB', section: notebook, excluded: out_of_scope}
+- {title: herní notebook acer nitro RTX 3060, section: notebook, excluded: out_of_scope}
+- {title: Acer TravelMate 5360G-ZRJ - B814G50Mnsk, section: notebook, excluded: out_of_scope}
+- {title: Apple MacBook Air 13" M1, section: notebook, excluded: out_of_scope}
+- {title: Napájecí adaptér Lenovo 90W, section: notebook, excluded: out_of_scope}
+- {title: Napájecí adaptér Apple usb-c 87W, section: notebook, excluded: out_of_scope}
+- {title: Dell Inspiron 13-7359 (2v1 dotykový) – i5 / 8GB RAM / 500GB, section: notebook, excluded: out_of_scope}
+- {title: Notebok+dokovaci stanice, section: notebook, excluded: out_of_scope}
+- {title: ✨ Microsoft Surface Laptop 13" (Snapdragon X Plus), section: notebook, excluded: out_of_scope}
+- {title: Hp 250 g5, section: notebook, excluded: out_of_scope}
+- {title: Dell 7559 Gaming-Herní i7(8xvlákno)-Full HD-16g ram-ssd, section: notebook, excluded: out_of_scope}
+- {title: Lenovo ThinkPad P15 Gen 2, section: notebook, model: thinkpad p15 gen 2}
+- {title: 'Lenovo Thinkpad X1 extreme G3 4K OLED i9, 32GB, 1TB, Nvidia', section: notebook, model: thinkpad x1 extreme gen 3, ram_gb: 32, ssd_gb: 1024, cpu: i9}
+- {title: 16" ASUS GAMING V16_CORE 7 240H_16GB_1TB_RTX 5060 8GB, section: notebook, excluded: out_of_scope}
+- {title: Herní notebook HP Omen 17-an136ng, section: notebook, excluded: out_of_scope}
+- {title: 'Apple MacBook Air M4 13,6″ (2025) – 16 GB RAM / 256 GB SSD', section: notebook, excluded: out_of_scope}
+- {title: Webkamera ASUS X553, section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Pro 13" (A1278, Mid 2012)', section: notebook, excluded: out_of_scope}
+- {title: Nová brašna na notebook BASE XX až 17", section: notebook, excluded: out_of_scope}
+- {title: Acer SWIFT GO 14' OLED displej+ záruka, section: notebook, excluded: out_of_scope}
+- {title: Lenovo IdeaPad Slim 3 14AMN8 Záruka 21 Měsicu, section: notebook, excluded: out_of_scope}
+- {title: HP Laptop 15S-FG2402NC Nový, section: notebook, excluded: out_of_scope}
+- {title: Notebook Lenovo U310, section: notebook, excluded: out_of_scope}
+- {title: Notebook Lenovo G50, section: notebook, excluded: out_of_scope}
+- {title: Notebook Acer Aspire 3 15 A315510P-35CF, section: notebook, excluded: out_of_scope}
+- {title: Notebook Asus (E410MA-EK016T) bílý, section: notebook, excluded: out_of_scope}
+- {title: Notebook Sony SVF14N1D4E celokovový, section: notebook, excluded: out_of_scope}
+- {title: HP ENVY X360 15-DS0105NC, section: notebook, excluded: out_of_scope}
+- {title: Lenovo Ideapad 3, section: notebook, excluded: out_of_scope}
+- {title: Originálna nabíjačka Dell 130W, section: notebook, excluded: out_of_scope}
+- {title: Dell Latitude 7490 | i7 • 16GB RAM • 256GB SSD, section: notebook, model: latitude 7490, ram_gb: 16, ssd_gb: 256, cpu: i7}
+- {title: Lenovo Thinkpad T570 | i5 • 8GB RAM • 256GB SSD, section: notebook, model: thinkpad t570, ram_gb: 8, ssd_gb: 256, cpu: i5}
+- {title: Lenovo B50-30, section: notebook, excluded: out_of_scope}
+- {title: Lenovo Thinkpad T14 gen 2 | R7 • 32GB RAM • 512GB SSD, section: notebook, model: thinkpad t14 gen 2, ram_gb: 32, ssd_gb: 512}
+- {title: Lenovo Thinkpad T580 | i5 • 8GB RAM • 256GB SSD, section: notebook, model: thinkpad t580, ram_gb: 8, ssd_gb: 256, cpu: i5}
+- {title: Lenovo Thinkpad T460s | i5 • 8GB RAM • 256GB SSD, section: notebook, model: thinkpad t460s, ram_gb: 8, ssd_gb: 256, cpu: i5}
+- {title: SSD connector pre Lenovo Thinkpad, section: notebook, excluded: accessory}
+- {title: Lenovo Legion 7 16IAX7 šedý Záruka 3 Měsicu, section: notebook, excluded: out_of_scope}
+- {title: 'Lenovo S130-14IGM, N4100', section: notebook, excluded: out_of_scope}
+- {title: Macbook Air 2015 13” 250GB, section: notebook, excluded: out_of_scope}
+- {title: Dell Latitude E7440 i5/8GB RAM/SSD + Office 2024, section: notebook, model: latitude e7440, ram_gb: 8, cpu: i5}
+- {title: 'Lenovo ThinkPad T540p – i7-4700MQ, NVIDIA GT 730M, 3K IPS', section: notebook, model: thinkpad t540p, cpu: i7-4700mq}
+- {title: Prodám notebook Dell Vostro 3578 i7-8550U 8GB DDR4 256GB SSD, section: notebook, excluded: out_of_scope}
+- {title: Hp probook 4540s, section: notebook, excluded: out_of_scope}
+- {title: notebook lenovo ThinkPad E531, section: notebook, model: thinkpad e531}
+- {title: 💻 Rychlý 14" NTB Dell - i3-1005G1 / 8 GB RAM / 256 GB NVMe, section: notebook, excluded: out_of_scope}
+- {title: Lenovo ThinkPad X1 Yoga g7 i7-1245u 32/512GB√400nit√1r.z√DPH, section: notebook, model: thinkpad x1 yoga gen 7, cpu: i7-1245u}
+- {title: '15,6" FHD_LENOVO V15 G4_i3-1315U_8GB_512GB_WIN 11 PRO', section: notebook, excluded: out_of_scope}
+- {title: 'Asus notebook A555L Windows 11, 4GB DDR3, 1TB HDD', section: notebook, excluded: out_of_scope}
+- {title: '15.6" 240Hz, 8 jádro Ryzen 9 4900H, 16GB, RTX2060 6GB, 1TB', section: notebook, excluded: out_of_scope}
+- {title: '17.3" 144Hz, 8jádro Ryzen 7 4800H, RX5500 4GB, SSD+HDD', section: notebook, excluded: out_of_scope}
+- {title: CTO 13 APPLE MacBook Air M1 8jádro 256/16Gb ZÁRUKA Grey, section: notebook, excluded: out_of_scope}
+- {title: 13 APPLE MacBook Pro RETINA SSD 512 model 2020 Záruka, section: notebook, excluded: out_of_scope}
+- {title: 16 Apple MacBook Pro M1 Pro 10/16jádro 2021 SSD 1TB ZÁRUKA, section: notebook, excluded: out_of_scope}
+- {title: '16 Apple MacBook Pro i7 2,6GHz 6jádro SSD 512/16GB ZÁRUKA', section: notebook, excluded: out_of_scope}
+- {title: '18" QHD 240Hz, 16jádro Ryzen 9950HX, 32GB, RTX5080 16GB', section: notebook, excluded: out_of_scope}
+- {title: Lenovo Yoga 7 14ITL5 | i5 | 16 GB | dotyk | Lenovo Pen, section: notebook, excluded: out_of_scope}
+- {title: 'HP Pavilion (15,6", R5 5600H, GTX 1650, 480 GB)', section: notebook, excluded: out_of_scope}
+- {title: B CZ/SK/ENG Zaruka Herny Nvidia GTX 4GB grafika Core i7 1.5T, section: notebook, excluded: out_of_scope}
+- {title: Macbook air13, section: notebook, excluded: out_of_scope}
+- {title: Macbook air CZ nový - Koupím, section: notebook, excluded: wanted}
+- {title: HP Probook 450 G8, section: notebook, model: probook 450 g8}
+- {title: 'LENOVO 15,6" FHD/i5-3120M 4x2,50GHZ/8GB DDR3/120GB SSD/W11', section: notebook, excluded: out_of_scope}
+- {title: 'HP 840 G2 14" HD+/i5-5300U 4x2,20GHZ/8GB DDR3/120GB SSD/W11', section: notebook, model: elitebook 840 g2, ram_gb: 8, ssd_gb: 120, cpu: i5-5300u}
+- {title: '16 Vector,RTX-4080-12gb-175w,i9,QHD+,32GB,1TB-TOP', section: notebook, excluded: out_of_scope}
+- {title: Notebook Asus vivobook 15 x507m, section: notebook, excluded: out_of_scope}
+- {title: MacBook Pro 13" M1, section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Pro 13" Touch Bar (2017) – 512 GB SSD, baterie 390', section: notebook, excluded: out_of_scope}
+- {title: MacBook PRO 13 palců M1 chip 8 RAM 256SSD 80 cyklů, section: notebook, excluded: out_of_scope}
+- {title: Acer predator herní notebook, section: notebook, excluded: out_of_scope}
+- {title: Lenovo IdeaPad 3 15" – Intel Core i5 12. gen, section: notebook, excluded: out_of_scope}
+- {title: 15" ULTRABOOK RYZEN5/16GB DDR4/VEGA 8/512GB SSD/W11 ZÁNOVNÍ, section: notebook, excluded: out_of_scope}
+- {title: Dell Latitude 5320 i5/8GB/1024GB/Win11, section: notebook, model: latitude 5320, ram_gb: 8, ssd_gb: 1024, cpu: i5}
+- {title: Dell Inspiron 3542 – Intel i5 / 8GB RAM / 480GB SSD / Win 10, section: notebook, excluded: out_of_scope}
+- {title: 18" / RTX 5070 8GB / 2560×1600 / 240Hz / RAM 32GB / R.7 260, section: notebook, excluded: out_of_scope}
+- {title: Baterie, section: notebook, excluded: out_of_scope}
+- {title: Macbook Air 13” 2020 CTO 512Gb + 16Gb, section: notebook, excluded: out_of_scope}
+- {title: Macbook Air 13” 2020 16Gb, section: notebook, excluded: out_of_scope}
+- {title: Macbook Air 13” 2020 M1, section: notebook, excluded: out_of_scope}
+- {title: Macbook Pro 15” CTO 32Gb RAM, section: notebook, excluded: out_of_scope}
+- {title: Macbook Air 13” 2022 M2, section: notebook, excluded: out_of_scope}
+- {title: ASUS Vivobook 14 Flip TP3407SA-OLED003W Matte Gray kovový, section: notebook, excluded: out_of_scope}
+- {title: 'Dell 5400,SSD 256GB, RAM 8/16GB,i5-8265U CPU,FullHD,Win11Pro', section: notebook}
+- {title: OLED_ALIENWARE 16 AREA-51_240HZ_U9-290HX PLUS_RTX 5090 24GB, section: notebook, excluded: out_of_scope}
+- {title: ThinkPad Ethernet Extension Adapter Gen 2 EX250, section: notebook, excluded: accessory}
+- {title: 'ASUS ROG Flow Z13 - i9, 3050Ti,120hz, 13,4'''' tablet/notebo', section: notebook, excluded: out_of_scope}
+- {title: Macbook 14' Pro M3, section: notebook, excluded: out_of_scope}
+- {title: 'HP ProBook 6460 i3,SSD,Windows 11, LAN, WiFi, FireWire', section: notebook, excluded: out_of_scope}
+- {title: Prodám - Apple MacBook Pro 16" 2019 / 32GB RAM / 1T SSD, section: notebook, excluded: out_of_scope}
+- {title: Prodám - Apple MacBook Air 13" 2020 / 8GB RAM / 512 SSD, section: notebook, excluded: out_of_scope}
+- {title: Dell Precision 5750 17" 4K Touch / i7 / 64GB / RTX 3000, section: notebook, excluded: out_of_scope}
+- {title: Lenovo IdeaPad Gaming 3 i5, section: notebook, excluded: out_of_scope}
+- {title: Macbook Air 13 M1/16GB/256GB Space Black, section: notebook, excluded: out_of_scope}
+- {title: Macbook Pro 14 M1/16GB/512GB Space Grey, section: notebook, excluded: out_of_scope}
+- {title: NOVÝ Umax Visionbook N15R Pro, section: notebook, excluded: out_of_scope}
+- {title: Lenovo X1 Carbon 1st Gen i7/8GB/256GB, section: notebook, model: thinkpad x1 carbon gen 1, ram_gb: 8, ssd_gb: 256, cpu: i7}
+- {title: Lenovo T590 i5/1TB/16GB, section: notebook, model: thinkpad t590, ram_gb: 16, ssd_gb: 1024, cpu: i5}
+- {title: Nový 2026 DELL XPS 16 DA16260 16" OLED Touch Ultra X7 358H, section: notebook, excluded: out_of_scope}
+- {title: MacBook Air Retina 13” (2020), section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Pro 16” M2 Pro (2023) 32GB/1TB, záruka', section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Pro 16” M2 Pro (2023) 16GB/512GB, rok záruka', section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Air 13” M2 16GB/256GB, rok záruka', section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Air 13” M2 8GB/256GB, rok záruka', section: notebook, excluded: out_of_scope}
+- {title: ACER NITRO V 16 HERNÍ NOTEBOOK, section: notebook, excluded: out_of_scope}
+- {title: 'Lenovo Ideapad 5, R5 4500U, 16GB RAM, 512 GB SSD, TOP STAV', section: notebook, excluded: out_of_scope}
+- {title: Dell Latitude 7400/14“IPS/I5 8365U/SSD NVMe256GB/RAM 8GB/FHD, section: notebook, model: latitude 7400, ram_gb: 8, ssd_gb: 256, cpu: i5-8365u}
+- {title: Dell Latitude E5470 14“/I5 6440HQ/SSD 250GB/RAM 8GB/FHD, section: notebook, model: latitude e5470, ram_gb: 8, ssd_gb: 250, cpu: i5-6440hq}
+- {title: HP ProBook 450 G8 | i5 | 16 GB RAM | 512 GB SSD | Win 11 Pro, section: notebook, model: probook 450 g8, ram_gb: 16, ssd_gb: 512, cpu: i5}
+- {title: 'Dell 5400, SSD 256GB, RAM 16GB,i5-8265U CPU,FullHD,Win11Pro', section: notebook}
+- {title: 'Dell 5420,SSD 256GB, RAM 8/16GB,i5-1135G7,FullHD,Win11Pro', section: notebook}
+- {title: OLED_ALIENWARE 16 AREA-51_U9-290HX_RTX 5070 Ti_CHERRY MX, section: notebook, excluded: out_of_scope}
+- {title: Lenovo ThinkBook 14 G4 IAP, section: notebook, excluded: out_of_scope}
+- {title: 'Herní notebook HP OMEN 16 Core 7 250H 32/512GB, RTX 5060 8GB', section: notebook, excluded: out_of_scope}
+- {title: Mac Book Pro 16" M3 Max (16 CPU) 36GB 1TB CZ, section: notebook, excluded: out_of_scope}
+- {title: 'Obří 18 Al Predator,Ultra-9,5070-Rtx,32gb-6400Mhz,QHD,ZÁRUKA', section: notebook, excluded: out_of_scope}
+- {title: 'Loq 15,32Gb-DDR5,R7 Ai,RTX-5060,RGB,CZ-Záruka.', section: notebook, excluded: out_of_scope}
+- {title: 'Gigabyte Gaming A16,RTX-5060,R7,1TB-CZ-Záruka', section: notebook, excluded: out_of_scope}
+- {title: 'Nový Asus 16,Core 9,DDR5-5600MHz,Oled-FHD+,Podsv.kláv.', section: notebook, excluded: out_of_scope}
+- {title: '17" Katana,RTX-5060 Mux,i7-14th,DDR5 5600,1TB-CZ-ZÁRUKA.', section: notebook, excluded: out_of_scope}
+- {title: 'Herní Gigabyte-G5,i5-12Core,RTX-4Gen+příslušenství.', section: notebook, excluded: out_of_scope}
+- {title: 'Nový Asus 16,Core-5,16gb Ram,FHD-IPS,Záruka.', section: notebook, excluded: out_of_scope}
+- {title: Dell Latitude E5450 14“/I5 5300U/SSD 256GB/RAM 12GB/FHD, section: notebook, model: latitude e5450, ram_gb: 12, ssd_gb: 256, cpu: i5-5300u}
+- {title: 'Dell E5580/15,6“/I5 7300U/SSD NVME 256GB/RAM 8GB/FHD', section: notebook, model: latitude e5580, ram_gb: 8, ssd_gb: 256, cpu: i5-7300u}
+- {title: Notebook ACER Aspire 3 (A315-23-R57N), section: notebook, excluded: out_of_scope}
+- {title: Notebook Asus Vivobook S15 15.6 OLED záruka Alza do 2/2027, section: notebook, excluded: out_of_scope}
+- {title: DELL XPS 13- 9340 Hliníkový FHD+ IPS Herní notebook, section: notebook, excluded: out_of_scope}
+- {title: Lenovo ThinkPad P16 Core i7-12850HX DDR5 64 GB 1TB RTX A3000, section: notebook, model: thinkpad p16, ram_gb: 64, ssd_gb: 1024, cpu: i7-12850hx}
+- {title: Dotykový herní Dell Latitude 5521 15.6" 16GB 512GB Intel i7, section: notebook, model: latitude 5521, ram_gb: 16, ssd_gb: 512, cpu: i7}
+- {title: HP ZBook Fury 16 G10 5F8Z2ES Mobile Workstation, section: notebook, excluded: out_of_scope}
+- {title: 18”/2.5K/MSI/RTX5070Ti 12 GB/R9-9955HX, section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Air 13,6" M2 2022 Midnight - 8GB / 256GB', section: notebook, excluded: out_of_scope}
+- {title: Predam notebook Thinkbook 16G4+IAP, section: notebook, excluded: out_of_scope}
+- {title: Lenovo ThinkPad P14s G.2 SSD 20GB RAM Intel 11gen, section: notebook, model: thinkpad p14s gen 2, ram_gb: 20}
+- {title: 'MacBook Pro Retina 13" Mid 2014, i5 / 8 GB / 256 GB', section: notebook, excluded: out_of_scope}
+- {title: ASUS Zenbook 14 UX425 - Win 11, section: notebook, excluded: out_of_scope}
+- {title: MacBook Air 13” 2017, section: notebook, excluded: out_of_scope}
+- {title: Lenovo Legion Pro 7 16ARX8H – Ryzen 9 7945HX / RTX 4080, section: notebook, excluded: out_of_scope}
+- {title: Asus Vivobook 15 - Ryzen 7 8GB 512GB, section: notebook, excluded: out_of_scope}
+- {title: 'MacBook Air M1 2020 8/256 GB – velmi dobrý stav, komplet', section: notebook, excluded: out_of_scope}
+- {title: Prodám velmi lehký a výkonný notebook Lenovo IdeaPad Slim 5, section: notebook, excluded: out_of_scope}
+- {title: Lenovo IdeaPad 110-15IBR -  240GB SSD | Windows 11, section: notebook, excluded: out_of_scope}
+- {title: HP ProBook 430 G8 - i5-1135G7 / 16GB RAM / 512GB SSD, section: notebook, model: probook 430 g8, ram_gb: 16, ssd_gb: 512, cpu: i5-1135g7}
+- {title: Lenovo V15 G4 | NOVÝ | ZÁRUKA DO 30.12.2029, section: notebook, excluded: out_of_scope}
+- {title: Herní notebook, section: notebook, excluded: out_of_scope}
+- {title: 'LENOVO Legion PRO 7:Ultra 9 275HX,64GB,SSD 1TB,RTX5080 16GB', section: notebook, excluded: out_of_scope}
