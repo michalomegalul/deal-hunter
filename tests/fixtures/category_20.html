@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<title>Grafické karty bazar - PC | Bazoš.cz</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="Kategorie Grafické karty bazar. Vybírejte z 1 002 inzerátů. Prodej snadno a rychle na Bazoši. Přes půl milionů uživatelů za den."><meta property="og:title" content="Grafické karty bazar - PC">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bazos.cz">
+<meta property="og:description" content="Kategorie Grafické karty bazar. Vybírejte z 1 002 inzerátů. Prodej snadno a rychle na Bazoši. Přes půl milionů uživatelů za den.">
+<link rel="canonical" href="https://pc.bazos.cz/graficka/20/"><meta property="fb:admins" content="1055875657">
+<link rel="stylesheet" href="https://www.bazos.cz/bazos67s.css" type="text/css"><link rel="preload" as="image" href="https://www.bazos.cz/obrazky/bazos.svg">
+<link rel="stylesheet" href="https://www.bazos.cz/bazosprint.css" type="text/css" media="print">
+<link rel="icon" href="https://www.bazos.cz/favicon.svg" type="image/svg+xml">
+<link rel="icon" HREF="https://www.bazos.cz/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="https://www.bazos.cz/apple-touch-icon.png">
+<script async="async" src="https://www.google.com/adsense/search/ads.js"></script>
+<script type="text/javascript" charset="utf-8">
+(function(g,o){g[o]=g[o]||function(){(g[o]['q']=g[o]['q']||[]).push(
+  arguments)},g[o]['t']=1*new Date})(window,'_googCsa');
+</script><script>
+var xhr = new XMLHttpRequest();
+var naseptavac_value = '';
+function naseptavac(value) {
+  if (value=='')  {
+  	naseptavac_value = '';
+  	document.getElementById('vysledek').innerHTML='';
+  	}
+else {
+	if (naseptavac_value == value) {
+		return false;
+	}
+	naseptavac_value = value;
+	setTimeout(function () {
+		if (naseptavac_value != value) {
+			return false;
+		}
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4 && naseptavac_value == value){
+				document.getElementById('vysledek').innerHTML = this.responseText;
+			}
+ 		 };
+		xhr.open("POST", '/suggest.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('rubnas=PC&catnas=4&qnas='+encodeURIComponent(naseptavac_value));
+	}, 250);
+}
+}
+
+var naseptavacpsc_value = '';
+function naseptavacpsc(value) {
+  if (value=='')  {
+  	naseptavacpsc_value = '';
+  	document.getElementById('vysledekpsc').innerHTML='<table cellpadding=\"3\" cellspacing=\"0\" class=\"tablenaspsc\"><tr><td class=\"act\" onclick=\"getLocation();\"><b>Inzeráty v okolí</b></td></tr></table>';
+  	}
+else {
+	if (naseptavacpsc_value == value) {
+		return false;
+	}
+	naseptavacpsc_value = value;
+	setTimeout(function () {
+		if (naseptavacpsc_value != value) {
+			return false;
+		}
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4 && naseptavacpsc_value == value){
+				document.getElementById('vysledekpsc').innerHTML = this.responseText;
+			}
+ 		 };
+		xhr.open("POST", '/suggestpsc.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('qnaspsc='+encodeURIComponent(naseptavacpsc_value));
+	}, 250);
+}
+}
+
+function getLocation() {
+if (navigator.geolocation) {navigator.geolocation.getCurrentPosition(showPosition);}
+else {document.getElementById('hlokalita').value = '';}
+}
+function showPosition(position) {
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4){
+				document.getElementById('hlokalita').value = this.responseText;
+				document.forms['formt'].submit();
+			}
+ 		 };
+		xhr.open("POST", '/zip.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('latitude='+encodeURIComponent(position.coords.latitude)+'&longitude='+encodeURIComponent(position.coords.longitude));
+}
+
+var agent_value = '';
+function agentclick() {
+  if (document.getElementById('agentmail').value=='')  {
+  	document.getElementById("agentmail").focus();
+    return false;
+  	}
+else {
+agent_value = document.getElementById('agentmail').value;
+xhr.onreadystatechange = function() {
+  if (this.readyState == 4){
+				document.getElementById('overlay').innerHTML = this.responseText;
+			}
+  };
+xhr.open("POST", '/agent.php');
+xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhr.send('hledat=&rubrikav=PC&hlokalita=&humkreis=&cenaod=&cenado=&cat=4&typ=&agentmail='+encodeURIComponent(agent_value));
+}
+}
+
+function odeslatrequest(value,params) {
+xhr.onreadystatechange = function() {
+  if (this.readyState == 4){
+				document.getElementById('overlay').innerHTML = this.responseText;
+			}
+  };
+xhr.open("POST", value);
+xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhr.send(params);
+}
+function overlay() {
+	el = document.getElementById("overlay");
+	el.style.display = (el.style.display == "inline") ? "none" : "inline";
+}
+function odeslatakci(postaction,value1,value2,value3) {
+document.getElementById('postaction').value = postaction;
+document.getElementById("postv1").value = value1;
+document.getElementById("postv2").value = value2;
+document.getElementById("postv3").value = value3;
+document.formaction.submit();
+}
+</script>
+</head>
+
+<body>
+
+
+<div class="sirka">
+<div class="listalogor">
+<div class="listalogol"><a href="https://www.bazos.cz/" title="Bazos.cz - Inzerce, bazar"><img src="https://www.bazos.cz/obrazky/bazos.svg" width="199" height="34" alt="Bazos.cz - Inzerce, inzeráty"></a></div>
+<div class="listalogom"><b>... bazar pro každého</b></div>
+<div class="listalogop"><a href="https://www.bazos.cz/oblibene.php"><b>Oblíbené inzeráty</b></a> <a href="https://www.bazos.cz/moje-inzeraty.php"><b>Moje inzeráty</b></a> <a href="/pridat-inzerat.php"><b><span class=pridati>Přidat inzerát</span></b></a></div>
+</div>
+<form name="formt" id="formt" method=get >
+<div class="listah">
+<div class="rubriky">
+<b>
+Co: <span class=vysokoli><span id="vysledek"></span><input type="search" onkeyup="naseptavac(this.value);" id=hledat name=hledat size="17" maxlength="256" value="" autocomplete="off" title="Co? Vyhledávaný výraz"></span>
+
+<select name="rubriky" onchange='this.form.submit();' title="Vyber rubriku">
+<option value="www">Všechny rubriky</option>
+<option value="auto">Auto</option><option value="deti">Děti</option><option value="dum">Dům a zahrada</option><option value="elektro">Elektro</option><option value="foto">Foto</option><option value="hudba">Hudba</option><option value="knihy">Knihy</option><option value="mobil">Mobily</option><option value="motorky">Motorky</option><option value="nabytek">Nábytek</option><option value="obleceni">Oblečení</option><option value="pc" selected>PC</option><option value="prace">Práce</option><option value="reality">Reality</option><option value="sluzby">Služby</option><option value="sport">Sport</option><option value="stroje">Stroje</option><option value="vstupenky">Vstupenky</option><option value="zvirata">Zvířata</option><option value="ostatni">Ostatní</option></select>
+
+Lokalita: <span class=vysokolipsc><span id="vysledekpsc"></span><input type="search" name="hlokalita" id="hlokalita" onkeyup="naseptavacpsc(this.value);" onclick="naseptavacpsc(this.value);" value="" size="4" maxlength="25" autocomplete="off" title="Kde? PSČ (místo)" style="-webkit-appearance: none;"></span>
+Okolí: <input name="humkreis" title="Okolí v km" value="25" size="3" style="width: 25px;"> km
+Cena od: <input name=cenaod title="Cena od Kč" maxlength="12" size="5" value=""> - do: <input name=cenado title="Cena do Kč" maxlength="12" size="5" value=""> Kč <input type="submit" name="Submit" value="Hledat">
+<input type="hidden" name="order" id="order"><input type="hidden" name="crp" id="crp"><input type="hidden" id="kitx" name="kitx" value="ano"></b>
+</div>
+</div>
+</form>
+<div class="drobky"><a href="https://www.bazos.cz/" title="Inzerce Bazoš">Hlavní stránka</a>  > <a href="https://pc.bazos.cz">PC</a> > <h1 class="nadpiskategorie">Grafické karty</h1></div>
+<br>
+
+
+<div class="flexmain"><div class="menuleft"><div class="nadpismenu">Kategorie</div>
+<div class="barvalmenu">
+<div class="barvaleva">
+<a href="/cd/" >DVD, Blu-ray mechaniky</a>
+<a href="https://foto.bazos.cz/">Fotoaparáty</a>
+<a href="/gps/" >GPS navigace</a>
+<a href="/graficka/"  id=zvyraznenikat>Grafické karty</a>
+<a href="/hdd/" >Hard disky, SSD</a>
+<a href="/playstation/" >Herní konzole</a>
+<a href="/volanty/" >Herní zařízení</a>
+<a href="/hry/" >Hry</a>
+<a href="/chladic/" >Chladiče</a>
+<a href="/klavesnice/" >Klávesnice</a>
+<a href="/kopirka/" >Kopírovací stroje</a>
+<a href="/monitor/" >LCD monitory</a>
+<a href="https://mobil.bazos.cz/">Mobilní telefony</a>
+<a href="/modem/" >Modemy</a>
+<a href="/mys/" >Myši</a>
+<a href="/notebook/" >Notebooky</a>
+<a href="/pamet/" >Paměti</a>
+<a href="/pc/" >PC, Počítače</a>
+<a href="/procesor/" >Procesory</a>
+<a href="/sit/" >Síťové prvky</a>
+<a href="/scaner/" >Scanery</a>
+<a href="/case/" >Skříně, zdroje</a>
+<a href="/software/" >Software</a>
+<a href="/spotrebni/" >Spotřební materiál</a>
+<a href="/tablet/" >Tablety, E-čtečky</a>
+<a href="/tiskarna/" >Tiskárny</a>
+<a href="/wifi/" >Wireless, WiFi</a>
+<a href="/motherboard/" >Základní desky</a>
+<a href="/ups/" >Záložní zdroje</a>
+<a href="/sound/" >Zvukové karty</a>
+<a href="/ostatni/" >Ostatní</a>
+</div></div>
+
+</div><div class="maincontent">
+
+
+<div class="listainzerat inzeratyflex">
+<div class="inzeratynadpis"><img src="https://www.bazos.cz/obrazky/list.gif" width="18" height="16" alt="List inzerátů" class=gallerylista> <form name="formgal" id="formgal" method="post" style="display: inline;"><input type="hidden" name="gal" value="g"><input type="image" alt="Submit" src="https://www.bazos.cz/obrazky/gallery.gif" width="18" height="16" class="gallerylist inputgal"></form> Zobrazeno 21-40 inzerátů z 1 002</div>
+<div class="inzeratycena"><b><span onclick="document.getElementById('order').value=1;document.forms['formt'].submit();" class="paction">Cena</span></b></div>
+<div class="inzeratylok">Lokalita</div>
+<div class="inzeratyview"><span onclick="document.getElementById('order').value=3;document.forms['formt'].submit();" class="paction">Zobrazeno</span></div>
+</div><form name="formaction" method="post" style="display: inline;"><input type="hidden" id="postaction" name="postaction" value=""><input type="hidden" id="postv1" name="postv1" value=""><input type="hidden" id="postv2" name="postv2" value=""><input type="hidden" id="postv3" name="postv3" value=""></form><button type="button" onclick="odeslatrequest('/agent.php','teloverit=');overlay();">Nové inzeráty e-mailem</button>
+	<div id="overlay">
+     <div></div>
+</div>
+
+<div id="container_one"></div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224861995/koupim-intel-arc-a310.php"><img src="https://www.bazos.cz/img/1t/995/224861995.jpg" class="obrazek" alt="Koupím - Intel Arc a310" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224861995/koupim-intel-arc-a310.php">Koupím - Intel Arc a310</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Dobrý den, koupím použitou grafickou kartu Intel Arc a310 (preferoval bych verzi ECO)
+
+Preferuji osobní předání, Brno a okolí.
+V případě zaslání, poprosím video funkčnosti.</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  2 000 Kč</span></b></div>
+<div class="inzeratylok">Vyškov<br>683 54</div>
+<div class="inzeratyview">21 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224861995');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224861995');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','8525541','12051529','Vojt%C4%9Bch');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224861995');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224861341/mxm-graficka-karta-amd-radeon-hd-6450m-exige2.php"><img src="https://www.bazos.cz/img/1t/341/224861341.jpg" class="obrazek" alt="MXM GRAFICKÁ KARTA AMD Radeon HD 6450M EXIGE2" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224861341/mxm-graficka-karta-amd-radeon-hd-6450m-exige2.php">MXM GRAFICKÁ KARTA AMD Radeon HD 6450M EXIGE2</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Před 2 lety zakoupena jako funkční, nyní nemám v čem vyzkoušet.
+MOŽNO OSOBNĚ VYZKOUŠET ve vlastním počítači.
+Nabízím 10denní záruku vrácení peněz v případě poruchy.
+
+Mohu osobně předat nebo zaslat v obálce.
+Na tel. číslo prosím pouze volat - pev ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   700 Kč</span></b></div>
+<div class="inzeratylok">Brno<br>616 00</div>
+<div class="inzeratyview">25 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224861341');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224861341');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5190817','6085643','Michael+Pavelka');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224861341');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224861335/mxm-graficka-karta-amd-radeon-hd-6770m.php"><img src="https://www.bazos.cz/img/1t/335/224861335.jpg" class="obrazek" alt="MXM GRAFICKÁ KARTA  AMD Radeon HD 6770M" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224861335/mxm-graficka-karta-amd-radeon-hd-6770m.php">MXM GRAFICKÁ KARTA  AMD Radeon HD 6770M</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Plně otestována a funkční.
+MOŽNO OSOBNĚ VYZKOUŠET ve vlastním počítači.
+Nabízím 10denní záruku vrácení peněz v případě poruchy.
+
+Mohu osobně předat nebo zaslat v obálce.
+Na tel. číslo prosím pouze volat - pevná linka
+
+PODROBNOSTI:
+Kompatibiln ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   700 Kč</span></b></div>
+<div class="inzeratylok">Brno<br>616 00</div>
+<div class="inzeratyview">37 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224861335');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224861335');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5190817','6085643','Michael+Pavelka');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224861335');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224858788/asrock-radeon-rx-9070-xt-taichi-16g-oc.php"><img src="https://www.bazos.cz/img/1t/788/224858788.jpg" class="obrazek" alt="ASRock Radeon RX 9070 XT Taichi 16G OC" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224858788/asrock-radeon-rx-9070-xt-taichi-16g-oc.php">ASRock Radeon RX 9070 XT Taichi 16G OC</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám výkonnou grafickou kartu ASRock Radeon RX 9070 XT Taichi 16G OC, která představuje vrcholnou a jednu z nejlépe vybavených edic RX 9070 XT. Včetně orgininálního balení.
+
+Karta byla zakoupena v lednu 2026 na Alza.cz, je tedy stále v záruce. Je ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  19 500 Kč</span></b></div>
+<div class="inzeratylok">Praha 3<br>130 00</div>
+<div class="inzeratyview">63 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224858788');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224858788');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9234422','7339071','Daniel');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224858788');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224857870/gainward-phoenix-gs-rtx-2080.php"><img src="https://www.bazos.cz/img/1t/870/224857870.jpg" class="obrazek" alt="Gainward Phoenix GS RTX 2080" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224857870/gainward-phoenix-gs-rtx-2080.php">Gainward Phoenix GS RTX 2080</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám tuto výkonnou herní grafickou kartu, velmi hezký popis je zde: https://m.alza.cz/gainward-geforce-rtx-2080-phoenix-gs-8g-recenze-a-testy
+Plně funkční, bez krabičky pošlu balikovnou nebo osobně v Benešově</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  4 500 Kč</span></b></div>
+<div class="inzeratylok">Praha 1<br>110 00</div>
+<div class="inzeratyview">66 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224857870');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224857870');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','10667368','8938406','Jakub');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224857870');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224856582/prodam-gigabyte-radeon-rx-9060-xt-gaming-oc-16gb.php"><img src="https://www.bazos.cz/img/1t/582/224856582.jpg?t=1791538781" class="obrazek" alt="PRODÁM: Gigabyte Radeon RX 9060 XT GAMING OC 16GB" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224856582/prodam-gigabyte-radeon-rx-9060-xt-gaming-oc-16gb.php">PRODÁM: Gigabyte Radeon RX 9060 XT GAMING OC 16GB</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám grafickou kartu Gigabyte Radeon RX 9060 XT GAMING OC 16GB.
+Karta je plně funkční a ve výborném stavu.
+ 
+🔹 Parametry:
+• Paměť: 16 GB
+• Provedení: GAMING OC
+• Stav: Používaná, bez známek opotřebení 
+
+🔹 Záruka:
+• Karta zakoupena prosinec 2025.
+•  ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  12 500 Kč</span></b></div>
+<div class="inzeratylok">Cheb<br>352 01</div>
+<div class="inzeratyview">55 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224856582');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224856582');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9490054','7648023','Petr');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224856582');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224851314/graficka-karta-zotac-zt-95tek2p-fsl-1gb.php"><img src="https://www.bazos.cz/img/1t/314/224851314.jpg?t=1791531865" class="obrazek" alt="Grafická karta ZOTAC ZT-95TEK2P-FSL 1GB" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224851314/graficka-karta-zotac-zt-95tek2p-fsl-1gb.php">Grafická karta ZOTAC ZT-95TEK2P-FSL 1GB</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám zánovní, plně funkční grafickou kartu ZOTAC ZT-95TEK2P-FSL 1GB. Grafická karta je odborně vyčištěná a přepastovaná.
+
+Nabízí grafické jádro NVIDIA GeForce 9500GT, velikost paměti 1GB, sběrnice PCI Express x16 2.0, typ DDR2, takt jádra 550 MHz ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   299 Kč</span></b></div>
+<div class="inzeratylok">Ústí nad Labem<br>400 11</div>
+<div class="inzeratyview">27 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224851314');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224851314');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','4380893','1173832','Patrik+Karas');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224851314');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224850245/gpu-cpu-pro-levny-pc.php"><img src="https://www.bazos.cz/img/1t/245/224850245.jpg" class="obrazek" alt="GPU + CPU pro levný PC" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224850245/gpu-cpu-pro-levny-pc.php">GPU + CPU pro levný PC</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Grafická karta MSI Radeon RX 480 GAMING 4G
++
+Procesor Intel Core i5-7400 (3.00 GHz)
+
+Plně funční, cena za set 1000,-</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 000 Kč</span></b></div>
+<div class="inzeratylok">Jičín<br>506 01</div>
+<div class="inzeratyview">62 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224850245');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224850245');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','18574161','17543457','Vojt%C4%9Bch');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224850245');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224850099/levna-gpu-nvidia-geforce-gtx-1060-6gb.php"><img src="https://www.bazos.cz/img/1t/099/224850099.jpg" class="obrazek" alt="Levná GPU NVIDIA GeForce GTX 1060 6GB" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224850099/levna-gpu-nvidia-geforce-gtx-1060-6gb.php">Levná GPU NVIDIA GeForce GTX 1060 6GB</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám levně starší ale pořád výkonnou grafickou kartu NVIDIA GeForce GTX 1060 6GB	
+Bez problému se na ni dají hrát i moderní hry i když ne na nejyssi nastavení.
+Například:
+
+Cyberpunk 2k High	30 fps
+Cyberpunk FullHD High	50 fps
+
+WarThunder 2k  ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  2 000 Kč</span></b></div>
+<div class="inzeratylok">Žďár nad Sázavou<br>595 01</div>
+<div class="inzeratyview">65 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224850099');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224850099');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','18574617','17543938','Tom%C3%A1%C5%A1+Piln%C3%BD');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224850099');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224849321/gt-1030-2gb.php"><img src="https://www.bazos.cz/img/1t/321/224849321.jpg" class="obrazek" alt="Gt 1030 2gb" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224849321/gt-1030-2gb.php">Gt 1030 2gb</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám plně funkční grafickou kartu nVidia gt 1030 2gb s pasivním chlazením, možnost zaslat nebo osobní předání</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   999 Kč</span></b></div>
+<div class="inzeratylok">České Budějovice<br>370 04</div>
+<div class="inzeratyview">54 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224849321');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224849321');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','6723048','4503613','Filip');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224849321');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224848028/nova-zotac-gaming-geforce-rtx-5070-twin-edge-oc-12-gb.php"><img src="https://www.bazos.cz/img/1t/028/224848028.jpg?t=1791528024" class="obrazek" alt="Nová Zotac Gaming GeForce RTX 5070 Twin Edge OC, 12 GB" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224848028/nova-zotac-gaming-geforce-rtx-5070-twin-edge-oc-12-gb.php">Nová Zotac Gaming GeForce RTX 5070 Twin Edge OC, 12 GB</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Nová, komplet balení.
+
+https://www.smarty.cz/ZOTAC-NVIDIA-GeForce-RTX-5070-Twin-Edge-12GB-GDDR7-4p242198
+
+TEL:728105685</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  17 500 Kč</span></b></div>
+<div class="inzeratylok">Praha 9<br>193 00</div>
+<div class="inzeratyview">78 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224848028');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224848028');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9268772','7381795','Tom');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224848028');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224844522/gigabyte-geforce-rtx-5080-windforce-oc-sff-16g.php"><img src="https://www.bazos.cz/img/1t/522/224844522.jpg" class="obrazek" alt="GIGABYTE GeForce RTX 5080 WINDFORCE OC SFF 16G" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224844522/gigabyte-geforce-rtx-5080-windforce-oc-sff-16g.php">GIGABYTE GeForce RTX 5080 WINDFORCE OC SFF 16G</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>se zárukou 1,5 roku
+https://www.alza.cz/gigabyte-geforce-rtx-5080-windforce-oc-sff-16g-d12766424.htm</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  32 000 Kč</span></b></div>
+<div class="inzeratylok">Plzeň<br>326 00</div>
+<div class="inzeratyview">68 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224844522');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224844522');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9282717','143913','David');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224844522');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224844195/msi-geforce-gtx-1660-armor-6g.php"><img src="https://www.bazos.cz/img/1t/195/224844195.jpg" class="obrazek" alt="MSI GeForce GTX 1660 ARMOR 6G" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224844195/msi-geforce-gtx-1660-armor-6g.php">MSI GeForce GTX 1660 ARMOR 6G</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám tuto herní grafickou kartu NVIDIA MSI GeForce GTX 1660 ARMOR s 6GB VRAM GDDR5 v černo-bílé barevné variantě.
+
+Poslední generace z řady karet GTX, které Nvidia stále podporuje skrze aktuální ovladače, výkonná karta na fullHD (1080p) hraní s r ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  2 490 Kč</span></b></div>
+<div class="inzeratylok">Kutná Hora<br>285 22</div>
+<div class="inzeratyview">49 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224844195');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224844195');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5613252','3336294','Roman+Valenta');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224844195');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224843159/nvidia-geforce-gt-730-2gb-gddr5-4x-hdmi-nova.php"><img src="https://www.bazos.cz/img/1t/159/224843159.jpg" class="obrazek" alt="NVIDIA GeForce GT 730 2GB GDDR5 4x HDMI nová nerozbalená" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224843159/nvidia-geforce-gt-730-2gb-gddr5-4x-hdmi-nova.php">NVIDIA GeForce GT 730 2GB GDDR5 4x HDMI nová nerozbalená</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám novou grafickou kartu Asus s pasívním chlazením v originálním zapečetěném obalu. Model GT730-4HSL-2GD5. Architektura Kepler GK208B. Počet CUDA jader 384. Vhodná pro vícemonitorové sestavy (4 HDMI výstupy). W11 ready. Max. rozlišení 3840x2160.  ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 100 Kč</span></b></div>
+<div class="inzeratylok">Praha 5<br>155 00</div>
+<div class="inzeratyview">21 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224843159');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224843159');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9224673','7322573','Lum%C3%ADr+Pelc');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224843159');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224838793/msi-radeon-rx-470-gaming-x-4g.php"><img src="https://www.bazos.cz/img/1t/793/224838793.jpg" class="obrazek" alt="MSI Radeon RX 470 Gaming X 4G" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224838793/msi-radeon-rx-470-gaming-x-4g.php">MSI Radeon RX 470 Gaming X 4G</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Prodám plně funkční grafickou kartu MSI Radeon RX 470 Gaming X 4G. Nikdy netaktovaná, minimálně hraná synem v mém pracovním PC</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  2 400 Kč</span></b></div>
+<div class="inzeratylok">Frýdek - Místek<br>739 14</div>
+<div class="inzeratyview">35 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224838793');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224838793');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','3374276','123453','jirka');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224838793');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224838769/nvidia-p4000-8gb.php"><img src="https://www.bazos.cz/img/1t/769/224838769.jpg" class="obrazek" alt="Nvidia P4000 8Gb" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224838769/nvidia-p4000-8gb.php">Nvidia P4000 8Gb</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Nvidia P4000 8Gb</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  5 000 Kč</span></b></div>
+<div class="inzeratylok">Louny<br>439 83</div>
+<div class="inzeratyview">28 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224838769');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224838769');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','8615603','6602199','Karel');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224838769');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224836727/amd-radeon-rx-5700-xt-8gb.php"><img src="https://www.bazos.cz/img/1t/727/224836727.jpg" class="obrazek" alt="AMD Radeon RX 5700 XT 8gb" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224836727/amd-radeon-rx-5700-xt-8gb.php">AMD Radeon RX 5700 XT 8gb</a></h2><span class=velikost10> - [9.10. 2026]</span><br>
+<div class=popis>Karta je plně funkční vyndaná z pc před týdnem. Přechod na RTX
+Doporučeny zdroj 550w
+Znacka AFox</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  3 000 Kč</span></b></div>
+<div class="inzeratylok">Mladá Boleslav<br>293 01</div>
+<div class="inzeratyview">120 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224836727');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224836727');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','4242090','6164171','Kuba');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224836727');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224836018/graficka-karta-gainward-geforce-rtx-4070-ti-phantom-12g.php"><img src="https://www.bazos.cz/img/1t/018/224836018.jpg" class="obrazek" alt="Grafická karta GAINWARD GeForce RTX 4070 Ti Phantom 12G" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224836018/graficka-karta-gainward-geforce-rtx-4070-ti-phantom-12g.php">Grafická karta GAINWARD GeForce RTX 4070 Ti Phantom 12G</a></h2><span class=velikost10> - [8.10. 2026]</span><br>
+<div class=popis>Prodám grafickou kartu GAINWARD GeForce RTX 4070 Ti Phantom 12G
+
+Grafická karta - 12 GB GDDR6X (21000 MHz ), NVIDIA GeForce, Ada Lovelace (AD104, 2310 MHz), Boost 2610 MHz, PCI Express x16 4.0, 192Bit, DisplayPort 1.4a a HDMI 2.1a, DLSS 3.0
+
+Koup ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  11 000 Kč</span></b></div>
+<div class="inzeratylok">Zlín<br>760 01</div>
+<div class="inzeratyview">291 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224836018');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224836018');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','18556403','17524436','Jenda');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224836018');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224835791/sapphire-radeon-pulse-rx580-4-gb-oc.php"><img src="https://www.bazos.cz/img/1t/791/224835791.jpg" class="obrazek" alt="Sapphire Radeon PULSE RX580 4 GB OC" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224835791/sapphire-radeon-pulse-rx580-4-gb-oc.php">Sapphire Radeon PULSE RX580 4 GB OC</a></h2><span class=velikost10> - [8.10. 2026]</span><br>
+<div class=popis>Prodám grafickou kartu Sapphire Radeon PULSE RX 580 4 GB OC. Karta je plně funkční a otestovaná v několika nástrojích jejichž výsledek je na přiložených fotkách. 
+
+ZÁKLADNÍ SPECIFIKACE
+Jádro čipu: AMD Radeon RX 580
+Takt jádra: 1366 MHz
+Takt pamě ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 000 Kč</span></b></div>
+<div class="inzeratylok">Praha 8<br>180 00</div>
+<div class="inzeratyview">52 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224835791');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224835791');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','4413667','1216634','Stepan');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224835791');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224835012/rx-9070-xt-16gb-nitro-crimson-desert-zaruka.php"><img src="https://www.bazos.cz/img/1t/012/224835012.jpg?t=1791536560" class="obrazek" alt="RX 9070 XT 16GB NITRO+ CRIMSON DESERT ZÁRUKA" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224835012/rx-9070-xt-16gb-nitro-crimson-desert-zaruka.php">RX 9070 XT 16GB NITRO+ CRIMSON DESERT ZÁRUKA</a></h2><span class=velikost10> - [8.10. 2026]</span><br>
+<div class=popis>NITRO+ Radeon RX 9070 XT OC 16GB Crimson Desert Edition.
+
+🎮 Speciální edice Crimson Desert
+⚡ RX 9070 XT – 16 GB GDDR6
+🔥 Výkonná edice Sapphire NITRO+ OC
+📦 Pouze cca 2 měsíce stará
+🧾 Kompletní balení + faktura
+🛡️ Záruka 3 roky stav nové karty 
+Cena pe ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  20 500 Kč</span></b></div>
+<div class="inzeratylok">Ústí nad Labem<br>400 07</div>
+<div class="inzeratyview">168 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224835012');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224835012');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','0','16744269','Po%C4%8D%C3%ADta%C4%8D');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224835012');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+<div id="container_two"></div><script type="text/javascript" charset="utf-8">
+var pageOptions = {
+  'pubId': 'pub-3645948300403337',
+  'query' : "Grafické karty",
+  "channel": "9153444560",  'linkTarget' : '_blank',
+  'personalizedAds' : false,
+  'adsafe': 'medium',
+  'ivt': false,
+'styleId' : '6171314811',  'adPage': 2,
+  'hl': 'cs'
+};
+
+var adblock1 = {
+  'container': 'container_one',
+  'width': 'auto',
+  'maxTop' : 2
+};
+
+var adblock2 = {
+  'container': 'container_two',
+  'width': 'auto',
+  'number' : 2
+};
+
+_googCsa('ads', pageOptions, adblock2);</script>
+
+<br><div class="strankovani">Stránka: <a href="/graficka/"><b>Předchozí</b></a> <a href="/graficka/">1</a> <b><span class=cisla>2</span></b> <a href="/graficka/40/">3</a> <a href="/graficka/60/">4</a> <a href="/graficka/80/">5</a> <a href="/graficka/100/">6</a> <a href="/graficka/120/">7</a> <a href="/graficka/140/">8</a> <a href="/graficka/160/">9</a> <a href="/graficka/40/"><b>Další</b></a></div><br><br><br>
+
+
+</div></div><br>
+
+&copy;2026 Bazoš -  <b>Inzerce, Bazar Grafické karty</b><br>
+<a href="https://www.bazos.cz/napoveda.php">Nápověda</a>, <a href="https://www.bazos.cz/dotazy.php">Dotazy</a>, <a href="https://www.bazos.cz/hodnoceni.php">Hodnocení</a>, <a href="https://www.bazos.cz/kontakt.php">Kontakt</a>, <a href="https://www.bazos.cz/reklama.php">Reklama</a>, <a href="https://www.bazos.cz/podminky.php">Podmínky</a>, <a href="https://www.bazos.cz/ochrana-udaju.php">Ochrana údajů</a>, <a href="https://www.bazos.cz/rss.php?rub=pc&cat=4">RSS</a>, <form name="formvkm" id="formvkm" method="post" style="display: inline;"><input type="hidden" name="vkm" value="m"><input type="submit" class="vkm" value="Mobilní verze"></form><br>
+
+Inzeráty PC celkem: <b>43455</b>, za 24 hodin: <b>1753</b><br><br>
+<a href="https://www.bazos.cz/mapa-kategorie.php">Mapa kategorií</a>, <a href="https://pc.bazos.cz/mapa-search.php">Nejvyhledávanější výrazy</a>
+<br>
+Země: <a href="https://pc.bazos.cz">Česká republika</a>, <a href="https://pc.bazos.sk">Slovensko</a>, <a href="https://komputer.bazos.pl">Polsko</a>, <a href="https://pc.bazos.at">Rakousko</a>
+<br>
+<br>
+</div>
+
+<script src="https://www.bazos.cz/cookie-consent.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({"notice_banner_type":"simple","consent_type":"express","palette":"light","language":"cs","page_load_consent_levels":["strictly-necessary"],"notice_banner_reject_button_hide":false,"preferences_center_close_button_hide":false,"page_refresh_confirmation_buttons":false,"cookie_domain": "bazos.cz"});
+});
+</script>
+<a href="#" id="open_preferences_center"> </a>
+
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NZW1QTHKBB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-NZW1QTHKBB');
+</script>
+
+</body>
+</html>
