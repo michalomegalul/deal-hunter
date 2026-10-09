@@ -115,6 +115,21 @@ def test_clean_checks_quotes_missing_parts_vat_and_fees():
     assert any("VAT" in n for n in notes) and any("fee" in n for n in notes)
 
 
+@pytest.mark.parametrize(
+    "model, key",
+    [
+        ("Dell OptiPlex 3010DT", "optiplex 3010"),
+        ("Dell Optiplex 7010T", "optiplex 7010"),
+        ("Lenovo ThinkCentre M93p SFF", "thinkcentre m93p sff"),
+        ("HP EliteBook 840 G5", "elitebook 840 g5"),
+        ("ACER Extensa 2540", None),
+        ("HP EliteOne 800 G3", None),
+    ],
+)
+def test_map_model(model, key):
+    assert auctions.map_model(model, "desktop")[0] == key
+
+
 def test_extract_uses_its_own_schema_and_survives_junk(tmp_path):
     good = json.dumps(answer(item()))
     llm = FakeLLM("not json at all", good)

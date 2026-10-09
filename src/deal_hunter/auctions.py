@@ -176,8 +176,16 @@ def _plain(text: str) -> str:
     return " ".join(re.sub(r"[^\w]+", " ", _ascii(text)).split())
 
 
+FORM_SUFFIX = re.compile(r"(?<=\d)(dt|sff|mt|usff|t)\b", re.IGNORECASE)
+
+
 def map_model(model: str, kind: str = "") -> tuple[str | None, str | None]:
-    """(pricing key, category) through the office normalizer, then the GPU one."""
+    """(pricing key, category) through the office normalizer, then the GPU one.
+
+    Inventory-style names glue the form factor to the number ('OptiPlex 3010DT', '7010T'); the
+    office rules expect it apart, as Bazoš titles write it.
+    """
+    model = FORM_SUFFIX.sub(r" \1", model)
     r = office.normalize(model)
     if r.model:
         return r.model, r.category

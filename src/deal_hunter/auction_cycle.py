@@ -224,7 +224,12 @@ def extraction_for(conn, lot: dict) -> Extraction | None:
     from deal_hunter.db import repository as repo
 
     row = repo.latest_extraction(conn, SOURCE, lot["lot_id"])
-    return Extraction.from_dict(row["result"]) if row and row.get("result") else None
+    if not row or not row.get("result"):
+        return None
+    x = Extraction.from_dict(row["result"])
+    for item in x.items:  # map again: normalizer improvements apply without asking the LLM again
+        item.key, item.category = auctions.map_model(item.model, item.kind)
+    return x
 
 
 def value(lot: dict, x: Extraction, prices, costs: Costs) -> auctions.Valuation:
