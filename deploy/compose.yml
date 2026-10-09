@@ -44,8 +44,9 @@ services:
     restart: unless-stopped
     profiles: []
 
-  # Every 5 minutes: fair prices, candidate deals, LLM triage (Ollama on CT 100), scoring, ntfy pushes,
-  # 👍/👎 feedback and the Sunday digest, plus the low-cadence auction step (nms.gov.cz IT lots).
+  # Every 5 minutes: fair prices, candidate deals, LLM triage (Ollama on CT 100), scoring, ntfy pushes
+  # and the Sunday digest, plus the low-cadence auction step (nms.gov.cz IT lots) and the weekly
+  # new-price step (Zboží.cz product pages).
   # The LLM answer cache lives in the hunterdata volume.
   worker:
     <<: *hunter
@@ -57,6 +58,21 @@ services:
     volumes:
       - hunterdata:/home/hunter/data
     mem_limit: 256m
+    profiles: []
+
+  # Holds the deals-feedback ntfy stream open: stores 👍/👎/"bought" taps as they happen and sends the
+  # detailed follow-up for a 👍 within seconds (one Bazoš request, maybe an LLM call). Shares the LLM
+  # cache with the worker.
+  feedback:
+    <<: *hunter
+    command: ["feedback", "--loop"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://hunter:${POSTGRES_PASSWORD}@db:5432/hunter
+      HUNTER_LLM_CACHE: /home/hunter/data/llm_cache
+    volumes:
+      - hunterdata:/home/hunter/data
+    mem_limit: 160m
     profiles: []
 
 volumes:
