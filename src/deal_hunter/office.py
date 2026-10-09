@@ -19,7 +19,7 @@ import unicodedata
 from dataclasses import dataclass, field
 
 # Bump whenever the rules change, so `hunt normalize` re-processes old listings.
-VERSION = 1
+VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -80,7 +80,7 @@ THINKCENTRE = re.compile(r"\bthink ?cent(re|er|rum)\b")
 LENOVO = re.compile(r"\blenovo\b")
 # Lenovo lines that aren't ThinkPad/ThinkCentre: a bare 'Lenovo E14' next to these words is no ThinkPad.
 LENOVO_OTHER = re.compile(
-    r"\b(ideapad|ideacentre|thinkbook|legion|yoga|loq|v\d{2,3}|b\d{2}|flex|chromebook)\b"
+    r"\b(ideapad|ideacentre|thinkbook|thinkstation|legion|yoga|loq|v\d{2,3}|b\d{2}|flex|chromebook)\b"
 )
 
 # 'x1 carbon gen 9', 'x1 yoga', 'x1 extreme', 'x1 nano'
@@ -162,8 +162,8 @@ def _thinkpad(t: str) -> list[Found] | None:
             continue  # bare 'x1': which one?
         if letter == "e" and len(number) == 1:
             continue
-        if letter == "p" and len(number) == 1 and number != "1":
-            continue
+        if letter == "p" and (len(number) == 3 or (len(number) == 1 and number != "1")):
+            continue  # ThinkPad P is p1/p14s/p52; a 'Lenovo P320' is a ThinkStation tower
         name = f"{letter}{number}{suffix or ''}" + (" yoga" if yoga else "")
         if len(number) <= 2:  # the newer naming needs a generation: t14 gen 3, p1 gen 4
             gen = generation(t, m.end())

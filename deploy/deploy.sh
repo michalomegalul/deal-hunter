@@ -26,6 +26,8 @@ mv compose.yml.new compose.yml
 
 export HUNTER_VERSION="$latest"
 docker compose --profile cli pull --quiet
+# One-off `docker compose run --rm hunter ...` without HUNTER_VERSION uses :latest; point it here.
+docker tag "ghcr.io/$REPO:$latest" "ghcr.io/$REPO:latest"
 docker compose up -d --wait db
 docker compose run --rm hunter db migrate
 docker compose up -d --remove-orphans      # (re)start every service on the new image

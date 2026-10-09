@@ -55,6 +55,10 @@ def test_prepare(raw, prepared):
         ("Lenovo X1 Carbon 6th Gen", "thinkpad x1 carbon gen 6"),
         ("ThinkPad X13 Yoga Gen 2", "thinkpad x13 yoga gen 2"),
         ("ThinkPad P1 Gen 4", "thinkpad p1 gen 4"),
+        ("Lenovo ThinkPad P52", "thinkpad p52"),
+        ("Lenovo Think Pad X13 G2", "thinkpad x13 gen 2"),
+        ("Dell Optiplex micro 7040", "optiplex 7040 micro"),
+        ("HP 600 G5 - i5 9500T", "prodesk 600 g5"),
         ("Lenovo T590 i5/1TB/16GB", "thinkpad t590"),  # a bare 'Lenovo T590' is a ThinkPad
         ("Lenovo ThinkCentre M720q Tiny", "thinkcentre m720q"),
         ("Lenovo M920q i5-8500T", "thinkcentre m920q"),
@@ -102,6 +106,8 @@ def test_models(title, model):
         ("Dell Precision 5550", "out_of_scope"),
         ("HP ProBook 6460b", "out_of_scope"),
         ("HP 250 G7", "out_of_scope"),
+        ("Lenovo P320 - i7 7700K, 16GB RAM, 512GB SSD, ZÁRUKA, Win 11", "out_of_scope"),  # ThinkStation
+        ("Lenovo ThinkStation P520 Xeon", "out_of_scope"),
     ],
 )
 def test_exclusions(title, reason):
