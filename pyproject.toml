@@ -1,0 +1,32 @@
+[project]
+name = "deal-hunter"
+version = "0.1.0"
+description = "Watches Bazoš.cz GPU listings, learns fair prices and flags the genuinely good deals."
+readme = "README.md"
+authors = [
+    { name = "michalomegalul", email = "dog560154@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "psycopg[binary]>=3.3.6",
+    "python-dotenv>=1.2.4",
+    "pyyaml>=6.0.3",
+    "selectolax>=1.0.0",
+]
+
+[project.scripts]
+hunt = "deal_hunter.cli:main"
+
+[tool.ruff]
+line-length = 110
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]

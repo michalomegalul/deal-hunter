@@ -1,0 +1,21 @@
+# Local development database. Start with: docker compose up -d
+# DATABASE_URL=postgresql://hunter:hunter@localhost:5432/hunter
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: hunter
+      POSTGRES_PASSWORD: hunter  # dev only
+      POSTGRES_DB: hunter
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hunter -d hunter"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
