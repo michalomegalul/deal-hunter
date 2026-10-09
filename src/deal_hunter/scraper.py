@@ -28,7 +28,7 @@ class DbThrottle:
     def wait_turn(self) -> None:
         with self.conn.transaction():
             waited = self.conn.execute(
-                "SELECT extract(epoch FROM now() - last_request) FROM http_throttle WHERE id = 1 FOR UPDATE"
+                "SELECT extract(epoch FROM clock_timestamp() - last_request) FROM http_throttle WHERE id = 1 FOR UPDATE"
             ).fetchone()[0]
             gap = self.min_delay - float(waited)
             if gap > 0:
