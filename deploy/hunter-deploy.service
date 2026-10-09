@@ -1,0 +1,8 @@
+[Unit]
+Description=Deal Hunter: deploy the latest GitHub release if it is new
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/deal-hunter/deploy.sh

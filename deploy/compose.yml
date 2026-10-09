@@ -1,0 +1,47 @@
+# Production stack on the homelab (CT 121, /opt/deal-hunter). Deployed by deploy.sh.
+# Secrets come from /opt/deal-hunter/.env (never committed): POSTGRES_PASSWORD=...
+name: deal-hunter
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hunter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: hunter
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hunter -d hunter"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-off commands: docker compose run --rm hunter stats
+  hunter: &hunter
+    image: ghcr.io/michalomegalul/deal-hunter:${HUNTER_VERSION:-latest}
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://hunter:${POSTGRES_PASSWORD}@db:5432/hunter
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["cli"]
+
+  # Every 10 minutes: RSS + first category pages, detail pages for new ads only.
+  scraper:
+    <<: *hunter
+    command: ["scrape", "--loop"]
+    restart: unless-stopped
+    profiles: []
+
+  # Every 6 hours: re-check ads that scrolled off the first pages; mark removed ones gone.
+  rechecker:
+    <<: *hunter
+    command: ["recheck", "--loop"]
+    restart: unless-stopped
+    profiles: []
+
+volumes:
+  pgdata:
