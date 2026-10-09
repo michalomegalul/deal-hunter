@@ -40,6 +40,8 @@ class Model:
     name: str  # 'rtx 3060 ti'
     brand: str  # nvidia | amd | intel
     vram: tuple[int, ...]
+    msrp: tuple[tuple[int | None, int], ...] = ()  # ((VRAM GB or None for all, launch MSRP in USD), ...)
+    launch: int | None = None  # launch year
 
 
 @dataclass(frozen=True)
@@ -58,13 +60,39 @@ def load_catalog() -> Catalog:
         for entry in raw[brand]:
             name = entry["model"]
             key = name.split(" ", 1)[1]  # drop the gtx/rtx/rx/arc/gt prefix
-            models[key] = Model(name, brand, tuple(entry["vram"]))
+            raw_msrp = entry.get("msrp_usd")
+            if isinstance(raw_msrp, dict):
+                msrp = tuple((int(v), int(usd)) for v, usd in raw_msrp.items())
+            else:
+                msrp = ((None, int(raw_msrp)),) if raw_msrp else ()
+            models[key] = Model(name, brand, tuple(entry["vram"]), msrp, entry.get("launch"))
     return Catalog(
         version=raw["version"],
         models=models,
         aliases=tuple((re.compile(k), v) for k, v in raw["aliases"].items()),
         out_of_scope=tuple(re.compile(p) for p in raw["out_of_scope"]),
     )
+
+
+def launch_msrp(key: str) -> tuple[int, int] | None:
+    """(launch MSRP in USD, launch year) for a GPU pricing key, or None if unknown or ambiguous.
+
+    'rtx 3060 12gb' -> (329, 2021); 'rtx 3070' -> (499, 2020); 'rtx 3060' (VRAM not named, and the
+    8 GB and 12 GB cards had different prices) -> None.
+    """
+    m = re.fullmatch(r"(.+?)(?: (\d{1,2})gb)?", key)
+    if m is None:
+        return None
+    name, vram = m.group(1), int(m.group(2)) if m.group(2) else None
+    model = next((x for x in load_catalog().models.values() if x.name == name), None)
+    if model is None or not model.msrp:
+        return None
+    if vram is None and len(model.vram) == 1:
+        vram = model.vram[0]
+    for size, usd in model.msrp:
+        if size is None or size == vram:
+            return usd, model.launch
+    return None
 
 
 def version() -> int:

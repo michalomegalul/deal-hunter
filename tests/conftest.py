@@ -41,7 +41,7 @@ def conn(test_url):
     with repo.connect(test_url, autocommit=True) as conn:
         repo.migrate(conn)
         conn.execute(
-            "TRUNCATE listings, price_changes, normalized, scrape_runs, fair_prices, feedback, kv, auction_lots "
-            "RESTART IDENTITY CASCADE"
+            "TRUNCATE listings, price_changes, normalized, scrape_runs, fair_prices, feedback, kv, auction_lots, "
+            "followups, flips, new_prices RESTART IDENTITY CASCADE"
         )
         yield conn

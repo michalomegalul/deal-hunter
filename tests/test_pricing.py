@@ -160,3 +160,124 @@ def test_office_fair_price_per_spec():
     )
     assert small < t480.median < big
     assert t480.for_listing({}) == t480.median  # spec unknown: no adjustment
+
+
+# --- Phase 8: new prices, priors, the sanity flag ----------------------------------------------------
+
+
+def thin(model="rtx 3060 12gb", prices=(5000, 5200, 5400, 5600, 5800), category="gpu"):
+    return estimate_all([s(i, p, model=model, category=category) for i, p in enumerate(prices)])
+
+
+def test_shrink_is_a_weighted_geometric_mean():
+    assert pricing.shrink(4000, 5, 9000, 5) == pytest.approx(6000)  # w = 0.5: sqrt(4000 x 9000)
+    assert pricing.shrink(4000, 15, 9000, 5) == pytest.approx(4000**0.75 * 9000**0.25)
+    assert pricing.shrink(4000, 0, 9000, 5) == pytest.approx(9000)
+
+
+def test_msrp_and_zbozi_new_prices():
+    assert pricing.msrp_czk(329, 23.5) == round(329 * 23.5 * 1.21)
+    new = pricing.new_prices_for(
+        ["rtx 3060 12gb", "rtx 3070", "rtx 3060", "thinkpad t480"], {"rtx 3070": (9990, 2)}, 23.5
+    )
+    assert new["rtx 3070"] == pricing.NewPrice(9990, "zbozi", "2 shops")  # a current offer beats the MSRP
+    assert new["rtx 3060 12gb"].source == "msrp" and new["rtx 3060 12gb"].detail == "$329 in 2021"
+    assert "rtx 3060" not in new and "thinkpad t480" not in new  # ambiguous VRAM / not a GPU
+
+
+def test_thin_model_is_shrunk_toward_new_times_the_fallback_ratio():
+    prices = thin()
+    raw = prices["rtx 3060 12gb"].median
+    new = {"rtx 3060 12gb": pricing.NewPrice(10000, "zbozi", "3 shops")}
+    ratio = pricing.apply_priors(prices, new)
+    fp = prices["rtx 3060 12gb"]
+    assert ratio == pricing.NEW_RATIO_FALLBACK  # no model has both a new price and 15 samples
+    assert fp.raw_median == raw and fp.prior == 6000 and fp.prior_source == "new"
+    assert fp.median == round(pricing.shrink(raw, 5, 6000, pricing.PRIOR_N))
+    assert raw < fp.median < 6000
+    assert fp.n == 5 and fp.n_eff == 10  # the prior counts as 5 samples for the gate and the level
+    assert fp.new_price == 10000 and not fp.over_new
+
+
+def test_launch_msrp_is_no_prior():
+    prices = thin()
+    pricing.apply_priors(prices, {"rtx 3060 12gb": pricing.NewPrice(9300, "msrp", "$329 in 2021")})
+    fp = prices["rtx 3060 12gb"]
+    assert fp.prior is None and fp.raw_median is None and fp.new_price == 9300  # shown, not used
+
+
+def test_confident_models_teach_the_ratio_and_keep_their_median():
+    samples = []
+    for k, (model, base) in enumerate([("rtx 3070", 7000), ("rtx 4060", 5000), ("rtx 3080 10gb", 10000)]):
+        samples += [s(100 * k + i, base + 10 * i, model=model) for i in range(16)]
+    samples += [s(900 + i, p, model="rtx 4070") for i, p in enumerate([9000, 9200, 9400, 9600])]
+    prices = estimate_all(samples)
+    new = {
+        "rtx 3070": pricing.NewPrice(10000, "zbozi"),  # ratio ~0.71
+        "rtx 4060": pricing.NewPrice(7000, "zbozi"),  # ~0.72
+        "rtx 3080 10gb": pricing.NewPrice(14000, "zbozi"),  # ~0.72
+        "rtx 4070": pricing.NewPrice(14000, "zbozi"),
+    }
+    before = prices["rtx 3070"].median
+    ratio = pricing.apply_priors(prices, new)
+    assert 0.70 < ratio < 0.73
+    assert prices["rtx 3070"].median == before and prices["rtx 3070"].prior is None  # n >= 15
+    assert prices["rtx 4070"].prior == round(14000 * ratio)
+
+
+def test_ratio_is_clipped():
+    samples = []
+    for k, model in enumerate(["rtx 3070", "rtx 4060", "rtx 3080 10gb"]):
+        samples += [s(100 * k + i, 9900 + i, model=model) for i in range(16)]
+    prices = estimate_all(samples)
+    new = {m: pricing.NewPrice(10000, "zbozi") for m in prices}
+    assert pricing.apply_priors(prices, new) == pricing.NEW_RATIO_CLIP[1]
+
+
+def test_prior_far_from_the_data_is_ignored():
+    prices = thin()
+    pricing.apply_priors(prices, {"rtx 3060 12gb": pricing.NewPrice(40000, "zbozi")})  # prior 24 000
+    fp = prices["rtx 3060 12gb"]
+    assert fp.prior is None and fp.median == 5400 and "ignored" in fp.prior_note
+
+
+def test_sanity_flag_when_used_is_as_dear_as_new():
+    prices = thin(model="rtx 5090", prices=(130000, 134000, 135000, 136000, 140000))
+    pricing.apply_priors(prices, pricing.new_prices_for(prices, {}, 23.5))  # MSRP $1999 ~ 56 800 Kč
+    assert prices["rtx 5090"].over_new and prices["rtx 5090"].new_source == "msrp"
+    prices = thin()
+    pricing.apply_priors(
+        prices, {"rtx 3060 12gb": pricing.NewPrice(5500, "zbozi")}
+    )  # used 5 400 vs new 5 500
+    assert prices["rtx 3060 12gb"].over_new
+
+
+def test_auction_units_are_a_lower_anchor_for_office():
+    prices = thin(model="optiplex 3050 sff", prices=(1500, 1700, 1800, 2000, 2200), category="office_pc")
+    units = {"optiplex 3050 sff": [1400.0, 1500.0, 1600.0]}
+    pricing.apply_priors(prices, auction_units=units)
+    fp = prices["optiplex 3050 sff"]
+    assert fp.prior_source == "auction" and fp.prior == 2250 and fp.prior_weight == 3  # 1 500 x 1.5, 3 lots
+    assert fp.median == round(pricing.shrink(1800, 5, 2250, 3))
+    # a Bazoš median below what the state auction fetched as-is gets raised to that floor
+    prices = thin(model="optiplex 3050 sff", prices=(700, 750, 800, 850, 900), category="office_pc")
+    pricing.apply_priors(prices, auction_units={"optiplex 3050 sff": [1400.0, 1500.0]})
+    fp = prices["optiplex 3050 sff"]
+    assert fp.median == 1450 and fp.raw_median == 800 and "floor" in fp.prior_note
+
+
+def test_auction_unit_prices_only_from_clean_single_model_lots():
+    def item(key, q, **kw):
+        return {"key": key, "quantity": q, "verified": True, "condition": "untested", **kw}
+
+    lots = [
+        (63000, {"items": [item("latitude 5511", 14)], "stated_units": 14}),
+        (900, {"items": [item("optiplex 3010", 1)]}),
+        (5000, {"items": [item("latitude 5511", 3), item("thinkpad t480", 2)]}),  # mixed: skipped
+        (5000, {"items": [item(None, 5)]}),  # unpriced model
+        (5000, {"items": [item("latitude 5511", 4)], "stated_units": 6}),  # counts don't add up
+        (5000, {"items": [item("latitude 5511", 4, verified=False)]}),
+        (5000, {"items": [item("latitude 5511", 4, condition="broken")]}),
+        (0, {"items": [item("latitude 5511", 4)]}),
+    ]
+    assert pricing.auction_unit_prices(lots) == {"latitude 5511": [4500.0], "optiplex 3010": [900.0]}

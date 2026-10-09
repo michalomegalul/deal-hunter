@@ -13,6 +13,9 @@ A deal moves through these states (deals.state):
     duplicate    a repost of something pushed in the last 14 days
     expired      the ad disappeared or got too old before it could be pushed
 
+Votes (👍/👎, "bought") arrive on the feedback topic and are handled live by `hunt feedback --loop`
+(feedback.py), not by this cycle.
+
 The gate: a model only alerts once it has at least HUNTER_ALERT_MIN_SAMPLES priced samples and its
 category's data spans at least HUNTER_ALERT_MIN_DAYS days. Until then deals are recorded as
 'would_alert', so alerts switch themselves on as data comes in. HUNTER_ALERTS_ENABLED is the
@@ -24,6 +27,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -71,23 +75,40 @@ class Ntfy:
             headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=20, transport=transport
         )
 
-    def vote_actions(self, listing_id: int) -> list[dict]:
+    def feedback_action(self, label: str, payload: dict, clear: bool = True) -> dict:
+        """A button that POSTs `payload` to the feedback topic with the write-only token."""
+        return {
+            "action": "http",
+            "label": label,
+            "url": f"{self.public_url}/{self.feedback_topic}",
+            "method": "POST",
+            "headers": {"Authorization": f"Bearer {self.feedback_token}"},
+            "body": json.dumps(payload),
+            "clear": clear,
+        }
+
+    def vote_actions(self, listing_id: int, test: bool = False) -> list[dict]:
+        """👍/👎 on a Bazoš ad: {"ad": id, "vote": "up"|"down"}. 👍 also asks for the detailed follow-up."""
         if not self.feedback_token:
             return []
+        extra = {"test": True} if test else {}
         return [
-            {
-                "action": "http",
-                "label": label,
-                "url": f"{self.public_url}/{self.feedback_topic}",
-                "method": "POST",
-                "headers": {"Authorization": f"Bearer {self.feedback_token}"},
-                "body": json.dumps({"ad": listing_id, "vote": vote}),
-                "clear": True,
-            }
+            self.feedback_action(label, {"ad": listing_id, "vote": vote, **extra})
             for label, vote in (("👍 good", "up"), ("👎 meh", "down"))
         ]
 
-    def publish(self, title: str, message: str, priority: int = 3, tags=(), click=None, actions=()) -> str:
+    def lot_vote_actions(self, lot_id: str) -> list[dict]:
+        """👍/👎 on an auction lot: {"lot": "62388", "vote": ...}, so it can't be mistaken for an ad id."""
+        if not self.feedback_token:
+            return []
+        return [
+            self.feedback_action(label, {"lot": str(lot_id), "vote": vote})
+            for label, vote in (("👍 good", "up"), ("👎 meh", "down"))
+        ]
+
+    def publish(
+        self, title: str, message: str, priority: int = 3, tags=(), click=None, actions=(), attach=None
+    ) -> str:
         body = {
             "topic": self.topic,
             "title": title,
@@ -99,31 +120,73 @@ class Ntfy:
             body["click"] = click
         if actions:
             body["actions"] = list(actions)
+        if attach:
+            body["attach"] = attach  # an image URL: the phone shows it in the notification
         r = self.http.post(self.url, json=body)
         r.raise_for_status()
         return r.json().get("id", "")
 
-    def poll_feedback(self) -> list[dict]:
-        """Every cached message on the feedback topic (ntfy keeps them ~12 h; we poll every few minutes)."""
-        r = self.http.get(f"{self.url}/{self.feedback_topic}/json", params={"poll": "1", "since": "all"})
+    def poll_feedback(self, since: str = "all") -> list[dict]:
+        """Cached messages on the feedback topic (ntfy keeps them ~12 h), without waiting for new ones."""
+        r = self.http.get(f"{self.url}/{self.feedback_topic}/json", params={"poll": "1", "since": since})
         r.raise_for_status()
         return [json.loads(line) for line in r.text.splitlines() if line.strip()]
 
+    def stream_feedback(self, since: str, read_timeout: float = 120):
+        """Events on the feedback topic as they arrive (ntfy's JSON stream; keepalives every ~45 s).
 
-def parse_votes(events: list[dict]) -> list[tuple[int, str, str, datetime]]:
-    """(listing_id, vote, ntfy message id, time) from feedback topic messages; junk is skipped."""
-    out = []
-    for e in events:
-        if e.get("event") != "message":
-            continue
-        try:
-            body = json.loads(e.get("message", ""))
-            listing_id, vote = int(body["ad"]), str(body["vote"])
-        except (ValueError, KeyError, TypeError):
-            continue
-        if vote in ("up", "down"):
-            out.append((listing_id, vote, e["id"], datetime.fromtimestamp(e["time"], UTC)))
-    return out
+        Yields parsed events until the connection drops (then the caller reconnects with the last id).
+        """
+        timeout = httpx.Timeout(20, read=read_timeout)
+        url = f"{self.url}/{self.feedback_topic}/json"
+        with self.http.stream("GET", url, params={"since": since}, timeout=timeout) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if line.strip():
+                    yield json.loads(line)
+
+
+class Vote(NamedTuple):
+    kind: str  # listing | lot
+    item: str  # the Bazoš ad id or the auction lot id, as text
+    vote: str  # up | down | bought
+    source_id: str  # the ntfy message id (dedupes replays)
+    voted_at: datetime
+    test: bool = False  # from a test push (`hunt notify-test`): not a label, follow-up marked TEST
+
+
+VOTES = {"listing": ("up", "down", "bought"), "lot": ("up", "down")}
+
+
+def parse_vote(e: dict) -> Vote | None:
+    """One feedback-topic event as a Vote, or None (keepalives, junk, unknown votes).
+
+    {"ad": 123, "vote": "up"|"down"|"bought"} is about a Bazoš ad; {"lot": "62388", "vote": "up"|"down"}
+    about an auction lot.
+    """
+    if e.get("event") != "message":
+        return None
+    try:
+        body = json.loads(e.get("message", ""))
+        vote = str(body["vote"])
+        if "lot" in body:
+            kind, item = "lot", str(body["lot"]).strip()
+            if not re.fullmatch(r"\d{1,12}", item):
+                return None
+        else:
+            kind, item = "listing", str(int(body["ad"]))
+        if vote not in VOTES[kind]:
+            return None
+        return Vote(
+            kind, item, vote, e["id"], datetime.fromtimestamp(e["time"], UTC), body.get("test") is True
+        )
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
+def parse_votes(events: list[dict]) -> list[Vote]:
+    """Votes from feedback topic messages; junk is skipped."""
+    return [v for v in map(parse_vote, events) if v is not None]
 
 
 # --- the gate and the alert rules ------------------------------------------------------------------------
@@ -140,6 +203,7 @@ class Rules:
     quiet_end: int
     quiet_bypass: float  # scores at least this high are pushed even in quiet hours
     candidate_discount: float
+    usd_czk: float = 23.5  # launch MSRPs to Kč (display and the sanity check only)
 
 
 def category_days(data_since: dict, category: str, now: datetime) -> float:
@@ -156,8 +220,9 @@ def gate(fp: FairPrice | None, data_since: dict, rules: Rules, now: datetime) ->
         return False, "no fair price"
     days = category_days(data_since, fp.category, now)
     missing = []
-    if fp.n < rules.min_samples:
-        missing.append(f"n={fp.n}<{rules.min_samples}")
+    if fp.n_eff < rules.min_samples:  # a new-price prior counts as samples (pricing.py)
+        n = f"{fp.n}+{fp.prior_weight:g}" if fp.prior_weight else str(fp.n)
+        missing.append(f"n={n}<{rules.min_samples}")
     if days < rules.min_days:
         missing.append(f"{days:.1f}<{rules.min_days:g} days of data")
     return (not missing), ", ".join(missing)
@@ -178,8 +243,22 @@ def priority(discount: float) -> int:
     return 3
 
 
-def kc(n: int) -> str:
-    return f"{n:,} Kč".replace(",", " ")
+def kc(n: float) -> str:
+    return f"{round(n):,} Kč".replace(",", " ")
+
+
+def new_text(fp: FairPrice | None) -> str:
+    """'new ~12 990 Kč (Zboží, 3 shops)' / 'launch $499 (2020) ≈ 14 191 Kč' / ''."""
+    if fp is None or not fp.new_price:
+        return ""
+    if fp.new_source == "zbozi":
+        return f"new ~{kc(fp.new_price)} (Zboží, {fp.new_detail})"
+    return f"launch {fp.new_detail.replace(' in ', ' (')}) ≈ {kc(fp.new_price)}"
+
+
+def first_image(item: dict) -> str | None:
+    images = item.get("images") or []
+    return images[0] if images and str(images[0]).startswith("http") else None
 
 
 def format_alert(deal: dict, fp: FairPrice | None) -> tuple[str, str, list[str]]:
@@ -187,7 +266,8 @@ def format_alert(deal: dict, fp: FairPrice | None) -> tuple[str, str, list[str]]
     title = deal["title"][:90]
     sample = f", n={fp.n}, {fp.level} confidence" if fp else ""
     lines = [f"{kc(deal['price'])} vs ~{kc(deal['fair'])} fair (−{deal['discount']:.0%}){sample}"]
-    lines.append(f"{deal['model']}")
+    new = new_text(fp)
+    lines.append(f"{deal['model']}" + (f" · {new}" if new else ""))
     if deal.get("verdict"):
         lines.append(f"🤖 {deal['verdict']}")
     where = " ".join(x for x in (deal.get("location"), deal.get("psc")) if x)
@@ -227,17 +307,18 @@ class CycleStats:
     llm_down: bool = False
     pushed: int = 0
     would_alert: int = 0
-    votes: int = 0
     digest: bool = False
     auctions: str = ""
+    new_prices: str = ""
 
     def summary(self) -> str:
         return (
             f"work: {self.models} priced models, {self.candidates} candidates, {self.triaged} triaged"
             + (" (LLM unreachable, queued)" if self.llm_down else "")
-            + f", {self.would_alert} would-alert, {self.pushed} pushed, {self.votes} new votes"
+            + f", {self.would_alert} would-alert, {self.pushed} pushed"
             + (", digest sent" if self.digest else "")
             + (f"; {self.auctions}" if self.auctions else "")
+            + (f"; {self.new_prices}" if self.new_prices else "")
         )
 
 
@@ -250,6 +331,8 @@ def find_candidates(conn, prices: dict[str, FairPrice], rules: Rules) -> int:
         fp = prices.get(model)
         if fp is None or LEVEL_RANK[fp.level] < LEVEL_RANK["medium"]:
             continue
+        if fp.over_new:
+            continue  # used fair >= 95 % of new: the estimate or the mapping is off (pricing.py)
         fair = fp.for_listing(features)
         discount = 1 - price / fair
         if rules.candidate_discount <= discount <= MAX_DISCOUNT:
@@ -377,7 +460,13 @@ def send_alerts(conn, ntfy: Ntfy | None, prices, data_since, rules: Rules, now: 
         title, message, tags = format_alert(deal, prices.get(deal["model"]))
         try:
             msg_id = ntfy.publish(
-                title, message, deal["priority"] or 3, tags, deal["url"], ntfy.vote_actions(lid)
+                title,
+                message,
+                deal["priority"] or 3,
+                tags,
+                deal["url"],
+                ntfy.vote_actions(lid),
+                attach=first_image(deal),
             )
         except httpx.HTTPError as exc:
             log.warning("ntfy push failed for %s: %s (will retry)", lid, exc)
@@ -386,19 +475,6 @@ def send_alerts(conn, ntfy: Ntfy | None, prices, data_since, rules: Rules, now: 
         sent_today += 1
         stats.pushed += 1
         recent.append({**deal, "alerted_at": now})
-
-
-def poll_feedback(conn, ntfy: Ntfy | None, stats: CycleStats) -> None:
-    from deal_hunter.db import repository as repo
-
-    if ntfy is None:
-        return
-    try:
-        votes = parse_votes(ntfy.poll_feedback())
-    except httpx.HTTPError as exc:
-        log.warning("reading feedback failed: %s", exc)
-        return
-    stats.votes = repo.save_feedback(conn, votes)
 
 
 def gate_status(prices: dict[str, FairPrice], data_since: dict, rules: Rules, now: datetime) -> dict:
@@ -479,14 +555,30 @@ def maybe_send_digest(conn, ntfy, prices, data_since, rules: Rules, now: datetim
 
 
 def work_once(
-    conn, rules: Rules, llm, cache_dir, ntfy: Ntfy | None, triage_limit: int, now=None, auction_step=None
+    conn,
+    rules: Rules,
+    llm,
+    cache_dir,
+    ntfy: Ntfy | None,
+    triage_limit: int,
+    now=None,
+    auction_step=None,
+    new_price_step=None,
 ) -> CycleStats:
-    """One worker cycle. `auction_step(conn, prices, quiet, now)` is the auction part (auction_cycle.tick)."""
+    """One worker cycle. `auction_step(conn, prices, quiet, now)` is the auction part (auction_cycle.tick);
+    `new_price_step(conn)` reads the Zboží.cz product pages that are due (zbozi.fetch_due)."""
     from deal_hunter.db import repository as repo
 
     now = now or datetime.now(UTC)
     stats = CycleStats()
-    prices = pricing.run(conn)
+    if new_price_step is not None:
+        try:
+            fetched = new_price_step(conn)
+            stats.new_prices = fetched.summary() if fetched.fetched or fetched.errors else ""
+        except Exception:  # a price comparison site being odd must not stop anything else
+            log.exception("new price step failed")
+            stats.new_prices = "new prices: failed (see log)"
+    prices = pricing.run(conn, rules.min_samples, rules.usd_czk)
     stats.models = len(prices)
     stats.candidates = find_candidates(conn, prices, rules)
     if llm is not None:
@@ -494,7 +586,6 @@ def work_once(
         score_deals(conn, llm.model, rules)
     data_since = repo.data_since(conn)
     send_alerts(conn, ntfy, prices, data_since, rules, now, stats)
-    poll_feedback(conn, ntfy, stats)
     stats.digest = maybe_send_digest(conn, ntfy, prices, data_since, rules, now)
     if auction_step is not None:
         try:
