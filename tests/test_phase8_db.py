@@ -293,6 +293,6 @@ def test_worker_prices_use_the_stored_new_price(conn):
     repo.save_new_price(conn, "rtx 3060 12gb", "https://www.zbozi.cz/vyrobek/a/", "RTX 3060", 10000, 3)
     repo.save_new_price(conn, "rtx 3060 12gb", "https://www.zbozi.cz/vyrobek/b/", "RTX 3060", 9000, 1)
     fp = pricing.run(conn, save=False)["rtx 3060 12gb"]
-    assert fp.new_price == 9000 and fp.new_detail == "1 shop" and fp.prior == 5400  # 9 000 x 0.6
-    assert fp.raw_median == 5400 and fp.median == 5400
+    assert fp.new_price == 9000 and fp.new_detail == "1 shop" and fp.prior == 6750  # 9 000 x 0.75
+    assert fp.raw_median == 5400 and fp.median == round(pricing.shrink(5400, fp.n, 6750, pricing.PRIOR_N))
     assert conn.execute("SELECT count(*) FROM fair_prices").fetchone() == (0,)  # save=False

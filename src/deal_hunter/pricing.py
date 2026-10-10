@@ -33,7 +33,8 @@ PRIOR_N (5) samples:
 - GPUs: prior = current new price (Zboží.cz, fetched in the last 30 days) x the typical used/new
   ratio. The ratio is the median of median/new over models that have both a new price and at least
   `confident_n` samples (so no model's prior is built from its own shrunk value); with fewer than 3
-  such models it is 0.6. Clipped to [0.35, 0.9].
+  such models it is 0.75 (current cards hold their value; 0.6 pulled fresh models 12-16 % too low).
+  Clipped to [0.35, 0.9].
 - Office hardware: prior = the median per-unit final price of ended state auction lots of that model
   (wholesale, as-is) x AUCTION_UPLIFT (1.5: tested, cleaned, sold one by one). Each auction lot counts
   as one sample, at most 3 (instead of PRIOR_N): a few lots are weak evidence. With at least 2 lots the
@@ -41,9 +42,12 @@ PRIOR_N (5) samples:
   is not a fair price for a working unit.
 - A prior that disagrees with the data by more than 2x (either way) is ignored and noted: the new
   price page is probably the wrong product, or the market is odd.
-- With a prior, the gate and the confidence level count n + the prior's weight (the "effective n"),
-  so a model with 10 ads and a new price passes the 15-sample gate. The 7-days-of-data rule is not
-  touched. At `confident_n` and above the median stands alone.
+- With a prior, the gate counts n + the prior's weight (the "effective n"), so a model with 10 ads
+  and a new price passes the 15-sample gate. The 7-days-of-data rule is not touched. The confidence
+  level is NOT raised: it stays what the ads alone support, since a prior moves the estimate but is
+  not evidence about this market. At `confident_n` and above the median stands alone.
+- A model whose own ads already sit at >= 95 % of new (the sanity flag below) gets no prior: the
+  data or the mapping is off, and shrinking toward the new price would only hide that.
 
 Sanity check: a used fair price (or the raw median, before a prior) at 95 % or more of the new price (Zboží, else the launch MSRP converted
 with HUNTER_USD_CZK and 21 % VAT) means the estimate or the mapping is off; candidates of that model are
@@ -75,7 +79,7 @@ SPEC_KEYS = ("ram_gb", "ssd_gb")
 
 CONFIDENT_N = 15  # below this many samples a prior is used (the alert gate's default)
 PRIOR_N = 5.0  # a new-price prior counts as this many samples
-NEW_RATIO_FALLBACK = 0.6  # used/new before enough models have both
+NEW_RATIO_FALLBACK = 0.75  # used/new before enough models have both
 NEW_RATIO_CLIP = (0.35, 0.9)
 NEW_RATIO_MIN_MODELS = 3
 AUCTION_UPLIFT = 1.5  # Bazoš retail of a working unit vs the state auction's as-is wholesale price
@@ -423,7 +427,10 @@ def apply_priors(
                 min(float(len(units)), AUCTION_MAX_WEIGHT),
                 "auction",
             )
-        if prior and fp.n < confident_n:
+        over_new_raw = bool(fp.new_price and fp.median >= SANITY_NEW_SHARE * fp.new_price)
+        if prior and fp.n < confident_n and over_new_raw:
+            fp.prior_note = f"{source} prior not used: the ads are already >= 95 % of new"
+        elif prior and fp.n < confident_n:
             if abs(math.log(fp.median / prior)) > MAX_PRIOR_GAP:
                 fp.prior_note = f"{source} prior {round(prior)} ignored: more than 2x away from the data"
             else:
@@ -436,8 +443,7 @@ def apply_priors(
                 fp.median = round(shrink(fp.median, fp.n, prior, weight))
                 scale = fp.median / fp.raw_median
                 fp.q25, fp.q75 = round(fp.q25 * scale), round(fp.q75 * scale)
-                fp.confidence = round(confidence(fp.n_eff, fp.iqr_rel), 3)
-                fp.level = level(fp.confidence, fp.n_eff)
+                # confidence and level stay data-only: a prior is not evidence about this market
         if len(units) >= 2:
             floor = _median(units)
             if fp.median < floor:

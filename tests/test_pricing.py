@@ -192,11 +192,27 @@ def test_thin_model_is_shrunk_toward_new_times_the_fallback_ratio():
     ratio = pricing.apply_priors(prices, new)
     fp = prices["rtx 3060 12gb"]
     assert ratio == pricing.NEW_RATIO_FALLBACK  # no model has both a new price and 15 samples
-    assert fp.raw_median == raw and fp.prior == 6000 and fp.prior_source == "new"
-    assert fp.median == round(pricing.shrink(raw, 5, 6000, pricing.PRIOR_N))
-    assert raw < fp.median < 6000
-    assert fp.n == 5 and fp.n_eff == 10  # the prior counts as 5 samples for the gate and the level
+    assert fp.raw_median == raw and fp.prior == 7500 and fp.prior_source == "new"  # 10 000 x 0.75
+    assert fp.median == round(pricing.shrink(raw, 5, 7500, pricing.PRIOR_N))
+    assert raw < fp.median < 7500
+    assert fp.n == 5 and fp.n_eff == 10  # the prior counts as 5 samples for the gate
     assert fp.new_price == 10000 and not fp.over_new
+
+
+def test_prior_does_not_raise_confidence():
+    before = thin()["rtx 3060 12gb"]
+    prices = thin()
+    pricing.apply_priors(prices, {"rtx 3060 12gb": pricing.NewPrice(10000, "zbozi", "3 shops")})
+    fp = prices["rtx 3060 12gb"]
+    assert fp.prior is not None
+    assert fp.confidence == before.confidence and fp.level == before.level  # data-only
+
+
+def test_no_prior_when_the_ads_are_already_near_new():
+    prices = thin()  # median 5 400
+    pricing.apply_priors(prices, {"rtx 3060 12gb": pricing.NewPrice(5500, "zbozi")})
+    fp = prices["rtx 3060 12gb"]
+    assert fp.over_new and fp.prior is None and fp.median == 5400 and "not used" in fp.prior_note
 
 
 def test_launch_msrp_is_no_prior():

@@ -246,15 +246,16 @@ fair = exp(w · ln(median) + (1 − w) · ln(prior))
 
 GPUs:   prior = Zboží new price × r,  k = 5
         r = median of (median / new) over models with ≥ 15 samples and a Zboží price
-            (at least 3 such models; else 0.6), clipped to [0.35, 0.9]
+            (at least 3 such models; else 0.75), clipped to [0.35, 0.9]
 Office: prior = median per-unit final price of ended state auction lots × 1.5,  k = lots (max 3)
 ```
 
-Example: 5 ads with a median of 5 400 Kč and a Zboží price of 10 000 Kč give a prior of 6 000 and
-w = 0.5, so fair = √(5 400 × 6 000) ≈ 5 692 Kč. The prior is ignored (and noted) when it is more than
+Example: 5 ads with a median of 5 400 Kč and a Zboží price of 10 000 Kč give a prior of 7 500 and
+w = 0.5, so fair = √(5 400 × 7 500) ≈ 6 364 Kč. The prior is ignored (and noted) when it is more than
 2× away from the median either way: then the new-price page or the market is odd. With a prior, the
-**gate and the confidence level count n + k** (`n_eff`): 10 ads plus a new price pass the 15-sample
-gate. The gate's ≥ 7 days of data rule is unchanged. At 15 samples and above the median stands
+**gate counts n + k** (`n_eff`): 10 ads plus a new price pass the 15-sample gate. The **confidence
+level is not raised** by a prior: it stays what the ads alone support. A model whose ads are already
+at ≥ 95 % of new (the sanity flag) gets **no prior**, so the flag isn't hidden by the shrinkage. The gate's ≥ 7 days of data rule is unchanged. At 15 samples and above the median stands
 alone (a step of at most ~10 % at n = 15, because of the 2× rule).
 
 **State auction prices as an anchor for office hardware.** Ended NMS lots that hold a single,
@@ -519,7 +520,7 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
 - **New prices are a hand-picked sample.** `new_price_pages.yaml` covers 19 models with 1-3 SKUs each;
   pages go stale as cards sell out, and older generations have no new offers at all. Launch MSRPs are
   launch prices (in USD, converted with a fixed rate), not what a card costs today.
-- **The priors are assumptions**: the 0.6 used/new fallback, the 1.5 auction-to-retail uplift and the
+- **The priors are assumptions**: the 0.75 used/new fallback, the 1.5 auction-to-retail uplift and the
   prior weights (5 samples; one per auction lot) are guesses until there is data to fit them.
 - **The seller message is a draft.** It is checked for invented numbers and claims, but read it before
   sending; it is formal and generic on purpose.
