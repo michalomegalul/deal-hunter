@@ -800,6 +800,10 @@ def _notify_test_ad(listing_id: int) -> None:
         prices = _estimates(conn)
     fp = prices.get(row["model"]) if row.get("model") else None
     price = row["price_czk"] or 0
+    if row.get("category") == "hdd":
+        from deal_hunter.storage import unit_price
+
+        price = unit_price(price, row.get("features")) or price  # one drive of a multi-drive ad
     fair = fp.for_listing(row.get("features")) if fp else price
     deal = {
         "title": row["title"],
