@@ -102,7 +102,12 @@ def wants_detail(item: Listing) -> bool:
         return True
     from deal_hunter.normalize import classify
 
-    return classify(item.title, item.section).excluded_reason is None
+    r = classify(item.title, item.section, item.description)
+    if section.kind == "storage":
+        from deal_hunter import storage
+
+        return storage.wants_detail(r)  # disks that could fit the server; no SSDs or 2.5" drives
+    return r.excluded_reason is None
 
 
 def fetch_ad(client: PoliteClient, url: str) -> tuple[Listing | None, str | None, Page]:
@@ -188,8 +193,8 @@ def scrape_once(
 ) -> repo.RunStats:
     """One cycle over every section: RSS + the first category pages; details only for new ads.
 
-    With the defaults that is 3 RSS feeds + 4 category pages = 7 requests, plus one per new ad
-    worth keeping (all new GPU ads, only in-scope office ads).
+    With the defaults that is 4 RSS feeds + 5 category pages = 9 requests, plus one per new ad
+    worth keeping (all new GPU ads, in-scope office ads, disks that could fit the server).
     """
 
     def body(stats):

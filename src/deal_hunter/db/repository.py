@@ -247,12 +247,13 @@ def stats(conn: psycopg.Connection) -> dict:
 
 def to_normalize(
     conn: psycopg.Connection, version: int, everything: bool = False
-) -> list[tuple[int, str, str]]:
-    """(id, title, section) of listings never normalized, or normalized by older rules."""
+) -> list[tuple[int, str, str, str | None]]:
+    """(id, title, section, description) of listings never normalized, or normalized by older rules."""
     if everything:
-        return conn.execute("SELECT id, title, section FROM listings ORDER BY id").fetchall()
+        return conn.execute("SELECT id, title, section, description FROM listings ORDER BY id").fetchall()
     return conn.execute(
-        "SELECT l.id, l.title, l.section FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id "
+        "SELECT l.id, l.title, l.section, l.description FROM listings l "
+        "LEFT JOIN normalized n ON n.listing_id = l.id "
         "WHERE n.listing_id IS NULL OR n.normalizer_version < %s ORDER BY l.id",
         (version,),
     ).fetchall()

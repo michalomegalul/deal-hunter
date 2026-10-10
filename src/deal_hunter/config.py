@@ -25,7 +25,7 @@ class Settings:
     user_agent: str
     min_delay: float  # seconds between any two requests to Bazoš (never below 3)
     pages: int  # GPU category pages read by every scrape cycle (other sections: bazos.SECTIONS)
-    sections: tuple[str, ...]  # Bazoš sections to scrape: graficka, pc, notebook
+    sections: tuple[str, ...]  # Bazoš sections to scrape: graficka, pc, notebook, hdd
     loop_minutes: float  # scrape cycle interval
     recheck_hours: float  # how often active listings are re-checked
     recheck_limit: int  # max detail pages per recheck run
@@ -109,7 +109,9 @@ def load_settings() -> Settings:
         min_delay=max(3.0, float(os.getenv("HUNTER_MIN_DELAY", "3.5"))),
         pages=int(os.getenv("HUNTER_PAGES", "2")),
         sections=tuple(
-            s.strip() for s in os.getenv("HUNTER_SECTIONS", "graficka,pc,notebook").split(",") if s.strip()
+            s.strip()
+            for s in os.getenv("HUNTER_SECTIONS", "graficka,pc,notebook,hdd").split(",")
+            if s.strip()
         ),
         loop_minutes=float(os.getenv("HUNTER_LOOP_MINUTES", "10")),
         recheck_hours=float(os.getenv("HUNTER_RECHECK_HOURS", "6")),

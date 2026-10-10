@@ -1,0 +1,302 @@
+# Real Bazoš titles from the hard disk section (pc.bazos.cz/hdd/, 15 category pages and the RSS feed),
+# collected 2026-10-10, with the storage normalizer's expected output, hand-checked.
+# model = pricing key (+ kind, capacity_tb, interface, smr, line, quantity, price_per, external when known);
+# excluded = reason the ad is skipped; neither = unmatched (shows up in `hunt review --section hdd`).
+# Title only (no description). Used by tests/test_storage.py.
+- {title: 'Samsung SSD 990 PRO 1TB s Heatsinkem – NOVÝ, nerozbalený', model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: cca 138 Ks SAS 3.5 2.5" 2TB 4TB disk PC i server, excluded: mixed_lot}
+- {title: 'Disky 4TB HDD HGST SAS, 19ks', model: hdd35 enterprise sas 4tb, kind: hdd_35, capacity_tb: 4.0, interface: sas, quantity: 19, price_per: unknown}
+- {title: 'Seagate Barracuda 2TB ST2000DM008 – 3,5 SATA', model: hdd35 desktop 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: true, line: seagate barracuda}
+- {title: SSD Samsung 990 EVO Plus 1TB – M.2 NVMe, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: SSD Kingston NV3 2TB – M.2 NVMe PCIe 4.0, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: SSD 500GB Samsung 870 EVO | zdraví 99%, model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: SSD Samsung Evo 870 250 GB nepoužity, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: 'SSD Samsung 870 QVO 2 TB, formát 2,5", rozhraní SATA', model: ssd sata 2tb, kind: ssd_sata, capacity_tb: 2.0}
+- {title: SSD ADATA 240 GB, model: ssd 240gb, kind: ssd, capacity_tb: 0.24}
+- {title: 'Synology HAT5300-12T, 3.5” - 12TB', model: hdd35 enterprise 12tb, kind: hdd_35, capacity_tb: 12.0, interface: sata, smr: false, line: synology hat5300}
+- {title: M550 2.5 128GB SATA, model: ssd sata 128gb, kind: ssd_sata, capacity_tb: 0.128}
+- {title: 2TB HDD WD20EFRX, model: hdd35 nas 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: false, line: wd red}
+- {title: Externí HDD WD Elements Portable 1TB, model: external25 1tb, kind: hdd_25, capacity_tb: 1.0, external: true}
+- {title: WD blue 500 GB 3D NAND SATA SSD, model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: WD blue 250 GB SATA SSD, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: SSD pro počítače a notebooky | Samsung SSD 860 EVO 500 GB, model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: Samsung SSD 990 PRO 2TB NVMe (Nerozbalené / Nové), model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: Externí HDD WD My Passport Portable 4TB modrý 2.5", model: external25 4tb, kind: hdd_25, capacity_tb: 4.0, external: true}
+- {title: Externí HDD WD Elements Portable 4TB černý 2.5", model: external25 4tb, kind: hdd_25, capacity_tb: 4.0, external: true}
+- {title: WD Black SN850X 1TB NVMe SSD pro PS5 nebo PC, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: ŠPIČKOVÉ SSD SAMSUNG 1TB - ZÁRUKA 60MĚSÍCŮ, model: ssd 1tb, kind: ssd, capacity_tb: 1.0}
+- {title: Pevný disk HDD 640GB 2.5" Western Digital, excluded: small_laptop_drive}
+- {title: Rychlé NVMe SSD M2 SK Hynix Platinum P41 2000GB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: SSD disk 2.5" Patriot Burst}
+- {title: Samsung HD204UI 2TB, model: hdd35 desktop 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: false, line: samsung spinpoint}
+- {title: NAS Synology DS216se, excluded: nas_device}
+- {title: WD red 8TB, model: hdd35 nas 8tb, kind: hdd_35, capacity_tb: 8.0, interface: sata, smr: false, line: wd red}
+- {title: NAS Synology DS115j, excluded: nas_device}
+- {title: SSD KINGSTON 120 GB DO NB, model: ssd 120gb, kind: ssd, capacity_tb: 0.12}
+- {title: HDD WD 1TB DO NB, model: hdd25 1tb, kind: hdd_25, capacity_tb: 1.0}
+- {title: Rychlé SSD WD SA530 512GB | SATA III | STAV 100%, model: ssd sata 512gb, kind: ssd_sata, capacity_tb: 0.512}
+- {title: HDD}
+- {title: SSD 500GB Samsung 870 EVO, model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: Kingston A400 960GB 7mm, model: ssd sata 960gb, kind: ssd_sata, capacity_tb: 0.96}
+- {title: Intel SSD 540s 240 GB, model: ssd 240gb, kind: ssd, capacity_tb: 0.24}
+- {title: Disk LaCie 500 GB, model: external25 500gb, kind: hdd_25, capacity_tb: 0.5, external: true}
+- {title: '256GB SSD M2 NVMe | 100% zdraví, TESTOVÁNO', model: ssd nvme 256gb, kind: ssd_nvme, capacity_tb: 0.256}
+- {title: Prodám 1 ks Samsung 9100 PRO NVM M2 SSD 2TB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: SAMSUNG SSD 2TB 990 Pro m.2, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: SSD disky - 100% zdraví}
+- {title: Externí disk - ADATA Ultimate SU650 256GB, excluded: out_of_scope}
+- {title: Prodám externí SSD disk 4TB, excluded: out_of_scope}
+- {title: SSD Samsung 990 EVO Plus 2TB NOVÝ, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: LaCie 2big Dock 28TB (2x14TB) TB3 USB3.2G2 (STLG28000400), excluded: nas_device}
+- {title: SSD Samsung 870 EVO 2tb, model: ssd sata 2tb, kind: ssd_sata, capacity_tb: 2.0}
+- {title: Synology DS216 bez HDD, excluded: nas_device}
+- {title: NOVÝ SDD Samsung 990 EVO Plus 2TB | nerozbalené, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: NOVÝ SDD Samsung 990 PRO 1TB | nerozbalené, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: NOVÝ SSD Samsung 990 PRO + Heatsink 1TB | nerozbalené, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: NOVÝ SSD Kingston NV3 2TB m.2 2230 | nerozbalené, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: SSD disk M2 nvme 512gb, model: ssd nvme 512gb, kind: ssd_nvme, capacity_tb: 0.512}
+- {title: WD3000GLFS 300gb SATA HDD vysokootáčkový, model: hdd 300gb, kind: hdd, capacity_tb: 0.3, interface: sata}
+- {title: Samsung SSD 870 QVO 4TB, model: ssd sata 4tb, kind: ssd_sata, capacity_tb: 4.0}
+- {title: '2,5" HDD Seagate Mobile ST1000LM035 1TB', model: hdd25 1tb, kind: hdd_25, capacity_tb: 1.0, interface: sata}
+- {title: Seagate Barracuda 2TB - ST2000DM001, model: hdd35 desktop 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: false, line: seagate barracuda}
+- {title: ❰ SSD M.2 Nvme | Kingstone Fury Renegade 4TB ❱, model: ssd nvme 4tb, kind: ssd_nvme, capacity_tb: 4.0}
+- {title: ❰ SSD M.2 Nvme | Samsung 990 Pro 4TB With Heatsing ❱, model: ssd nvme 4tb, kind: ssd_nvme, capacity_tb: 4.0}
+- {title: 'Rámečky na harddisky 2,5" do 3,5"', excluded: accessory}
+- {title: '4x 500gb sata bez vadných sektorů do Pc. Vše : 700kč', model: hdd35 500gb, kind: hdd_35, capacity_tb: 0.5, interface: sata, quantity: 4, price_per: lot}
+- {title: 6x IDE HDD do Notebooku bez vadných sektorů., excluded: out_of_scope}
+- {title: SSD Kingstone 960GB, model: ssd 960gb, kind: ssd, capacity_tb: 0.96}
+- {title: 'Western Digital My Book, 320GB, zánovní 6hod', model: external 320gb, kind: hdd_35, capacity_tb: 0.32, external: true}
+- {title: 'SSD disk SAMSUNG PM981 256 GB, M2, NVMe, testováno', model: ssd nvme 256gb, kind: ssd_nvme, capacity_tb: 0.256}
+- {title: 'Disk 2,5" SSD SU630 ADATA s předinstalovanými Windows'}
+- {title: M.2 NVM SSD 256GB Patriot nový, model: ssd nvme 256gb, kind: ssd_nvme, capacity_tb: 0.256}
+- {title: Samsung 870 EVO SSD 250GB, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: Samsung 870 EVO SSD 1TB, model: ssd sata 1tb, kind: ssd_sata, capacity_tb: 1.0}
+- {title: Samsung portable SSD T9 1TB, excluded: out_of_scope}
+- {title: Crucial SSD BX500 480GB, model: ssd sata 480gb, kind: ssd_sata, capacity_tb: 0.48}
+- {title: SanDisk Ultra 3D SSD 2TB, model: ssd sata 2tb, kind: ssd_sata, capacity_tb: 2.0}
+- {title: Crucial SSD P3 Plus 1 TB, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: Crucial SSD P3 Plus 2 TB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: Crucial SSD Pro T500 2TB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: Samsung SSD 980 Pro Heatsink 2 TB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: Samsung SSD 980 1TB, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: Sandisk Extreme Portable SSD 500GB, excluded: out_of_scope}
+- {title: SanDisk Extreme Pro Portable SSD 2TB, excluded: out_of_scope}
+- {title: Sandisk Extreme Pro Portable SSD 1 TB, excluded: out_of_scope}
+- {title: WD Red SSD SA500 2TB, model: ssd sata 2tb, kind: ssd_sata, capacity_tb: 2.0}
+- {title: Samsung SSD Pro 990 2TB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: SSD Crucial X9 2TB, excluded: out_of_scope}
+- {title: ZÁLOHOVACÍ HDD 1 TB - MÁLO POUŽITÉ-LEVNĚ-100% STAV, model: hdd 1tb, kind: hdd, capacity_tb: 1.0}
+- {title: SSD Disk 2TB- Apacer AS2280P4U Pro 2TB, model: ssd 2tb, kind: ssd, capacity_tb: 2.0}
+- {title: Asus hyper M2, excluded: accessory}
+- {title: 'Pevný disk Synology HAT 3300 - 6TB - nový, nerozbalený', model: hdd35 nas 6tb, kind: hdd_35, capacity_tb: 6.0, interface: sata, smr: false, line: synology hat3300}
+- {title: 'Pevný disk Synology HAT 3310 - 12TB - nový, nerozbalený', model: hdd35 nas 12tb, kind: hdd_35, capacity_tb: 12.0, interface: sata, smr: false, line: synology hat3300}
+- {title: Samsung 870 EVO 4TB, model: ssd sata 4tb, kind: ssd_sata, capacity_tb: 4.0}
+- {title: WD Elements Portable 5TB, model: external25 5tb, kind: hdd_25, capacity_tb: 5.0, external: true}
+- {title: Samsung Portable SSD T9 2TB černý, excluded: out_of_scope}
+- {title: Prodám 2.5 disky}
+- {title: SSD WD 500GB, model: ssd 500gb, kind: ssd, capacity_tb: 0.5}
+- {title: SSD Verbatim 500GB, model: ssd 500gb, kind: ssd, capacity_tb: 0.5}
+- {title: SSD Samsung 500GB, model: ssd 500gb, kind: ssd, capacity_tb: 0.5}
+- {title: WD GOLD 8 TB - pozastaveno, model: hdd35 enterprise 8tb, kind: hdd_35, capacity_tb: 8.0, interface: sata, smr: false, line: wd gold}
+- {title: WD Ultrastar 16 TB, model: hdd35 enterprise 16tb, kind: hdd_35, capacity_tb: 16.0, smr: false, line: ultrastar}
+- {title: Hdd 3.5" 1tb 500gb 320gb SATA, excluded: mixed_lot}
+- {title: Disk 160gb hitachi 2.5 do notebooku, excluded: small_laptop_drive}
+- {title: 2x 1TB Sata do Notebooku bez vadných sektorů., model: hdd25 1tb, kind: hdd_25, capacity_tb: 1.0, interface: sata, quantity: 2, price_per: unknown}
+- {title: 'Nový,nerozbalený SSD Verbatim Vi550 S3 256 GB', model: ssd 256gb, kind: ssd, capacity_tb: 0.256}
+- {title: HDD do PC Toshiba 1 TB, model: hdd35 1tb, kind: hdd_35, capacity_tb: 1.0}
+- {title: 'Synology SAT5221 1,92TB', model: ssd 1.92tb, kind: ssd, capacity_tb: 1.92}
+- {title: 'NAS Synology DS220+, 6GB RAM, 1TB SSD', excluded: nas_device}
+- {title: Synology NAS server DS415+, excluded: nas_device}
+- {title: REZERVOVÁNO Seagate Constellation ES.2 ST32000641AS 2TB SATA, model: hdd35 enterprise 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: false, line: seagate constellation}
+- {title: '463173-001 HP Drive Cage for 8xSAS/SATA 2,5', excluded: accessory}
+- {title: 'HPE HPE rámečky, MSA, server', excluded: accessory}
+- {title: '3,5" HDD Samsung SpinPoint F1 HD502IJ 500GB', model: hdd35 desktop 500gb, kind: hdd_35, capacity_tb: 0.5, interface: sata, smr: false, line: samsung spinpoint}
+- {title: Externí disk Samsung Portable SSD T9 4TB černý, excluded: out_of_scope}
+- {title: WD My Passport 4 TB, model: external25 4tb, kind: hdd_25, capacity_tb: 4.0, external: true}
+- {title: 'Nové nerozbalené SSD Samsung, Patriot, WD 256-500GB + RAM', excluded: out_of_scope}
+- {title: 1TB HDD nepoužitý nový, model: hdd 1tb, kind: hdd, capacity_tb: 1.0}
+- {title: HDD 3.5" 500GB, model: hdd35 500gb, kind: hdd_35, capacity_tb: 0.5}
+- {title: 1 TB sata disk WD1001FALS 32 MB cache 7200RPM, model: hdd35 desktop 1tb, kind: hdd_35, capacity_tb: 1.0, interface: sata, smr: false, line: wd black}
+- {title: Samsung 9100 PRO 2TB / M.2 / PCIe 5.0 4x NVMe — ZAPEČETĚNÝ, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: Predám 24TB WD Gold, model: hdd35 enterprise 24tb, kind: hdd_35, capacity_tb: 24.0, interface: sata, smr: false, line: wd gold}
+- {title: '2,5" SSD Crucial 500GB', model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: 3xSSD 128GB, model: ssd 128gb, kind: ssd, capacity_tb: 0.128, quantity: 3, price_per: unknown}
+- {title: 2x SSD SanDisk 128GB, model: ssd 128gb, kind: ssd, capacity_tb: 0.128, quantity: 2, price_per: unknown}
+- {title: 2x SSD Samsung 120GB, model: ssd 120gb, kind: ssd, capacity_tb: 0.12, quantity: 2, price_per: unknown}
+- {title: 2x SSD Intel 100Gb - cena za oba, model: ssd 100gb, kind: ssd, capacity_tb: 0.1, quantity: 2, price_per: lot}
+- {title: SSD Samsung 990 EVO Plus 1TB, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: 'WD Purple 4TB, WD43PURZ (NOVÝ)', model: hdd35 surveillance 4tb, kind: hdd_35, capacity_tb: 4.0, interface: sata, smr: false, line: wd purple}
+- {title: NOVÝ Pevný disk Seagate IronWolf Pro 4TB, model: hdd35 nas 4tb, kind: hdd_35, capacity_tb: 4.0, interface: sata, smr: false, line: seagate ironwolf pro}
+- {title: '3,5" SATA HDD 2 TB (2000 GB) SEAGATE ST2000DL003-9VT166', model: hdd35 desktop 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: false, line: seagate barracuda}
+- {title: '3,5" SATA HDD 1 TB (1000 GB) SEAGATE ST1000VX001-1Z4102', model: hdd35 surveillance 1tb, kind: hdd_35, capacity_tb: 1.0, interface: sata, smr: false, line: seagate skyhawk}
+- {title: 500GB SSD NVME SPECTRIX S20G RGB, model: ssd nvme 500gb, kind: ssd_nvme, capacity_tb: 0.5}
+- {title: '3,5" SATA HDD 1 TB (1000 GB) WESTERN DIGITAL BLUE WD10EALS', model: hdd35 desktop 1tb, kind: hdd_35, capacity_tb: 1.0, interface: sata, smr: false, line: wd blue}
+- {title: Seagate 2TB HDD SATA, model: hdd 2tb, kind: hdd, capacity_tb: 2.0, interface: sata}
+- {title: 2x Seagate 1TB ST1000DM010 HDD SATA, model: hdd35 desktop 1tb, kind: hdd_35, capacity_tb: 1.0, interface: sata, smr: false, line: seagate barracuda, quantity: 2, price_per: unknown}
+- {title: SSD NVMe Samsung 1 Tb, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: M2 Sata SSD Lite-on 256 Gb, model: ssd sata 256gb, kind: ssd_sata, capacity_tb: 0.256}
+- {title: HDD Seagate 500 GB, model: hdd 500gb, kind: hdd, capacity_tb: 0.5}
+- {title: M.2 SSD disk SanDisk X400 256GB SATA, model: ssd sata 256gb, kind: ssd_sata, capacity_tb: 0.256}
+- {title: M.2 SSD disk Union Memory 128GB SATA, model: ssd sata 128gb, kind: ssd_sata, capacity_tb: 0.128}
+- {title: Samsung 990 PRO 1TB SSD, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: SanDisk SSD Extreme Portable 2TB, excluded: out_of_scope}
+- {title: WD Blue 1 TB 7200 RPM - WD10EZEX-60M2NA0, model: hdd35 desktop 1tb, kind: hdd_35, capacity_tb: 1.0, interface: sata, smr: false, line: wd blue}
+- {title: Disk wd 3tb, model: hdd 3tb, kind: hdd, capacity_tb: 3.0}
+- {title: Větší počet starších HDD, excluded: mixed_lot}
+- {title: Externí disk 5TB nový nepoužitý, model: external25 5tb, kind: hdd_25, capacity_tb: 5.0, external: true}
+- {title: SSD disk Intel DC S3500 480GB SATA 6Gb/s MLC NAND, model: ssd sata 480gb, kind: ssd_sata, capacity_tb: 0.48}
+- {title: Externí disk WD My Passport 1TB, model: external25 1tb, kind: hdd_25, capacity_tb: 1.0, external: true}
+- {title: SSD Micron 1100 256GB M.2 SATA 2280, model: ssd sata 256gb, kind: ssd_sata, capacity_tb: 0.256}
+- {title: SSD Samsung PM871b 512GB M.2 SATA 2280, model: ssd sata 512gb, kind: ssd_sata, capacity_tb: 0.512}
+- {title: SSD Kioxia XG6 256GB M.2 NVMe 2280 (Záruka/Doklad), model: ssd nvme 256gb, kind: ssd_nvme, capacity_tb: 0.256}
+- {title: Samsung Portable SSD T9 2TB, excluded: out_of_scope}
+- {title: Seagate Barracuda Compute 2TB HDD SATA, model: hdd35 desktop 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: true, line: seagate barracuda}
+- {title: Seagate Barracuda Pro 4TB HDD SATA, model: hdd35 desktop 4tb, kind: hdd_35, capacity_tb: 4.0, interface: sata, smr: false, line: seagate barracuda pro}
+- {title: 32x HGST 2TB SAS  – enterprise HDD, model: hdd35 enterprise sas 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sas, quantity: 32, price_per: unknown}
+- {title: WD 500GB SSD, model: ssd 500gb, kind: ssd, capacity_tb: 0.5}
+- {title: WD Black 2Tb 7200rpm, model: hdd35 desktop 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: false, line: wd black}
+- {title: 'HDD SEAGATE 3,5" - 8TB', model: hdd35 8tb, kind: hdd_35, capacity_tb: 8.0}
+- {title: Externí disk 1000gb, model: external25 1tb, kind: hdd_25, capacity_tb: 1.0, external: true}
+- {title: HDD 500 GB, model: hdd 500gb, kind: hdd, capacity_tb: 0.5}
+- {title: Hard disk 3 a 4 TB, excluded: mixed_lot}
+- {title: Micro SD 64Gb A1 sada 5 ks + adaptér, excluded: accessory}
+- {title: Samsung 990 EVO Plus 2 TB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: Hadisk 80GB Seagate 7200.10, model: hdd 80gb, kind: hdd, capacity_tb: 0.08}
+- {title: Disk WD RED Pro 10 Tb, model: hdd35 nas 10tb, kind: hdd_35, capacity_tb: 10.0, interface: sata, smr: false, line: wd red pro}
+- {title: Icy Dock MB982IP-1S-1 redukce 3.5" na 2.5", excluded: accessory}
+- {title: Samsung 980 500Gb M2 SSD - nove/nepouzite, model: ssd nvme 500gb, kind: ssd_nvme, capacity_tb: 0.5}
+- {title: Externí disk WD 8tb, model: external 8tb, kind: hdd_35, capacity_tb: 8.0, external: true}
+- {title: Synology NAS na díly + 2× funkční HDD 2 TB Seagate Green, excluded: nas_device}
+- {title: Externí záložní HDD Toshiba 1 TB -100%, model: external25 1tb, kind: hdd_25, capacity_tb: 1.0, external: true}
+- {title: 'Funkční 3,5'''' disk Seagate ST500DM002 500GB, vadné sektory', excluded: broken}
+- {title: Samsung 990 PRO 4TB M.2 (MZ-V9P4T0BW), model: ssd nvme 4tb, kind: ssd_nvme, capacity_tb: 4.0}
+- {title: Samsung Portable SSD T9 4TB černý, excluded: out_of_scope}
+- {title: 1TB NVMe M.2 SSD disk - plně funkční, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: NAS QNAP TS-421 - 4bay + 5x 3TB HDD WD, excluded: nas_device}
+- {title: 'SSD NVMe 256GB WD SN520 HP PN: L54124-001', model: ssd nvme 256gb, kind: ssd_nvme, capacity_tb: 0.256}
+- {title: SSD NVMe 512GB WD SN730, model: ssd nvme 512gb, kind: ssd_nvme, capacity_tb: 0.512}
+- {title: Redukce adaptér nvme m2, excluded: accessory}
+- {title: USB HDD 5TB WD Elements Portable 5TB, model: external25 5tb, kind: hdd_25, capacity_tb: 5.0, external: true}
+- {title: Samsung 850 PRO 128GB SSD – 90 % zdraví, model: ssd sata 128gb, kind: ssd_sata, capacity_tb: 0.128}
+- {title: SSD Intel 120GB – 95 % zdraví – otestovaný, model: ssd 120gb, kind: ssd, capacity_tb: 0.12}
+- {title: SSD WD Blue 500GB – 97 % zdraví – velmi pěkný stav, model: ssd 500gb, kind: ssd, capacity_tb: 0.5}
+- {title: 'SSD WD Blue 500GB SATA – 99% zdraví, velmi dobrý stav', model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: SSD Samsung 840 EVO 500GB SATA – 97% zdraví, model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: 'SSD WD Blue SA510 500GB SATA – 99% zdraví, velmi dobrý stav', model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: SSD Micron C400 256GB – 98 % zdraví – business OEM, model: ssd 256gb, kind: ssd, capacity_tb: 0.256}
+- {title: SSD Samsung 860 EVO 250GB – 95 % zdraví – TOP stav, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: SSD WD Blue 250GB 3D NAND – 95 % zdraví, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: SSD Micron 1300 256GB – 96 % zdraví, model: ssd 256gb, kind: ssd, capacity_tb: 0.256}
+- {title: Kingston A400 240GB SSD – 91 % zdraví – plně funkční, model: ssd sata 240gb, kind: ssd_sata, capacity_tb: 0.24}
+- {title: SSD WD Blue 250GB – 93 % zdraví – 3D NAND – SATA, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: SSD Patriot P210 256GB – velmi dobrý stav, model: ssd 256gb, kind: ssd, capacity_tb: 0.256}
+- {title: SSD Kingston SA400 240GB – 93 % zdraví, model: ssd sata 240gb, kind: ssd_sata, capacity_tb: 0.24}
+- {title: SSD disk}
+- {title: 2x hard disky}
+- {title: Hard disk 500GB, model: hdd 500gb, kind: hdd, capacity_tb: 0.5}
+- {title: Hard disk 1.0Tb, model: hdd 1tb, kind: hdd, capacity_tb: 1.0}
+- {title: SSD WD Green 240GB – 80 % zdraví, model: ssd 240gb, kind: ssd, capacity_tb: 0.24}
+- {title: '3× Toshiba MG09 18TB enterprise HDD, záruka do 4. 2. 2027', model: hdd35 enterprise 18tb, kind: hdd_35, capacity_tb: 18.0, smr: false, line: toshiba mg, quantity: 3, price_per: unknown}
+- {title: '4× Toshiba MG07 14TB enterprise HDD, SMART OK', model: hdd35 enterprise 14tb, kind: hdd_35, capacity_tb: 14.0, smr: false, line: toshiba mg, quantity: 4, price_per: unknown}
+- {title: Verbatim ADR 30 GB, excluded: out_of_scope}
+- {title: LTO-1 kazety, excluded: out_of_scope}
+- {title: LTO-3 Ultrium kazety – 800 GB – nové (HP + Sony), excluded: out_of_scope}
+- {title: '2,5" SSD disk Kingston 240 GB / SATA III - perfektní stav', model: ssd sata 240gb, kind: ssd_sata, capacity_tb: 0.24}
+- {title: SSD Disky 2.5"}
+- {title: NVMe Disk- 2TB - V zánovním stavu, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: NOVÝ A NEPOUŽITÝ M.2 SSD Samsung 9100 PRO 2TB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: SSD WD SN520 | 512GB | PCIe 3.0 4x NVMe 2230 | 92%, model: ssd nvme 512gb, kind: ssd_nvme, capacity_tb: 0.512}
+- {title: Seagate}
+- {title: 'SSD disk Transcend 220S 480GB (SATA III, 2.5")', model: ssd sata 480gb, kind: ssd_sata, capacity_tb: 0.48}
+- {title: Goodram SATA SSD 1TB (960GB) CL100, model: ssd sata 1tb, kind: ssd_sata, capacity_tb: 1.0}
+- {title: Disky do NAS 1TB, model: hdd 1tb, kind: hdd, capacity_tb: 1.0}
+- {title: nové HDD SAS 20TB ST20000NM004D, model: hdd35 enterprise sas 20tb, kind: hdd_35, capacity_tb: 20.0, interface: sas, smr: false, line: seagate exos}
+- {title: Kingston KC3000 2TB, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: M.2 NVMe SSD 256 GB – Intel / SK hynix / Micron, model: ssd nvme 256gb, kind: ssd_nvme, capacity_tb: 0.256}
+- {title: Micron 1300 M.2 SATA SSD 512GB, model: ssd sata 512gb, kind: ssd_sata, capacity_tb: 0.512}
+- {title: Crucial SSD 2.5" 2TB, model: ssd sata 2tb, kind: ssd_sata, capacity_tb: 2.0}
+- {title: Kingston SSD 240g +3x 120 gb cena za vše, excluded: mixed_lot}
+- {title: Usb flash disk 512 GB, excluded: out_of_scope}
+- {title: 'HDD Disky 3,5" SATA i PATA (IDE)', excluded: out_of_scope}
+- {title: 'Externí disk Seagate disk 2,5" 1T', model: external25 1tb, kind: hdd_25, capacity_tb: 1.0, external: true}
+- {title: Seagate 500GB, model: hdd 500gb, kind: hdd, capacity_tb: 0.5}
+- {title: Toshiba 500GB, model: hdd 500gb, kind: hdd, capacity_tb: 0.5}
+- {title: 'Retro externí box pro 2,5“ ide  disky', excluded: accessory}
+- {title: Samsung 870 Evo 250GB, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: ASUS ROG Strix Arion Lite (ESD-S1CL) SSD NVME AURA case, excluded: accessory}
+- {title: Adaptér / redukce M.2 (NGFF) SATA SSD na klasické 2.5" SATA, excluded: accessory}
+- {title: Externí SSD Samsung T7 2TB NVMe USB-C 1050MBps DPH, excluded: out_of_scope}
+- {title: WD RED SN700 500 GB M.2 NVME 1000 TBW nový záruka, model: ssd nvme 500gb, kind: ssd_nvme, capacity_tb: 0.5}
+- {title: 'SSD 240-250GB, RAM DDR4 a DDR3 pro PC, VGA, myš Logitech 3S', excluded: out_of_scope}
+- {title: 'SSD 240-250GB / PC RAM DDR4 a DDR3 pro PC, VGA 4K, poradím', excluded: out_of_scope}
+- {title: HDD Toshiba 160 GB, model: hdd 160gb, kind: hdd, capacity_tb: 0.16}
+- {title: 2.5" SATA SSD 60 GB (100% stav), model: ssd sata 60gb, kind: ssd_sata, capacity_tb: 0.06}
+- {title: Samsung 870 QVO 4TB SSD SATA – zdraví 98 %, model: ssd sata 4tb, kind: ssd_sata, capacity_tb: 4.0}
+- {title: Samsung 990 PRO 2TB SSD, model: ssd nvme 2tb, kind: ssd_nvme, capacity_tb: 2.0}
+- {title: 'HDD 3tb, 1.5tb, 1tb, 5x500gb, 320gb', excluded: mixed_lot}
+- {title: Synology DS124 NAS + 6 TB disk, excluded: nas_device}
+- {title: Synology DS118 NAS + 4 TB disk – 5 kusů k dispozici, excluded: nas_device}
+- {title: Samsung ssd m2  4tb zaruka 2 roky prodám nebo vyměním, model: ssd 4tb, kind: ssd, capacity_tb: 4.0}
+- {title: 250GB SSD SAMSUNG 850 EVO, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: Pevné disky SATA 100 / 250 / 320 GB, excluded: mixed_lot}
+- {title: Samsung 860 EVO 500GB, model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: 'HDD DISK 1TB, 2,5p', model: hdd25 1tb, kind: hdd_25, capacity_tb: 1.0}
+- {title: Samsung PM961 256GB NVMe M.2 SSD – PCIe 3.0 x4, model: ssd nvme 256gb, kind: ssd_nvme, capacity_tb: 0.256}
+- {title: Vice ks PC HP Mensi na doplneni s licenci W11 Intel i5-6500, excluded: mixed_lot}
+- {title: Nový SSD disk Adata 256Gb SU800, model: ssd sata 256gb, kind: ssd_sata, capacity_tb: 0.256}
+- {title: ASUS STRIX ARION LITE M.2 NVMe Alu SSD 10Gbps case, excluded: accessory}
+- {title: Spickovy SSD server i PC disk Dell EMC 960 GB 1 TB SATA 2.5, model: ssd sata 960gb, kind: ssd_sata, capacity_tb: 0.96}
+- {title: vice ksů SSD Dell + Intel 240 480 960 GB SATA 2.5, excluded: mixed_lot}
+- {title: 'HDD 3,5 - WD Black 2TB 7200 RPM – WD2003FZEX', model: hdd35 desktop 2tb, kind: hdd_35, capacity_tb: 2.0, interface: sata, smr: false, line: wd black}
+- {title: Samsung Evo 850 250GB - 99%, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: Samsung Evo 750 250GB - 97%, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: Samsung 970 EVO Plus 500GB NVMe M.2 SSD, model: ssd nvme 500gb, kind: ssd_nvme, capacity_tb: 0.5}
+- {title: SSD Patriot P220 256GB, model: ssd 256gb, kind: ssd, capacity_tb: 0.256}
+- {title: Rámeček pro SSD/HDD včetně HDD 500 Gb, excluded: accessory}
+- {title: SanDisk Ultra / Kingston Canvas 32GB A1, excluded: out_of_scope}
+- {title: 'Western Digital Blue 500GB 2,5" (WD5000LPVX-22V0TT0)', excluded: small_laptop_drive}
+- {title: 'Toshiba 500GB 2,5" (MQ01ACF050)', excluded: small_laptop_drive}
+- {title: Profesionální PCIe 4.0 x4 NVMe SSD SSD Samsung 7TB, model: ssd nvme 7tb, kind: ssd_nvme, capacity_tb: 7.0}
+- {title: 'WD GREEN SSD 2,5 SATA'}
+- {title: SAMSUNG 870 Evo 250GB SATA SSD, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
+- {title: SSD disk Toshiba 256GB NWME, model: ssd 256gb, kind: ssd, capacity_tb: 0.256}
+- {title: Samsung Portable SSD T9 2TB – černý, excluded: out_of_scope}
+- {title: '2TB WD Red SA500 (M.2 SATA) - otestovaný, vhodný pro NAS', model: ssd sata 2tb, kind: ssd_sata, capacity_tb: 2.0}
+- {title: mSATA SSD Toshiba 256GB, model: ssd sata 256gb, kind: ssd_sata, capacity_tb: 0.256}
+- {title: SSD WD Blue SA510 4TB 2.5" SATA (WDS400T3B0A) – temer novy, model: ssd sata 4tb, kind: ssd_sata, capacity_tb: 4.0}
+- {title: 256GB NVMe SSD m.2 SK Hynix BC501, model: ssd nvme 256gb, kind: ssd_nvme, capacity_tb: 0.256}
+- {title: 'WD_BLACK SN850X 4TB NVMe SSD M.2 – NOVÝ, NEROZBALENÝ', model: ssd nvme 4tb, kind: ssd_nvme, capacity_tb: 4.0}
+- {title: HDD Seagate Constellation 3 TB - enterprise class, model: hdd35 enterprise 3tb, kind: hdd_35, capacity_tb: 3.0, smr: false, line: seagate constellation}
+- {title: HDD Western Digital Caviar Green – 500 GB SATA II – funkční, model: hdd35 desktop 500gb, kind: hdd_35, capacity_tb: 0.5, interface: sata, line: wd green}
+- {title: Lexar NM790 8TB NVMe SSD, model: ssd nvme 8tb, kind: ssd_nvme, capacity_tb: 8.0}
+- {title: 'Dokovací stanice pro SSD M.2 PCIE/NVMe,M.2 SATA III.', excluded: accessory}
+- {title: 'SSD 2TB M.2 fanxiang, nový, nerozbalený', model: ssd 2tb, kind: ssd, capacity_tb: 2.0}
+- {title: 40× SATA III 6 Gb/s datový kabel – nové, excluded: accessory}
+- {title: 'SATA SSD Kingston 240GB (TLC), dobré zdraví', model: ssd sata 240gb, kind: ssd_sata, capacity_tb: 0.24}
+- {title: WD RED NVME SSD SN700 1TB (2000 TBW) Záruka 4 let. Jako nové, model: ssd nvme 1tb, kind: ssd_nvme, capacity_tb: 1.0}
+- {title: SSD disk Apacer AS350 Panther 1TB, model: ssd 1tb, kind: ssd, capacity_tb: 1.0}
+- {title: SSD 256 Gb patice M.2, model: ssd 256gb, kind: ssd, capacity_tb: 0.256}
+- {title: SSD M2 disk ADATA 1TB, model: ssd 1tb, kind: ssd, capacity_tb: 1.0}
+- {title: SSD M2 ADATA 256GB, model: ssd 256gb, kind: ssd, capacity_tb: 0.256}
+- {title: 4TB HDD WD Blue 40EZRZ - jen 163h, model: hdd35 desktop 4tb, kind: hdd_35, capacity_tb: 4.0, interface: sata, smr: false, line: wd blue}
+- {title: 40Gb TB4 USB4 adaptér pro M.2 NVMe drive, excluded: accessory}
+- {title: HDD WD red}
+- {title: Extererní rámeček SSD disk UGREEN M.2 NVMe/M.2 SATA 10Gbps, excluded: accessory}
+- {title: SSD disk 512 GB M.2 PCIe Gen3 x4 SSD, model: ssd nvme 512gb, kind: ssd_nvme, capacity_tb: 0.512}
+- {title: NVMe PCIe x4 M.2 2230 2242 2260 2280 22110}
+- {title: Prodám Synology BeeStation 8 TB (BST170-8T), excluded: nas_device}
+- {title: U.2 U.3 NVMe PCIe x4}
+- {title: NVMe PCIe 4.0 x4 M.2 2260 2280}
+- {title: 'HDD Caddy rámeček 3,5" i 2.5" Dell - ruzné druhy', excluded: accessory}
+- {title: WD Blue - 250GB, model: hdd35 desktop 250gb, kind: hdd_35, capacity_tb: 0.25, interface: sata, line: wd blue}
+- {title: HDD Caddy rámeček 2.5" Dell 0X9FV3, excluded: accessory}
+- {title: 'NAS - HD-35NAS TEAC 1TB disk - externí disk, úložiště', excluded: nas_device}
+- {title: Ram, excluded: out_of_scope}
+- {title: Sata kabely datové k hdd a ssd, excluded: accessory}
+- {title: Nerozbalený 2.5" SSD disk Samsung 870 EVO 500GB SATA III, model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: Nový 2.5" SSD disk Samsung 870 EVO 500GB SATA III, model: ssd sata 500gb, kind: ssd_sata, capacity_tb: 0.5}
+- {title: Prodám Samsung Portable SSD T7 2TB, excluded: out_of_scope}
+- {title: Samsung SSD 500GB, model: ssd 500gb, kind: ssd, capacity_tb: 0.5}
+- {title: '6ks HITACHI 3TB SAS 3.5" , funkcni, cena za vse', model: hdd35 enterprise sas 3tb, kind: hdd_35, capacity_tb: 3.0, interface: sas, quantity: 6, price_per: lot}
+- {title: SSD disk Patriot P210 512GB, model: ssd 512gb, kind: ssd, capacity_tb: 0.512}
+- {title: SSD 250GB Samsung 870 EVO, model: ssd sata 250gb, kind: ssd_sata, capacity_tb: 0.25}
