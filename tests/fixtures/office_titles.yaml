@@ -56,7 +56,7 @@
 - {title: 'Dell OptiPlex 7050, i7, 16GB, 500GB NVMe, +1TB HDD, Quadro..', section: pc, model: optiplex 7050, ram_gb: 16, ssd_gb: 500, cpu: i7}
 - {title: průmyslový ITX 8GB RAM CPU Intel G3450 wGPU NAS, section: pc, excluded: out_of_scope}
 - {title: 2x 1TB Sata do PC bez vadných sektorů., section: pc, excluded: out_of_scope}
-- {title: 'Mini PC Fujitsu Q920, i5, 16GB RAM, 512GB SSD', section: pc, excluded: out_of_scope}
+- {title: 'Mini PC Fujitsu Q920, i5, 16GB RAM, 512GB SSD', section: pc, model: esprimo q920, ram_gb: 16, ssd_gb: 512, cpu: i5}
 - {title: HP Compaq Elite 8300 SFF, section: pc, excluded: out_of_scope}
 - {title: 'Kompaktní PC (i5, 16GB RAM, GTX 1050 Ti, SSD)', section: pc, excluded: out_of_scope}
 - {title: Prodam, section: pc, excluded: out_of_scope}
@@ -440,3 +440,8 @@
 - {title: Lenovo V15 G4 | NOVÝ | ZÁRUKA DO 30.12.2029, section: notebook, excluded: out_of_scope}
 - {title: Herní notebook, section: notebook, excluded: out_of_scope}
 - {title: 'LENOVO Legion PRO 7:Ultra 9 275HX,64GB,SSD 1TB,RTX5080 16GB', section: notebook, excluded: out_of_scope}
+# Added 2026-10-10 with office rules v3 (Fujitsu Esprimo, HP EliteOne/ProOne), real titles from the
+# pc/notebook sections, hand-checked.
+- {title: Fujitsu Siemens Esprimo D9510, section: notebook, excluded: out_of_scope}
+- {title: 'Fujitsu J550 - i5 6500, 8GB RAM, 256GB SSD, ZÁRUKA, Win 11', section: pc}
+- {title: 'PC Fujitsu - i3 6100, 8GB RAM, 256GB SSD, ZÁRUKA, Win 11', section: pc}

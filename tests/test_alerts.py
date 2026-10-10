@@ -98,10 +98,79 @@ def test_parse_votes_skips_junk():
         {"id": "c", "time": 1791579146, "event": "message", "message": "hello"},
         {"id": "d", "time": 1791579147, "event": "open"},
         {"id": "e", "time": 1791579148, "event": "message", "message": '{"ad": "6", "vote": "down"}'},
+        {"id": "f", "time": 1791579149, "event": "keepalive"},
+        {"id": "g", "time": 1791579150, "event": "message", "message": '{"ad": "x", "vote": "up"}'},
+        {"id": "h", "time": 1791579151, "event": "message", "message": "[1, 2]"},
     ]
     votes = parse_votes(events)
-    assert [(v[0], v[1], v[2]) for v in votes] == [(5, "up", "a"), (6, "down", "e")]
-    assert votes[0][3] == datetime.fromtimestamp(1791579144, UTC)
+    assert [(v.kind, v.item, v.vote, v.source_id) for v in votes] == [
+        ("listing", "5", "up", "a"),
+        ("listing", "6", "down", "e"),
+    ]
+    assert votes[0].voted_at == datetime.fromtimestamp(1791579144, UTC) and not votes[0].test
+
+
+def test_parse_votes_lots_bought_and_tests():
+    def ev(i, body):
+        return {"id": f"m{i}", "time": 1791579144 + i, "event": "message", "message": body}
+
+    votes = parse_votes(
+        [
+            ev(1, '{"lot": "62388", "vote": "up"}'),
+            ev(2, '{"lot": 62388, "vote": "down"}'),
+            ev(3, '{"ad": 224876851, "vote": "bought"}'),
+            ev(4, '{"lot": "62388", "vote": "bought"}'),  # lots can't be "bought" from a push
+            ev(5, '{"lot": "../etc", "vote": "up"}'),
+            ev(6, '{"ad": 7, "vote": "up", "test": true}'),
+            ev(7, '{"ad": 7, "vote": "up", "test": "yes"}'),  # only a real true counts
+        ]
+    )
+    assert [(v.kind, v.item, v.vote, v.test) for v in votes] == [
+        ("lot", "62388", "up", False),
+        ("lot", "62388", "down", False),
+        ("listing", "224876851", "bought", False),
+        ("listing", "7", "up", True),
+        ("listing", "7", "up", False),
+    ]
+
+
+def test_lot_votes_and_test_votes_say_so_in_the_payload():
+    ntfy = alerts.Ntfy("http://lan", "tk_pub", "deals", "https://ntfy.example/", "deals-feedback", "tk_fb")
+    up, down = ntfy.lot_vote_actions("62388")
+    assert up["body"] == '{"lot": "62388", "vote": "up"}' and '"down"' in down["body"]
+    assert ntfy.vote_actions(5, test=True)[0]["body"] == '{"ad": 5, "vote": "up", "test": true}'
+    bought = ntfy.feedback_action("Bought ✅", {"ad": 5, "vote": "bought"})
+    assert bought["method"] == "POST" and bought["url"] == "https://ntfy.example/deals-feedback"
+
+
+def test_alert_shows_the_new_price_and_attaches_the_photo():
+    deal = {
+        "title": "RTX 3060 12GB",
+        "price": 4000,
+        "fair": 6000,
+        "discount": 1 / 3,
+        "model": "rtx 3060 12gb",
+        "category": "gpu",
+        "images": ["https://www.bazos.cz/img/1/851/224876851.jpg"],
+    }
+    f = fp()
+    f.new_price, f.new_source, f.new_detail = 7490, "zbozi", "3 shops"
+    assert "rtx 3060 12gb · new ~7 490 Kč (Zboží, 3 shops)" in alerts.format_alert(deal, f)[1]
+    f.new_price, f.new_source, f.new_detail = 9302, "msrp", "$329 in 2021"
+    assert "launch $329 (2021) ≈ 9 302 Kč" in alerts.format_alert(deal, f)[1]
+    assert alerts.first_image(deal) == "https://www.bazos.cz/img/1/851/224876851.jpg"
+    assert alerts.first_image({"images": []}) is None and alerts.first_image({}) is None
+
+
+def test_gate_counts_the_prior_as_samples():
+    since = {"graficka": NOW - timedelta(days=10)}
+    f = fp(n=10)
+    assert gate(f, since, RULES, NOW) == (False, "n=10<15")
+    f.prior_weight = 5.0
+    assert gate(f, since, RULES, NOW) == (True, "")
+    f.n, f.prior_weight = 8, 5.0
+    assert gate(f, since, RULES, NOW) == (False, "n=8+5<15")
+    assert gate(f, {"graficka": NOW - timedelta(days=3)}, RULES, NOW)[0] is False  # 7-day rule stays
 
 
 def test_repost_detection():

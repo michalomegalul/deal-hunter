@@ -86,6 +86,7 @@ def seed(conn, deal_price=6500, n=20):
             location="Brno",
             psc="602 00",
             description="Prodám, účtenka.",
+            images=["https://www.bazos.cz/img/1/999/999.jpg"],
         ),
         detail=True,
     )
@@ -111,6 +112,8 @@ def test_good_deal_is_pushed_once(conn):
     push = site.posts[0]
     assert push["topic"] == "deals" and push["click"] == "https://pc.bazos.cz/inzerat/999/deal.php"
     assert "6 500 Kč vs ~" in push["message"] and "Brno" in push["message"] and push["priority"] in (4, 5)
+    assert push["attach"] == "https://www.bazos.cz/img/1/999/999.jpg"
+    assert "launch $699 (2020)" in push["message"]  # the new price line (MSRP: no Zboží price here)
     assert [a["body"] for a in push["actions"]] == [
         '{"ad": 999, "vote": "up"}',
         '{"ad": 999, "vote": "down"}',
@@ -165,6 +168,12 @@ def test_llm_red_flags_drop_the_deal(conn):
     assert deal_state(conn) == ("dropped", "scam signals: deposit_or_prepay") and not site.posts
 
 
+def test_used_as_dear_as_new_drops_the_candidates(conn):
+    seed(conn)
+    repo.save_new_price(conn, "rtx 3080 10gb", "https://www.zbozi.cz/vyrobek/x/", "RTX 3080", 10000, 2)
+    assert work(conn, FakeNtfy()).candidates == 0  # fair ~10 000 >= 95 % of new 10 000: estimate is off
+
+
 def test_small_discount_is_no_candidate(conn):
     seed(conn, deal_price=9000)
     assert work(conn, FakeNtfy()).candidates == 0
@@ -184,20 +193,6 @@ def test_daily_cap(conn):
     seed(conn)
     work(conn, FakeNtfy(), max_per_day=0)
     assert deal_state(conn)[0] == "capped"
-
-
-def test_feedback_votes_are_stored_once(conn):
-    events = [
-        {"id": "v1", "time": 1791579144, "event": "message", "message": '{"ad": 999, "vote": "up"}'},
-        {"id": "v2", "time": 1791579150, "event": "message", "message": '{"ad": 0, "vote": "down"}'},
-    ]
-    site = FakeNtfy(feedback=events)
-    assert work(conn, site).votes == 2
-    assert work(conn, site).votes == 0  # ntfy returns the same cached messages again
-    assert conn.execute("SELECT listing_id, vote FROM feedback ORDER BY id").fetchall() == [
-        (999, "up"),
-        (0, "down"),
-    ]
 
 
 def test_weekly_digest_on_sunday_evening_once(conn):

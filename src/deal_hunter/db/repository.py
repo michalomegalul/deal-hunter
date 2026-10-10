@@ -396,7 +396,7 @@ def upsert_candidate(
 def deals_in_state(conn: psycopg.Connection, *states: str) -> list[dict]:
     cur = conn.execute(
         "SELECT d.*, l.title, l.url, l.location, l.psc, l.seller, l.description, l.gone_at, l.first_seen, "
-        "n.features FROM deals d JOIN listings l ON l.id = d.listing_id "
+        "l.images, n.features FROM deals d JOIN listings l ON l.id = d.listing_id "
         "JOIN normalized n ON n.listing_id = d.listing_id WHERE d.state = ANY(%s) ORDER BY d.discount DESC",
         (list(states),),
     )
@@ -467,20 +467,6 @@ def save_triage(
             "AND prompt_version = %(v)s",
             {**fields, "id": listing_id, "m": llm_model, "v": prompt_version},
         )
-
-
-def save_feedback(conn: psycopg.Connection, rows: list[tuple[int, str, str, object]]) -> int:
-    """Insert (listing_id, vote, ntfy message id, voted_at) rows; already-seen ids are skipped."""
-    added = 0
-    with conn.transaction():
-        for row in rows:
-            cur = conn.execute(
-                "INSERT INTO feedback (listing_id, vote, source_id, voted_at) VALUES (%s, %s, %s, %s) "
-                "ON CONFLICT (source_id) DO NOTHING",
-                row,
-            )
-            added += cur.rowcount
-    return added
 
 
 def kv_get(conn: psycopg.Connection, key: str, default=None):
@@ -797,3 +783,146 @@ def mark_lot_gone(conn: psycopg.Connection, source: str, lot_id: str) -> None:
             "WHERE source = %s AND lot_id = %s",
             (source, lot_id),
         )
+
+
+def sold_lot_extractions(conn: psycopg.Connection) -> list[tuple[int, dict]]:
+    """(final price, newest finished extraction) of every ended lot that sold."""
+    rows = conn.execute(
+        """
+        SELECT DISTINCT ON (l.lot_id) l.final_price, e.result FROM auction_lots l
+        JOIN auction_extractions e ON e.source = l.source AND e.lot_id = l.lot_id AND e.status = 'done'
+        WHERE l.final_price IS NOT NULL AND l.final_price > 0 AND e.result IS NOT NULL
+        ORDER BY l.lot_id, e.prompt_version DESC, e.updated_at DESC
+        """
+    ).fetchall()
+    return [(r[0], r[1]) for r in rows]
+
+
+# --- Phase 8: votes, follow-ups, flips, new prices ---------------------------------------------------
+
+
+def save_votes(conn: psycopg.Connection, votes: list) -> list:
+    """Store alerts.Vote rows; returns the ones that were new (an already-seen ntfy id is skipped).
+
+    'up'/'down' go to `feedback` (on a listing or a lot); 'bought' starts a row in `flips`.
+    """
+    fresh = []
+    with conn.transaction():
+        for v in votes:
+            if v.vote == "bought":
+                if v.kind != "listing":
+                    continue
+                cur = conn.execute(
+                    "INSERT INTO flips (listing_id, bought_at, buy_price, source_id, model, title) "
+                    "SELECT %(id)s, %(at)s, l.price_czk, %(src)s, n.model, l.title FROM (SELECT 1) one "
+                    "LEFT JOIN listings l ON l.id = %(id)s LEFT JOIN normalized n ON n.listing_id = %(id)s "
+                    "ON CONFLICT DO NOTHING",
+                    {"id": int(v.item), "at": v.voted_at, "src": v.source_id},
+                )
+            else:
+                listing_id = int(v.item) if v.kind == "listing" else None
+                lot_id = v.item if v.kind == "lot" else None
+                cur = conn.execute(
+                    "INSERT INTO feedback (listing_id, lot_id, vote, source_id, voted_at) VALUES (%s, %s, %s, %s, %s) "
+                    "ON CONFLICT (source_id) DO NOTHING",
+                    (listing_id, lot_id, v.vote, v.source_id, v.voted_at),
+                )
+            if cur.rowcount:
+                fresh.append(v)
+    return fresh
+
+
+def save_feedback(conn: psycopg.Connection, rows: list[tuple[int, str, str, object]]) -> int:
+    """Insert (listing_id, vote, ntfy message id, voted_at) rows; already-seen ids are skipped."""
+    from deal_hunter.alerts import Vote
+
+    return len(save_votes(conn, [Vote("listing", str(lid), vote, src, at) for lid, vote, src, at in rows]))
+
+
+def followup_sent(conn: psycopg.Connection, kind: str, item_id: str) -> bool:
+    row = conn.execute("SELECT 1 FROM followups WHERE kind = %s AND item_id = %s", (kind, item_id)).fetchone()
+    return row is not None
+
+
+def record_followup(
+    conn: psycopg.Connection, kind: str, item_id: str, source_id: str, status: str, ntfy_id: str | None
+) -> bool:
+    """Claim the follow-up for an item. False if one was already recorded."""
+    with conn.transaction():
+        cur = conn.execute(
+            "INSERT INTO followups (kind, item_id, source_id, status, ntfy_id) VALUES (%s, %s, %s, %s, %s) "
+            "ON CONFLICT DO NOTHING",
+            (kind, item_id, source_id, status, ntfy_id),
+        )
+    return cur.rowcount == 1
+
+
+def listing_for_followup(conn: psycopg.Connection, listing_id: int) -> dict | None:
+    """Everything a follow-up shows about an ad: the listing, its model and its deal row (if any)."""
+    cur = conn.execute(
+        "SELECT l.*, n.model, n.category, n.features, d.fair, d.discount, d.verdict, d.state AS deal_state "
+        "FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id LEFT JOIN deals d ON d.listing_id = l.id "
+        "WHERE l.id = %s",
+        (listing_id,),
+    )
+    rows = _dicts(cur)
+    return rows[0] if rows else None
+
+
+def latest_triage(conn: psycopg.Connection, listing_id: int) -> dict | None:
+    """The newest finished triage of an ad, whatever model or prompt made it."""
+    cur = conn.execute(
+        "SELECT * FROM triage WHERE listing_id = %s AND status = 'done' ORDER BY prompt_version DESC, "
+        "updated_at DESC LIMIT 1",
+        (listing_id,),
+    )
+    rows = _dicts(cur)
+    return rows[0] if rows else None
+
+
+def save_new_price(
+    conn: psycopg.Connection,
+    model: str,
+    url: str,
+    product: str | None,
+    min_price: int | None,
+    shops: int | None,
+    error: str | None = None,
+) -> None:
+    with conn.transaction():
+        conn.execute(
+            "INSERT INTO new_prices (model, url, product, min_price, shops, error) VALUES (%s, %s, %s, %s, %s, %s)",
+            (model, url, product, min_price, shops, error),
+        )
+
+
+def new_price_fetched_at(conn: psycopg.Connection) -> dict[str, tuple[object, object]]:
+    """{url: (last successful read, last attempt)}; the first is None if every read failed."""
+    rows = conn.execute(
+        "SELECT url, max(fetched_at) FILTER (WHERE error IS NULL), max(fetched_at) FROM new_prices GROUP BY url"
+    ).fetchall()
+    return {url: (ok, tried) for url, ok, tried in rows}
+
+
+def latest_new_prices(conn: psycopg.Connection, max_age_days: float = 30) -> dict[str, tuple[int, int]]:
+    """{model: (lowest offer in Kč, shops on that product)} over each model's pages, fetched recently."""
+    rows = conn.execute(
+        """
+        SELECT DISTINCT ON (model) model, min_price, shops FROM (
+            SELECT DISTINCT ON (url) model, url, min_price, shops FROM new_prices
+            WHERE fetched_at > now() - make_interval(secs => %s) AND error IS NULL
+            ORDER BY url, fetched_at DESC
+        ) latest WHERE min_price IS NOT NULL AND min_price > 0 ORDER BY model, min_price
+        """,
+        (max_age_days * 86400,),
+    ).fetchall()
+    return {m: (p, s or 0) for m, p, s in rows}
+
+
+def new_price_rows(conn: psycopg.Connection) -> list[dict]:
+    """The latest fetch of every product page, for `hunt newprices`."""
+    cur = conn.execute(
+        "SELECT DISTINCT ON (url) model, url, product, min_price, shops, fetched_at, error FROM new_prices "
+        "ORDER BY url, fetched_at DESC"
+    )
+    return sorted(_dicts(cur), key=lambda r: (r["model"], r["min_price"] or 10**9))

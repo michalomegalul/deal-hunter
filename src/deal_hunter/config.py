@@ -10,6 +10,9 @@ REPO_URL = "https://github.com/michalomegalul/deal-hunter"
 VERSION = version("deal-hunter")
 USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~1 request per 3 s)"
 AUCTION_USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, a few requests per hour)"
+NEW_PRICE_USER_AGENT = (
+    f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~35 product pages a week)"
+)
 
 # Hard ceiling for `hunt backfill`, whatever --pages says: we seed history, we don't mirror the site.
 MAX_BACKFILL_PAGES = 15
@@ -59,6 +62,13 @@ class Settings:
     auction_lot_hours: float
     auction_target_margin: float
     auction_min_profit: float
+    # --- new prices (Zboží.cz, launch MSRPs) and follow-ups (Phase 8) ---
+    usd_czk: float  # launch MSRPs to Kč (display and the sanity check only)
+    new_prices_enabled: bool  # weekly Zboží.cz product pages, inside the worker
+    new_price_days: float  # how often each product page is read
+    new_price_min_delay: float  # seconds between requests to Zboží.cz (never below 6)
+    new_price_per_cycle: int
+    offer_discount: float  # the follow-up's proposed price: this much below asking (5-10 %)
 
 
 def _flag(name: str, default: str) -> bool:
@@ -110,4 +120,10 @@ def load_settings() -> Settings:
         auction_lot_hours=float(os.getenv("HUNTER_AUCTION_LOT_HOURS", "2")),
         auction_target_margin=float(os.getenv("HUNTER_AUCTION_TARGET_MARGIN", "0.3")),
         auction_min_profit=float(os.getenv("HUNTER_AUCTION_MIN_PROFIT", "1500")),
+        usd_czk=float(os.getenv("HUNTER_USD_CZK", "23.5")),
+        new_prices_enabled=_flag("HUNTER_NEW_PRICES", "true"),
+        new_price_days=float(os.getenv("HUNTER_NEW_PRICE_DAYS", "7")),
+        new_price_min_delay=max(6.0, float(os.getenv("HUNTER_NEW_PRICE_MIN_DELAY", "6.5"))),
+        new_price_per_cycle=int(os.getenv("HUNTER_NEW_PRICE_PER_CYCLE", "10")),
+        offer_discount=min(0.10, max(0.05, float(os.getenv("HUNTER_OFFER_DISCOUNT", "0.07")))),
     )

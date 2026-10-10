@@ -26,17 +26,24 @@ else is built on what it collects.
   mining rigs. Anything it isn't sure about stays unmatched and shows up in `hunt review`. Runs
   after every scrape cycle; bumping the catalog `version` re-processes everything.
 - **Office normalizer** (`office.py`): ex-office/leasing hardware only. Business mini/SFF PCs
-  (ThinkCentre M, OptiPlex, EliteDesk/ProDesk) and business laptops (ThinkPad T/X/L/P/E, Latitude
+  (ThinkCentre M, OptiPlex, EliteDesk/ProDesk, Fujitsu Esprimo), HP's business all-in-ones
+  (EliteOne/ProOne) and business laptops (ThinkPad T/X/L/P/E, Latitude
   5xxx/7xxx, EliteBook/ProBook) map to a model key such as `thinkpad t480`, `thinkpad t14 gen 3`,
   `optiplex 7060 micro` or `elitedesk 800 g4 mini`; RAM, SSD size and CPU are read from the title
   when present. Everything else in those sections (gaming PCs, MacBooks, consumer laptops,
   workstations) is `out_of_scope`, so `hunt review` only shows business titles it couldn't pin down.
 - **Worker** (every 5 min, `hunt work --loop`): fair prices per model, candidate deals, LLM triage
-  of the candidates, the deal score, ntfy pushes (once the gate opens), 👍/👎 feedback and a
-  weekly digest. Details below.
+  of the candidates, the deal score, ntfy pushes (once the gate opens) and a weekly digest.
+  Details below.
 - **Auctions** (inside the worker, low cadence): IT lots from the ÚZSVM state property auctions,
   the LLM's reading of each lot, a valuation with a max sensible bid, pushes before the end, and the
   final prices of ended lots as real sale prices. See "Auctions" below.
+- **Feedback** (`hunt feedback --loop`, its own small service): listens to the 👍/👎 topic live. A 👍
+  sends a detailed follow-up within seconds (photo, prices, the LLM's reading, the description and a
+  drafted Czech message to the seller); "Bought ✅" starts the flips log. See "👍 follow-ups".
+- **New prices** (inside the worker, weekly): the lowest current offer on Zboží.cz for ~20 GPU models,
+  plus launch MSRPs in the GPU catalog. Shown in pushes, used as a sanity check and as a prior for
+  models with few ads. See "New prices".
 
 ## Fair price (v1)
 
@@ -60,7 +67,9 @@ RAM/SSD) before the median is taken. A specific ad's fair price is then moved ba
 and an unknown spec stays unadjusted. Keys without a generation or form factor (`thinkpad t14`,
 `optiplex 7050`) mix variants; their wide spread shows up as lower confidence.
 
-`hunt prices` prints the table (model, n, median, IQR, confidence); `hunt price --model "rtx 3080"`
+Thin models are then shrunk toward a prior (new price × typical used/new ratio for GPUs, state
+auction prices for office hardware); see "New prices and priors". `hunt prices` prints the table
+(model, n, median, IQR, confidence, new price, prior; `--no-prior` shows the raw medians); `hunt price --model "rtx 3080"`
 shows one model (prefix match, so both VRAM sizes) with its recent ads. A daily snapshot goes to
 `fair_prices` for trends. **v2** (LightGBM on log price, after 4-6 weeks of data) is not built yet.
 
@@ -118,16 +127,145 @@ with a receipt gives 0.3 × 0.6 × 1.1 = 0.198. Priority follows the discount: �
   reposts (same model + same seller or title, price within 5 %, within 14 days) are skipped.
 - **Quiet hours** 23:00-07:00 Europe/Prague: deals wait in `queued` and go out in the morning if
   the ad still exists (for up to 24 h). A score ≥ 0.3 goes through at night anyway.
+- **The photo**: a push attaches the ad's first photo (ntfy `attach` with the Bazoš image URL), so
+  the phone shows it in the notification. Auction pushes attach the lot's first photo, if it has one.
 - **👍/👎 without a public endpoint**: each push carries two ntfy `http` action buttons. They
-  POST `{"ad": <id>, "vote": "up"|"down"}` to the separate topic `deals-feedback` on the public
-  ntfy URL, using a token of user `deals-feedback-writer`, which can only write that topic. The
-  worker polls the topic as `deal-hunter` (read access) every cycle and stores votes in
-  `feedback` (deduplicated by ntfy message id). These are the labels for v2.
+  POST `{"ad": <id>, "vote": "up"|"down"}` (auction lots: `{"lot": "<id>", ...}`, so a lot id can
+  never be mistaken for an ad id) to the separate topic `deals-feedback` on the public ntfy URL,
+  using a token of user `deals-feedback-writer`, which can only write that topic. The feedback
+  service holds the topic's stream open as `deal-hunter` (read access) and stores votes in
+  `feedback` (deduplicated by ntfy message id) as they arrive. These are the labels for v2. A 👍
+  also asks for the detailed follow-up (next section).
 - **Weekly digest**, Sunday 18:00 Prague: new ads, deals flagged / pushed / dropped, the busiest
   models, median moves of ≥ 5 % against last week's snapshot, your votes. While no model is
   ready it says "still learning" with the data-days so far.
 - `hunt notify-test` sends one test push (its 👍/👎 store votes for ad 0). `hunt deals` lists
   candidates and what happened to them.
+
+## 👍 follow-ups
+
+A 👍 means "interested, tell me more". The feedback service (`feedback.py`, `hunt feedback --loop`)
+reads `deals-feedback` through ntfy's JSON stream (`GET /deals-feedback/json?since=<last id>`),
+so a tap is handled within seconds instead of at the next 5-minute cycle. It remembers the id of the
+last message it handled (kv `feedback_last_id`): after a restart it asks for everything since then
+(ntfy keeps messages ~12 h), and reconnects with backoff (2 s doubling to 2 min) when the
+connection drops.
+
+For a 👍 on a **Bazoš ad** it re-reads the ad page once (the shared Bazoš budget), then pushes:
+
+```
+👍 Gigabyte RTX 3060 Gaming OC 12GB                                  [the ad's photo]
+💰 4 500 Kč · fair ~6 000 Kč (−25%), n=9 medium · new ~7 490 Kč (Zboží, 3 shops)
+🏷 rtx 3060 12gb
+📍 Brno 602 00 · posted 09.10. · seen 5 h ago · 👁 87 · seller Petr
+🤖 used · defects: noisy fan · receipt/warranty ✓ · flags: none
+„Receipt, pickup only, worth a look.“
+
+📝 the description (up to ~1 500 characters, trimmed to fit one ntfy message)
+
+✉️ Message (offer 4 100 Kč):
+Dobrý den, mám zájem o Gigabyte RTX 3060 Gaming OC. Je ještě k dispozici? Mohu nabídnout
+4 100 Kč při osobním odběru v Brně. S pozdravem
+                                                    [Open ad]  [Bought ✅]
+```
+
+- The **offer** is ours, not the LLM's: 7 % below asking (`HUNTER_OFFER_DISCOUNT`, clamped to
+  5-10 %), rounded down to 50 / 100 / 500 / 1 000 Kč depending on the price, and always 3-10 % below.
+- The **message** is drafted by the same local LLM (with its own JSON schema and the disk cache),
+  told to be polite, short, formal ("vykání"), to propose exactly our offer and to say nothing else
+  about the item. The draft is then checked like the triage's scam quotes: our offer must be in it,
+  every other number must appear in the ad, pickup may only be mentioned if the ad offers personal
+  pickup, shipping only if the ad mentions shipping, and no links, e-mails or phone numbers. A draft
+  that fails is replaced by a fixed template with the same offer ("Dobrý den, mám zájem o …. Je ještě
+  k dispozici? Mohu nabídnout … Kč[, s osobním převzetím]. Děkuji za odpověď. S pozdravem").
+- If the ad was never triaged (a 👍 on a test push), it is triaged now.
+- **Bought ✅** POSTs `{"ad": <id>, "vote": "bought"}`; the service records it in `flips`
+  (listing, bought_at, buy_price = the asking price, sold_at/sold_price empty) for the Phase 6 ROI log.
+  Edit `buy_price` after haggling.
+- If the ad is **gone**, the follow-up says so instead.
+- One follow-up per ad (table `followups`): a second 👍 or a replayed message sends nothing. A 👍
+  more than 6 hours old (a replay after a long outage) is stored as a vote but gets no follow-up.
+
+For a 👍 on an **auction lot** the follow-up has the item list with each line's fair price and
+resale value, the valuation breakdown (revenue, parts, labour, transport/fees), the max bid, the profit
+at the next bid, the end time, inspection and pickup, or says the lot has ended.
+
+`hunt notify-test --ad <id>` pushes a real ad as a deal (titled "TEST · …", with its photo); its 👍
+carries `"test": true`, so the follow-up is titled "TEST · 👍 …" and nothing is stored as a label or
+flip. `hunt feedback` (without `--loop`) handles what is cached on the topic once and exits.
+
+## New prices and priors
+
+Bazoš medians are asking prices from thin data. Two kinds of new price help: as context in pushes, as
+a sanity check and as a prior for models with few ads. The LLM never sees the web (prompt injection
+from ads, made-up numbers); these are fetched and parsed by code.
+
+**Launch MSRP** (`gpu_catalog.yaml`, `msrp_usd` and `launch`): the US launch MSRP of most GPUs since
+the GTX 10 series, from the manufacturers' announcements; models without a well-known MSRP (GTX 1630,
+RTX 3060 8 GB, RX 6700, RX 9070 GRE, Arc A310, ...) have none. A dict means one MSRP per VRAM size, and
+a pricing key without the VRAM ('rtx 3060') gets none. It is converted for display and the sanity check
+only: `USD × HUNTER_USD_CZK (23.5) × 1.21` (US MSRPs exclude sales tax, Czech prices include 21 % VAT).
+It is a launch price, not a current one: never a prior.
+
+**Current new price: Zboží.cz** (`zbozi.py`, `new_price_pages.yaml`). Heureka blocks all bots.
+Zboží's robots.txt (re-checked 2026-10-10) disallows search (`/hledani/`, `/hledej/`, `?q=`),
+multi-choice filters (any URL with a comma), `sId=`/`pId=`/`catOrder=`, the shop click-throughs
+(`/action/`, `/clickthru`) and most multi-parameter URLs; product pages (`/vyrobek/<slug>/`) are
+allowed and listed in its sitemap. The graphics card category is rendered in the browser (the server
+sends no products), so there is no robots-compliant way to look a model up. Instead
+**`new_price_pages.yaml` lists 1-3 product pages per model**, for ~20 popular models, picked by hand
+once (from the sitemap and from the "similar products" on product pages) among cards that had offers.
+
+- A product page is server-rendered; the parser reads its `__NEXT_DATA__` JSON: name, category,
+  lowest offer, number of shops. A page only counts if it is in the graphics card category **and**
+  its name, run through our own GPU normalizer, gives the same pricing key (a wrong or recycled URL
+  can't price another card).
+- A model's new price = the lowest offer across its pages read in the last 30 days, stored in
+  `new_prices` (model, url, product, min_price, shops, fetched_at, error).
+- Weekly per page (`HUNTER_NEW_PRICE_DAYS`), at most 10 pages per worker cycle, ≥ 6 s apart, the
+  honest User-Agent, its own budget (`http_throttle` row 3): ~35 requests a week. A failed or rejected
+  page is retried after a day.
+- `hunt newprices [--fetch] [--all]` shows (and reads) the pages.
+
+Limits: the list goes stale. Cards go out of stock or end of life (RTX 30/40 cards have few or no
+offers left), shops' cheapest SKU changes, and "lowest offer" can be a marketplace seller. The price is
+"what the cheapest of these 1-3 SKUs costs", not the cheapest card of that chip in the country. The
+page list needs a look every few months (`hunt newprices` shows pages without offers).
+
+**Sanity check.** A used fair price (or the raw median, before a prior) at **95 % or more of the new
+price** (Zboží if known, else the launch MSRP in Kč) means the estimate or the mapping is off (a
+mis-normalized title, a scalper market, a new card listed as used); candidates of that model are
+dropped and `hunt prices` flags it.
+
+**Prior for thin data** (`pricing.apply_priors`). A model with fewer than `HUNTER_ALERT_MIN_SAMPLES`
+(15) samples is shrunk toward a prior in log space, the prior counting as k samples:
+
+```
+w    = n / (n + k)
+fair = exp(w · ln(median) + (1 − w) · ln(prior))
+
+GPUs:   prior = Zboží new price × r,  k = 5
+        r = median of (median / new) over models with ≥ 15 samples and a Zboží price
+            (at least 3 such models; else 0.75), clipped to [0.35, 0.9]
+Office: prior = median per-unit final price of ended state auction lots × 1.5,  k = lots (max 3)
+```
+
+Example: 5 ads with a median of 5 400 Kč and a Zboží price of 10 000 Kč give a prior of 7 500 and
+w = 0.5, so fair = √(5 400 × 7 500) ≈ 6 364 Kč. The prior is ignored (and noted) when it is more than
+2× away from the median either way: then the new-price page or the market is odd. With a prior, the
+**gate counts n + k** (`n_eff`): 10 ads plus a new price pass the 15-sample gate. The **confidence
+level is not raised** by a prior: it stays what the ads alone support. A model whose ads are already
+at ≥ 95 % of new (the sanity flag) gets **no prior**, so the flag isn't hidden by the shrinkage. The gate's ≥ 7 days of data rule is unchanged. At 15 samples and above the median stands
+alone (a step of at most ~10 % at n = 15, because of the 2× rule).
+
+**State auction prices as an anchor for office hardware.** Ended NMS lots that hold a single,
+verified, working-or-untested model with a consistent unit count give per-unit final prices
+(e.g. 14 × Latitude 5511 for 63 000 Kč = 4 500 Kč a unit). They are wholesale, as-is prices,
+so they are a **lower** anchor: × 1.5 (cleaned, tested, sold one by one) as the prior above, with
+each lot counting as one sample (max 3), and with 2 or more lots the per-unit median is also a floor
+for the fair price: a Bazoš asking price below what the state auction got for an untested unit is not
+a fair price for a working one. The 1.5 is a guess; `hunt auctions list` shows the real ratio as data
+comes in.
 
 ## Auctions (nms.gov.cz)
 
@@ -169,8 +307,8 @@ deductible, pickup, inspection, buyer's premium/fees). Every claim is checked ag
   and chargers and batteries only for laptops; "VAT deductible" only if the text mentions DPH; a fee
   only with a quote that names a fee.
 
-Models are mapped to pricing keys by the office and GPU normalizers (`latitude 5511`, `optiplex 3050`).
-Consumer models (Acer Extensa) and AIOs get no key and no value.
+Models are mapped to pricing keys by the office and GPU normalizers (`latitude 5511`, `optiplex 3050`,
+`esprimo d756`, `eliteone 800 g3`). Consumer models (Acer Extensa) get no key and no value.
 
 **Valuation** (per lot, money in Kč):
 
@@ -258,6 +396,7 @@ what a used business laptop fetches at a state auction vs what Bazoš sellers as
 - A normal cycle is 7 requests (3 RSS feeds + 4 category pages) plus one per new ad worth keeping,
   typically under 10 in total, every 10 minutes. `HUNTER_SECTIONS` turns sections off.
 - nms.gov.cz has its own, slower budget (≥ 6 s apart, a few dozen requests a day); see "Auctions".
+- Zboží.cz: only product pages robots.txt allows, ≥ 6 s apart, ~60 a week; see "New prices".
 
 ## Architecture
 
@@ -270,12 +409,14 @@ pc.bazos.cz ───────────────────► hunt sc
                                           hunt normalize ───────────┤   normalized
                                                                     │
    Ollama (CT 100) ◄── candidates ── hunt work --loop ◄─────────────┘   fair_prices, deals,
-                                          │        ▲                    triage, feedback
-                          push (deals)    ▼        │ 👍/👎 (deals-feedback)
-                                    ntfy (CT 116) ──► phone
-                                          ▲
+          ▲                               │                             triage
+          │               push (deals)    ▼
+          │                         ntfy (CT 116) ◄──► phone
+          │      follow-up (deals)  ▲     │ 👍/👎/bought (deals-feedback, live stream)
+          └──── draft ── hunt feedback --loop ─────────────────────►  feedback, followups, flips
    nms.gov.cz ── lists, details, PDFs ──► auction step (in the worker) ──► auction_lots,
                                           auction_extractions, auction_alerts
+   zbozi.cz ── product pages (weekly) ──► new-price step (in the worker) ──► new_prices
 ```
 
 - `src/deal_hunter/bazos.py`: pure parsers (category page, RSS, detail page), tested against real
@@ -288,6 +429,8 @@ pc.bazos.cz ───────────────────► hunt sc
   `alerts.py`: the worker cycle, gate, ntfy, feedback and digest.
 - `nms.py`: nms.gov.cz parsers (list API, detail page, PDF item lists), tested against saved responses.
   `auctions.py`: LLM extraction and valuation. `auction_cycle.py`: the auction step of the worker.
+- `feedback.py`: the feedback service (stream, votes, follow-ups). `followup.py`: the follow-up text,
+  the offer and the Czech draft with its evidence check. `zbozi.py` + `new_price_pages.yaml`: new prices.
 
 ## Usage
 
@@ -310,6 +453,10 @@ uv run hunt deals [--state would_alert] # candidates and what became of them
 uv run hunt gate                        # which models may alert yet
 uv run hunt triage 224777992            # ask the LLM about some ads (prints, stores nothing)
 uv run hunt notify-test                 # one test push
+uv run hunt notify-test --ad 224876851  # a real ad as a TEST deal push (photo, 👍 -> TEST follow-up)
+uv run hunt feedback [--loop]           # handle taps on deals-feedback (once / the live service)
+uv run hunt newprices [--fetch [--all]] # Zboží.cz pages and their lowest offers
+uv run hunt prices --no-prior           # raw medians, without the new-price/auction priors
 uv run hunt auctions scrape --dry-run   # running IT lots on nms.gov.cz (nothing saved)
 uv run hunt auctions scrape --once      # lists + due detail pages, LLM extraction, valuation (no pushes)
 uv run hunt auctions list               # running lots with valuations, sold lots: final price/unit vs fair
@@ -320,8 +467,9 @@ uv run pytest                           # DB tests need DATABASE_URL (they use <
 ## Deploy
 
 Its own compose stack in `/opt/deal-hunter` on the homelab (CT 121): `db` (Postgres 17),
-`scraper`, `rechecker` and `worker` (256 MB limit; the LLM cache lives in the `hunterdata` volume;
-the auction step runs inside the worker, no extra container).
+`scraper`, `rechecker`, `worker` (256 MB limit; the LLM cache lives in the `hunterdata` volume;
+the auction and new-price steps run inside it) and `feedback` (160 MB limit, the live 👍/👎 listener,
+sharing the LLM cache).
 Publishing a GitHub Release builds the image and pushes it to GHCR. `hunter-deploy.timer` notices
 the new release within 5 minutes, pulls it, migrates and restarts the services
 (`deploy/deploy.sh`). Nothing on GitHub can reach into the server. Secrets live only in
@@ -369,6 +517,13 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
   measurements.
 - The auction LLM reads only the description, attachment names and up to two list PDFs. Scanned PDFs
   have no text; specs per unit are rarely given, so units are priced at the model's reference spec.
+- **New prices are a hand-picked sample.** `new_price_pages.yaml` covers 19 models with 1-3 SKUs each;
+  pages go stale as cards sell out, and older generations have no new offers at all. Launch MSRPs are
+  launch prices (in USD, converted with a fixed rate), not what a card costs today.
+- **The priors are assumptions**: the 0.75 used/new fallback, the 1.5 auction-to-retail uplift and the
+  prior weights (5 samples; one per auction lot) are guesses until there is data to fit them.
+- **The seller message is a draft.** It is checked for invented numbers and claims, but read it before
+  sending; it is formal and generic on purpose.
 - Older and workstation cards (GTX 9xx and earlier, RX 400/500, Quadro, ...) are recognised but
   excluded as `out_of_scope`, so the first backfill (which reaches deep into cheap old stock) shows
   a high exclusion rate.
@@ -399,3 +554,10 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
       with refurb costs, labour and selling pace, a max sensible bid, pushes before the end, and final
       prices of ended lots as real sale prices. verejnedrazby.cz and drazby.cz checked and skipped
       (no IT lots; drazby.cz disallows the PDFs).
+- [x] **Phase 8: richer alerts + new prices.** The ad's photo in pushes; a live feedback stream
+      instead of the 5-minute poll; 👍 sends a detailed follow-up (prices vs fair vs new, location,
+      views, seller, the LLM's reading, the description, an evidence-checked Czech draft to the seller
+      with our offer) with "Open ad" / "Bought ✅" (the start of the flips log); detailed follow-ups for
+      auction lots. Launch MSRPs in the GPU catalog; lowest current offers from curated Zboží.cz product
+      pages; a used ≥ 95 % of new sanity check; thin models shrunk toward new × used/new ratio (GPUs) or
+      state auction prices (office); Fujitsu Esprimo and HP EliteOne/ProOne in the office catalog.

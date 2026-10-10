@@ -5,6 +5,11 @@
 # aliases applied. `vram` lists the memory sizes the model was sold with; when there is more than
 # one, the title has to name the size (e.g. "12GB") or vram_gb stays empty.
 #
+# `msrp_usd` is the launch MSRP in US dollars (before US sales tax) and `launch` its year, from the
+# manufacturers' announcements; only well-known ones, the rest are left out. A dict means one MSRP per
+# VRAM size. Used for display and the "used price above new" sanity check only (pricing.py converts it
+# with HUNTER_USD_CZK and Czech VAT); it is not a current price.
+#
 # Bump `version` whenever the rules change, so `hunt normalize` re-processes old listings.
 version: 2
 
@@ -15,99 +20,99 @@ aliases:
 
 nvidia:
   # GTX 10
-  - {model: gtx 1050, vram: [2, 3]}
-  - {model: gtx 1050 ti, vram: [4]}
-  - {model: gt 1030, vram: [2]}
-  - {model: gtx 1060, vram: [3, 5, 6]}
-  - {model: gtx 1070, vram: [8]}
-  - {model: gtx 1070 ti, vram: [8]}
-  - {model: gtx 1080, vram: [8]}
-  - {model: gtx 1080 ti, vram: [11]}
+  - {model: gtx 1050, vram: [2, 3], msrp_usd: {2: 109}, launch: 2016}
+  - {model: gtx 1050 ti, vram: [4], msrp_usd: 139, launch: 2016}
+  - {model: gt 1030, vram: [2], msrp_usd: 79, launch: 2017}
+  - {model: gtx 1060, vram: [3, 5, 6], msrp_usd: {3: 199, 6: 249}, launch: 2016}
+  - {model: gtx 1070, vram: [8], msrp_usd: 379, launch: 2016}
+  - {model: gtx 1070 ti, vram: [8], msrp_usd: 449, launch: 2017}
+  - {model: gtx 1080, vram: [8], msrp_usd: 599, launch: 2016}
+  - {model: gtx 1080 ti, vram: [11], msrp_usd: 699, launch: 2017}
   # GTX 16
   - {model: gtx 1630, vram: [4]}
-  - {model: gtx 1650, vram: [4]}
-  - {model: gtx 1650 super, vram: [4]}
-  - {model: gtx 1660, vram: [6]}
-  - {model: gtx 1660 super, vram: [6]}
-  - {model: gtx 1660 ti, vram: [6]}
+  - {model: gtx 1650, vram: [4], msrp_usd: 149, launch: 2019}
+  - {model: gtx 1650 super, vram: [4], msrp_usd: 159, launch: 2019}
+  - {model: gtx 1660, vram: [6], msrp_usd: 219, launch: 2019}
+  - {model: gtx 1660 super, vram: [6], msrp_usd: 229, launch: 2019}
+  - {model: gtx 1660 ti, vram: [6], msrp_usd: 279, launch: 2019}
   # RTX 20
-  - {model: rtx 2060, vram: [6, 12]}
-  - {model: rtx 2060 super, vram: [8]}
-  - {model: rtx 2070, vram: [8]}
-  - {model: rtx 2070 super, vram: [8]}
-  - {model: rtx 2080, vram: [8]}
-  - {model: rtx 2080 super, vram: [8]}
-  - {model: rtx 2080 ti, vram: [11]}
+  - {model: rtx 2060, vram: [6, 12], msrp_usd: {6: 349}, launch: 2019}
+  - {model: rtx 2060 super, vram: [8], msrp_usd: 399, launch: 2019}
+  - {model: rtx 2070, vram: [8], msrp_usd: 499, launch: 2018}
+  - {model: rtx 2070 super, vram: [8], msrp_usd: 499, launch: 2019}
+  - {model: rtx 2080, vram: [8], msrp_usd: 699, launch: 2018}
+  - {model: rtx 2080 super, vram: [8], msrp_usd: 699, launch: 2019}
+  - {model: rtx 2080 ti, vram: [11], msrp_usd: 999, launch: 2018}
   # RTX 30
-  - {model: rtx 3050, vram: [6, 8]}
-  - {model: rtx 3060, vram: [8, 12]}
-  - {model: rtx 3060 ti, vram: [8]}
-  - {model: rtx 3070, vram: [8]}
-  - {model: rtx 3070 ti, vram: [8]}
-  - {model: rtx 3080, vram: [10, 12]}
-  - {model: rtx 3080 ti, vram: [12]}
-  - {model: rtx 3090, vram: [24]}
-  - {model: rtx 3090 ti, vram: [24]}
+  - {model: rtx 3050, vram: [6, 8], msrp_usd: {8: 249}, launch: 2022}
+  - {model: rtx 3060, vram: [8, 12], msrp_usd: {12: 329}, launch: 2021}
+  - {model: rtx 3060 ti, vram: [8], msrp_usd: 399, launch: 2020}
+  - {model: rtx 3070, vram: [8], msrp_usd: 499, launch: 2020}
+  - {model: rtx 3070 ti, vram: [8], msrp_usd: 599, launch: 2021}
+  - {model: rtx 3080, vram: [10, 12], msrp_usd: {10: 699}, launch: 2020}
+  - {model: rtx 3080 ti, vram: [12], msrp_usd: 1199, launch: 2021}
+  - {model: rtx 3090, vram: [24], msrp_usd: 1499, launch: 2020}
+  - {model: rtx 3090 ti, vram: [24], msrp_usd: 1999, launch: 2022}
   # RTX 40
-  - {model: rtx 4060, vram: [8]}
-  - {model: rtx 4060 ti, vram: [8, 16]}
-  - {model: rtx 4070, vram: [12]}
-  - {model: rtx 4070 super, vram: [12]}
-  - {model: rtx 4070 ti, vram: [12]}
-  - {model: rtx 4070 ti super, vram: [16]}
-  - {model: rtx 4080, vram: [16]}
-  - {model: rtx 4080 super, vram: [16]}
-  - {model: rtx 4090, vram: [24]}
+  - {model: rtx 4060, vram: [8], msrp_usd: 299, launch: 2023}
+  - {model: rtx 4060 ti, vram: [8, 16], msrp_usd: {8: 399, 16: 499}, launch: 2023}
+  - {model: rtx 4070, vram: [12], msrp_usd: 599, launch: 2023}
+  - {model: rtx 4070 super, vram: [12], msrp_usd: 599, launch: 2024}
+  - {model: rtx 4070 ti, vram: [12], msrp_usd: 799, launch: 2023}
+  - {model: rtx 4070 ti super, vram: [16], msrp_usd: 799, launch: 2024}
+  - {model: rtx 4080, vram: [16], msrp_usd: 1199, launch: 2022}
+  - {model: rtx 4080 super, vram: [16], msrp_usd: 999, launch: 2024}
+  - {model: rtx 4090, vram: [24], msrp_usd: 1599, launch: 2022}
   # RTX 50
-  - {model: rtx 5050, vram: [8]}
-  - {model: rtx 5060, vram: [8]}
-  - {model: rtx 5060 ti, vram: [8, 16]}
-  - {model: rtx 5070, vram: [12]}
-  - {model: rtx 5070 ti, vram: [16]}
-  - {model: rtx 5080, vram: [16]}
-  - {model: rtx 5090, vram: [32]}
+  - {model: rtx 5050, vram: [8], msrp_usd: 249, launch: 2025}
+  - {model: rtx 5060, vram: [8], msrp_usd: 299, launch: 2025}
+  - {model: rtx 5060 ti, vram: [8, 16], msrp_usd: {8: 379, 16: 429}, launch: 2025}
+  - {model: rtx 5070, vram: [12], msrp_usd: 549, launch: 2025}
+  - {model: rtx 5070 ti, vram: [16], msrp_usd: 749, launch: 2025}
+  - {model: rtx 5080, vram: [16], msrp_usd: 999, launch: 2025}
+  - {model: rtx 5090, vram: [32], msrp_usd: 1999, launch: 2025}
 
 amd:
   # RX 5000
-  - {model: rx 5500 xt, vram: [4, 8]}
-  - {model: rx 5600 xt, vram: [6]}
-  - {model: rx 5700, vram: [8]}
-  - {model: rx 5700 xt, vram: [8]}
+  - {model: rx 5500 xt, vram: [4, 8], msrp_usd: {4: 169, 8: 199}, launch: 2019}
+  - {model: rx 5600 xt, vram: [6], msrp_usd: 279, launch: 2020}
+  - {model: rx 5700, vram: [8], msrp_usd: 349, launch: 2019}
+  - {model: rx 5700 xt, vram: [8], msrp_usd: 399, launch: 2019}
   # RX 6000
-  - {model: rx 6400, vram: [4]}
-  - {model: rx 6500 xt, vram: [4, 8]}
-  - {model: rx 6600, vram: [8]}
-  - {model: rx 6600 xt, vram: [8]}
-  - {model: rx 6650 xt, vram: [8]}
+  - {model: rx 6400, vram: [4], msrp_usd: 159, launch: 2022}
+  - {model: rx 6500 xt, vram: [4, 8], msrp_usd: {4: 199}, launch: 2022}
+  - {model: rx 6600, vram: [8], msrp_usd: 329, launch: 2021}
+  - {model: rx 6600 xt, vram: [8], msrp_usd: 379, launch: 2021}
+  - {model: rx 6650 xt, vram: [8], msrp_usd: 399, launch: 2022}
   - {model: rx 6700, vram: [10]}
-  - {model: rx 6700 xt, vram: [12]}
-  - {model: rx 6750 xt, vram: [12]}
-  - {model: rx 6800, vram: [16]}
-  - {model: rx 6800 xt, vram: [16]}
-  - {model: rx 6900 xt, vram: [16]}
-  - {model: rx 6950 xt, vram: [16]}
+  - {model: rx 6700 xt, vram: [12], msrp_usd: 479, launch: 2021}
+  - {model: rx 6750 xt, vram: [12], msrp_usd: 549, launch: 2022}
+  - {model: rx 6800, vram: [16], msrp_usd: 579, launch: 2020}
+  - {model: rx 6800 xt, vram: [16], msrp_usd: 649, launch: 2020}
+  - {model: rx 6900 xt, vram: [16], msrp_usd: 999, launch: 2020}
+  - {model: rx 6950 xt, vram: [16], msrp_usd: 1099, launch: 2022}
   # RX 7000
-  - {model: rx 7600, vram: [8]}
-  - {model: rx 7600 xt, vram: [16]}
-  - {model: rx 7700 xt, vram: [12]}
-  - {model: rx 7800 xt, vram: [16]}
-  - {model: rx 7900 gre, vram: [16]}
-  - {model: rx 7900 xt, vram: [20]}
-  - {model: rx 7900 xtx, vram: [24]}
+  - {model: rx 7600, vram: [8], msrp_usd: 269, launch: 2023}
+  - {model: rx 7600 xt, vram: [16], msrp_usd: 329, launch: 2024}
+  - {model: rx 7700 xt, vram: [12], msrp_usd: 449, launch: 2023}
+  - {model: rx 7800 xt, vram: [16], msrp_usd: 499, launch: 2023}
+  - {model: rx 7900 gre, vram: [16], msrp_usd: 549, launch: 2024}
+  - {model: rx 7900 xt, vram: [20], msrp_usd: 899, launch: 2022}
+  - {model: rx 7900 xtx, vram: [24], msrp_usd: 999, launch: 2022}
   # RX 9000
-  - {model: rx 9060 xt, vram: [8, 16]}
-  - {model: rx 9070, vram: [16]}
+  - {model: rx 9060 xt, vram: [8, 16], msrp_usd: {8: 299, 16: 349}, launch: 2025}
+  - {model: rx 9070, vram: [16], msrp_usd: 549, launch: 2025}
   - {model: rx 9070 gre, vram: [12]}
-  - {model: rx 9070 xt, vram: [16]}
+  - {model: rx 9070 xt, vram: [16], msrp_usd: 599, launch: 2025}
 
 intel:
   - {model: arc a310, vram: [4]}
-  - {model: arc a380, vram: [6]}
-  - {model: arc a580, vram: [8]}
-  - {model: arc a750, vram: [8]}
-  - {model: arc a770, vram: [8, 16]}
-  - {model: arc b570, vram: [10]}
-  - {model: arc b580, vram: [12]}
+  - {model: arc a380, vram: [6], msrp_usd: 139, launch: 2022}
+  - {model: arc a580, vram: [8], msrp_usd: 179, launch: 2023}
+  - {model: arc a750, vram: [8], msrp_usd: 289, launch: 2022}
+  - {model: arc a770, vram: [8, 16], msrp_usd: {8: 329, 16: 349}, launch: 2022}
+  - {model: arc b570, vram: [10], msrp_usd: 219, launch: 2025}
+  - {model: arc b580, vram: [12], msrp_usd: 249, launch: 2024}
 
 # Recognised GPUs we deliberately don't price (older or professional cards): excluded as out_of_scope
 # instead of cluttering `hunt review`. These run on the prepared title (letters and digits split:

@@ -156,6 +156,7 @@ def _rules(settings):
         quiet_end=end,
         quiet_bypass=settings.quiet_bypass_score,
         candidate_discount=settings.candidate_discount,
+        usd_czk=settings.usd_czk,
     )
 
 
@@ -182,11 +183,15 @@ def _ntfy(settings, required: bool = False):
     )
 
 
-def _estimates(conn):
+def _estimates(conn, priors: bool = True):
+    """Fair prices as the worker sees them (with new-price/auction priors), or the raw medians."""
     from deal_hunter import pricing
     from deal_hunter.db import repository as repo
 
-    return pricing.estimate_all(repo.price_samples(conn, pricing.WINDOW_DAYS))
+    if not priors:
+        return pricing.estimate_all(repo.price_samples(conn, pricing.WINDOW_DAYS))
+    settings = load_settings()
+    return pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
 
 
 def cmd_price(args: argparse.Namespace) -> None:
@@ -204,6 +209,20 @@ def cmd_price(args: argparse.Namespace) -> None:
                 f"{model} ({fp.category}): fair ~{_kc(fp.median)} Kč, IQR {_kc(fp.q25)}-{_kc(fp.q75)}, "
                 f"n={fp.n} of {fp.n_listings} ads ({fp.sold} gone fast), confidence {fp.confidence:.2f} ({fp.level})"
             )
+            if fp.new_price:
+                from deal_hunter.alerts import new_text
+
+                print(
+                    f"  {new_text(fp)}"
+                    + ("  ** used >= 95 % of new: candidates dropped **" if fp.over_new else "")
+                )
+            if fp.prior:
+                print(
+                    f"  raw median {_kc(fp.raw_median)} shrunk toward the {fp.prior_source} prior {_kc(fp.prior)} "
+                    f"(weight {fp.prior_weight:g} samples; the gate counts n={fp.n_eff:g})"
+                )
+            elif fp.prior_note:
+                print(f"  {fp.prior_note}")
             if fp.slopes:
                 ref = (
                     ", ".join(f"{k.split('_')[0].upper()} {v} GB" for k, v in fp.ref.items())
@@ -226,7 +245,7 @@ def cmd_prices(args: argparse.Namespace) -> None:
     from deal_hunter.pricing import LEVEL_RANK
 
     with repo.connect() as conn:
-        prices = _estimates(conn)
+        prices = _estimates(conn, priors=not args.no_prior)
     rows = [
         p
         for p in prices.values()
@@ -234,13 +253,76 @@ def cmd_prices(args: argparse.Namespace) -> None:
         and LEVEL_RANK[p.level] >= LEVEL_RANK[args.min_level]
     ]
     rows.sort(key=lambda p: (p.category, -p.n, p.model))
-    print(f"{'model':<28} {'category':<13} {'n':>4} {'median':>8} {'IQR':>15} {'conf':>5}  level")
+    print(
+        f"{'model':<28} {'category':<13} {'n':>4} {'median':>8} {'IQR':>15} {'conf':>5}  {'level':<6} "
+        f"{'new':>8}  {'prior':>13}"
+    )
     for p in rows:
         iqr = f"{_kc(p.q25)}-{_kc(p.q75)}"
+        new = (_kc(p.new_price) + ("" if p.new_source == "zbozi" else "*")) if p.new_price else "-"
+        prior = f"{p.prior_source} {_kc(p.prior)}" if p.prior else ""
+        flags = []
+        if p.raw_median and p.raw_median != p.median:
+            flags.append(f"raw {_kc(p.raw_median)}")
+        if p.over_new:
+            flags.append("USED>=95% NEW")
+        if p.prior_note:
+            flags.append(p.prior_note)
         print(
-            f"{p.model:<28} {p.category:<13} {p.n:>4} {_kc(p.median):>8} {iqr:>15} {p.confidence:>5.2f}  {p.level}"
+            f"{p.model:<28} {p.category:<13} {p.n:>4} {_kc(p.median):>8} {iqr:>15} {p.confidence:>5.2f}  {p.level:<6} "
+            f"{new:>8}  {prior:>13}  {'; '.join(flags)}"
         )
-    print(f"\n{len(rows)} models (of {len(prices)} with an estimate). Kč, asking prices of the last 60 days.")
+    print(
+        f"\n{len(rows)} models (of {len(prices)} with an estimate). Kč, asking prices of the last 60 days"
+        + (
+            ", raw medians (no priors)."
+            if args.no_prior
+            else "; new = Zboží lowest offer, * = launch MSRP + VAT."
+        )
+    )
+
+
+def cmd_newprices(args: argparse.Namespace) -> None:
+    """The curated Zboží.cz product pages and their latest lowest offers (--fetch reads the due ones)."""
+    from deal_hunter import zbozi
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    with repo.connect(autocommit=True) as conn, repo.connect(autocommit=True) as throttle_conn:
+        repo.migrate(conn)
+        if args.fetch:
+            with _new_price_http(settings, throttle_conn) as http:
+                days = 0 if args.all else settings.new_price_days
+                print(zbozi.fetch_due(http, conn, days, args.limit).summary())
+        rows = repo.new_price_rows(conn)
+        best = repo.latest_new_prices(conn)
+    pages = zbozi.pages()
+    print(f"{len(pages)} models, {sum(len(u) for u in pages.values())} product pages in new_price_pages.yaml")
+    for r in rows:
+        mark = "*" if best.get(r["model"], (None,))[0] == r["min_price"] and r["min_price"] else " "
+        what = (
+            f"{_kc(r['min_price']):>8} Kč {r['shops'] or 0:>2} shops"
+            if r["min_price"]
+            else (r["error"] or "no offers")[:40]
+        )
+        print(
+            f"{mark} {r['model']:<20} {what:<24} {r['fetched_at']:%Y-%m-%d}  {(r['product'] or r['url'])[:60]}"
+        )
+    print("\n* = the model's new price (lowest offer across its pages, fetched in the last 30 days)")
+
+
+def _new_price_http(settings, throttle_conn=None):
+    """The polite client for Zboží.cz: >= 6 s apart, shared across processes via http_throttle row 3."""
+    from deal_hunter.config import NEW_PRICE_USER_AGENT, USER_AGENT
+    from deal_hunter.http import PoliteClient
+
+    throttle = (
+        scraper.DbThrottle(throttle_conn, settings.new_price_min_delay, row=3)
+        if throttle_conn is not None
+        else None
+    )
+    agent = settings.user_agent if settings.user_agent != USER_AGENT else NEW_PRICE_USER_AGENT
+    return PoliteClient(agent, min_delay=settings.new_price_min_delay, throttle=throttle, timeout=30)
 
 
 def cmd_work(args: argparse.Namespace) -> None:
@@ -253,16 +335,24 @@ def cmd_work(args: argparse.Namespace) -> None:
     rules = _rules(settings)
 
     def step():
-        from deal_hunter import auction_cycle
+        from deal_hunter import auction_cycle, zbozi
 
         llm, ntfy, cache = _llm(settings), _ntfy(settings), Path(settings.llm_cache)
         with repo.connect(autocommit=True) as conn, repo.connect(autocommit=True) as throttle_conn:
             repo.migrate(conn)
-            with _auction_http(settings, throttle_conn) as http:
+            with (
+                _auction_http(settings, throttle_conn) as http,
+                _new_price_http(settings, throttle_conn) as zbozi_http,
+            ):
                 auction_rules = _auction_rules(settings)
 
                 def auction_step(conn, prices, quiet, now):
                     return auction_cycle.tick(conn, http, llm, cache, ntfy, prices, auction_rules, quiet, now)
+
+                def new_price_step(conn):
+                    return zbozi.fetch_due(
+                        zbozi_http, conn, settings.new_price_days, settings.new_price_per_cycle
+                    )
 
                 stats = alerts.work_once(
                     conn,
@@ -272,6 +362,7 @@ def cmd_work(args: argparse.Namespace) -> None:
                     ntfy,
                     settings.triage_per_cycle,
                     auction_step=auction_step if settings.auctions_enabled else None,
+                    new_price_step=new_price_step if settings.new_prices_enabled else None,
                 )
         print(stats.summary(), flush=True)
 
@@ -584,7 +675,50 @@ def cmd_triage(args: argparse.Namespace) -> None:
             print(f"  score {value:.3f} (penalty x{factor}){' DROP: ' + reason if reason else ''}")
 
 
+def _feedback_context(settings, conn, throttle_conn, bazos):
+    from pathlib import Path
+
+    from deal_hunter.feedback import Context
+
+    return Context(
+        conn=conn,
+        ntfy=_ntfy(settings, required=True),
+        bazos=bazos,
+        llm=_llm(settings),
+        cache_dir=Path(settings.llm_cache),
+        confident_n=settings.alert_min_samples,
+        usd_czk=settings.usd_czk,
+        offer_discount=settings.offer_discount,
+        auction_costs=_auction_rules(settings).costs,
+    )
+
+
+def cmd_feedback(args: argparse.Namespace) -> None:
+    """Votes from the deals-feedback topic: live (--loop, the service) or what is cached now (once)."""
+    from deal_hunter import feedback
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    with repo.connect(autocommit=True) as conn, repo.connect(autocommit=True) as throttle_conn:
+        repo.migrate(conn)
+        with scraper.make_client(settings, throttle_conn) as bazos:
+            ctx = _feedback_context(settings, conn, throttle_conn, bazos)
+            if args.loop:
+                feedback.forever(ctx)
+                return
+            since = repo.kv_get(conn, feedback.LAST_ID_KEY) or "all"
+            events = ctx.ntfy.poll_feedback(since)
+            for event in events:
+                if event.get("event") != "message":
+                    continue
+                print(f"{event['id']}: {feedback.handle(ctx, event)}")
+                repo.kv_set(conn, feedback.LAST_ID_KEY, event["id"])
+            print(f"{sum(e.get('event') == 'message' for e in events)} messages since {since}")
+
+
 def cmd_notify_test(args: argparse.Namespace) -> None:
+    if args.ad:
+        return _notify_test_ad(args.ad)
     from datetime import UTC, datetime
 
     from deal_hunter.alerts import gate_status
@@ -615,6 +749,45 @@ def cmd_notify_test(args: argparse.Namespace) -> None:
         actions=ntfy.vote_actions(0),
     )
     print(f"Sent to {settings.ntfy_url}/{settings.ntfy_topic} (id {msg_id})")
+
+
+def _notify_test_ad(listing_id: int) -> None:
+    """A real ad as a deal push, marked TEST; its 👍 asks for a TEST follow-up (nothing is stored as a label)."""
+    from deal_hunter import alerts
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    ntfy = _ntfy(settings, required=True)
+    with repo.connect() as conn:
+        row = repo.listing_for_followup(conn, listing_id)
+        if row is None:
+            raise SystemExit(f"No ad {listing_id} in the database")
+        prices = _estimates(conn)
+    fp = prices.get(row["model"]) if row.get("model") else None
+    price = row["price_czk"] or 0
+    fair = fp.for_listing(row.get("features")) if fp else price
+    deal = {
+        "title": row["title"],
+        "price": price,
+        "fair": fair or price,
+        "discount": max(0.0, 1 - price / fair) if fair else 0.0,
+        "model": row.get("model") or "unknown model",
+        "category": row.get("category") or "gpu",
+        "verdict": row.get("verdict"),
+        "location": row.get("location"),
+        "psc": row.get("psc"),
+    }
+    title, message, tags = alerts.format_alert(deal, fp)
+    msg_id = ntfy.publish(
+        "TEST · " + title,
+        message + "\n(TEST push of a real ad: tap 👍 to get the detailed follow-up)",
+        3,
+        tags + ["test_tube"],
+        row["url"],
+        ntfy.vote_actions(listing_id, test=True),
+        attach=alerts.first_image(row),
+    )
+    print(f"Sent TEST push for ad {listing_id} (id {msg_id}), photo: {alerts.first_image(row) or 'none'}")
 
 
 def main() -> None:
@@ -663,10 +836,23 @@ def main() -> None:
     p.add_argument("--ads", type=int, default=8, help="recent ads to list")
     p.set_defaults(func=cmd_price)
 
-    p = sub.add_parser("prices", help="fair price table: model, n, median, IQR, confidence")
+    p = sub.add_parser("prices", help="fair price table: model, n, median, IQR, confidence, new price, prior")
     p.add_argument("--category", choices=["gpu", "office", "office_pc", "office_laptop"], default=None)
     p.add_argument("--min-level", choices=["low", "medium", "high"], default="low")
+    p.add_argument(
+        "--no-prior", action="store_true", help="raw medians, without the new-price/auction priors"
+    )
     p.set_defaults(func=cmd_prices)
+
+    p = sub.add_parser("newprices", help="new prices from the curated Zboží.cz product pages")
+    p.add_argument("--fetch", action="store_true", help="read the pages that are due (weekly)")
+    p.add_argument("--all", action="store_true", help="with --fetch: read every page now")
+    p.add_argument("--limit", type=int, default=200, help="max pages to read")
+    p.set_defaults(func=cmd_newprices)
+
+    p = sub.add_parser("feedback", help="handle 👍/👎/bought taps from the deals-feedback topic")
+    p.add_argument("--loop", action="store_true", help="service: hold the live stream open")
+    p.set_defaults(func=cmd_feedback)
 
     p = sub.add_parser("work", help="price, find candidates, LLM triage, score, push, read feedback")
     p.add_argument("--loop", action="store_true", help="service: a cycle every HUNTER_WORK_MINUTES")
@@ -700,6 +886,9 @@ def main() -> None:
     a.set_defaults(func=cmd_auctions_value)
 
     p = sub.add_parser("notify-test", help="send one test push to the deals topic")
+    p.add_argument(
+        "--ad", type=int, default=None, help="push this real ad (marked TEST) with photo and 👍/👎"
+    )
     p.set_defaults(func=cmd_notify_test)
 
     register_db(sub)

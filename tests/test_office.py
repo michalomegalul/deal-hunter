@@ -80,6 +80,15 @@ def test_prepare(raw, prepared):
         ("HP Elite Mini 800 G9", "elitedesk 800 g9 mini"),
         ("HP ProDesk 600 G3 SFF", "prodesk 600 g3 sff"),
         ("HP 405 G4", "prodesk 405 g4"),
+        # v3: Fujitsu Esprimo and HP business all-in-ones (both turn up in state auction lots)
+        ("Prodej PC Fujitsu Esprimo D756/E85+ - 2518", "esprimo d756"),
+        ("Počítač Fujitsu D756/E85+ (č. 50 DO)", "esprimo d756"),
+        ("Fujitsu Esprimo Q556/2 i3 8GB", "esprimo q556"),
+        ("Fujitsu Esprimo D7010 i5-10500", "esprimo d7010"),
+        ("Fujitsu Esprimo P958 i7", "esprimo p958"),
+        ("HP EliteOne 800 G3 23.8", "eliteone 800 g3"),
+        ("HP Elite One 800 G4 AiO", "eliteone 800 g4"),
+        ("HP ProOne 600 G4 21.5", "proone 600 g4"),
     ],
 )
 def test_models(title, model):
@@ -108,6 +117,10 @@ def test_models(title, model):
         ("HP 250 G7", "out_of_scope"),
         ("Lenovo P320 - i7 7700K, 16GB RAM, 512GB SSD, ZÁRUKA, Win 11", "out_of_scope"),  # ThinkStation
         ("Lenovo ThinkStation P520 Xeon", "out_of_scope"),
+        ("Fujitsu Siemens Esprimo D9510", "out_of_scope"),  # 2008
+        ("Fujitsu Celsius M740n Xeon", "out_of_scope"),  # workstation
+        ("Fujitsu LifeBook E754", "out_of_scope"),
+        ("HP EliteOne 800 G3 + monitor 24", "bundle"),
     ],
 )
 def test_exclusions(title, reason):
@@ -120,7 +133,14 @@ def test_kept_with_extras():
 
 
 def test_unmatched_business_titles_go_to_review():
-    for title in ("Lenovo ThinkPad", "Dell OptiPlex", "Dell 5420, SSD 256GB, RAM 16GB", "HP EliteBook"):
+    for title in (
+        "Lenovo ThinkPad",
+        "Dell OptiPlex",
+        "Dell 5420, SSD 256GB, RAM 16GB",
+        "HP EliteBook",
+        "PC Fujitsu - i3 6100, 8GB RAM",
+        "HP EliteOne AiO",
+    ):
         assert normalize(title).status == "unmatched", title
 
 

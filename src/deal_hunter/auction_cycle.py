@@ -277,7 +277,7 @@ def covered_by(kind: str, hours_left: float) -> list[str]:
 
 
 def send_alerts(conn, http, ntfy, prices, rules: AuctionRules, quiet: bool, now: datetime, stats):
-    from deal_hunter.alerts import PRAGUE
+    from deal_hunter.alerts import PRAGUE, first_image
     from deal_hunter.db import repository as repo
 
     if not rules.alerts or ntfy is None:
@@ -312,7 +312,15 @@ def send_alerts(conn, http, ntfy, prices, rules: AuctionRules, quiet: bool, now:
         title, message = auctions.format_alert(lot, x, v, kind, lot["end_at"].astimezone(PRAGUE))
         priority = 4 if kind == "final" or (v.profit or 0) >= 3 * rules.costs.min_profit else 3
         try:
-            msg_id = ntfy.publish(title, message, priority, ["classical_building"], lot["url"])
+            msg_id = ntfy.publish(
+                title,
+                message,
+                priority,
+                ["classical_building"],
+                lot["url"],
+                ntfy.lot_vote_actions(lot["lot_id"]),
+                attach=first_image(lot),
+            )
         except httpx.HTTPError as exc:
             log.warning("auction push failed for %s: %s", lot["lot_id"], exc)
             return
