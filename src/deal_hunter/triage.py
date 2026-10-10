@@ -110,7 +110,67 @@ RESPONSE_SCHEMA = {
     ],
 }
 
-KIND = {"gpu": "graphics card", "office_pc": "ex-office PC", "office_laptop": "business laptop"}
+KIND = {
+    "gpu": "graphics card",
+    "office_pc": "ex-office PC",
+    "office_laptop": "business laptop",
+    "hdd": "hard disk / SSD",
+}
+
+# Hard disks (Phase 9) get extra questions: what the seller says about the drive's health. Only for that
+# category, so the GPU/office prompt and schema stay as they were (apart from `ships`).
+DISK_PROMPT = """
+This ad sells a hard disk (or SSD). Also fill in "disk" from what the ad says about the drive itself:
+- power_on_hours: power-on hours from SMART ("Power On Hours", "naběháno", "spuštěno 100 hodin") as a \
+number; null if not stated. Not the age in years.
+- reallocated_or_pending: reallocated / pending / bad sectors ("přemapované", "realokované", "vadné \
+sektory", "pending"): the number if given, true if the ad says there are some without a number, 0 if it \
+says there are none ("0 vadných sektorů", "bez vadných sektorů"), null if it says nothing.
+- health_pct: the health percentage a tool shows ("zdraví 98 %", "health 100%"); null if not stated.
+- smart_screenshot_mentioned: the ad says a SMART readout / CrystalDiskInfo / HD Sentinel screenshot is \
+attached or available.
+- tested: the seller says the drive was tested (test, otestováno, prověřeno).
+- warranty_until: the warranty end date as written ("4. 2. 2027", "03/2028"); null if none.
+- from_nas_or_server: the drive ran in a NAS or server (NAS, server, TrueNAS, RAID, datacentrum)."""
+
+DISK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "power_on_hours": {"type": ["integer", "null"]},
+        "reallocated_or_pending": {"type": ["integer", "boolean", "null"]},
+        "health_pct": {"type": ["integer", "null"]},
+        "smart_screenshot_mentioned": {"type": "boolean"},
+        "tested": {"type": "boolean"},
+        "warranty_until": {"type": ["string", "null"]},
+        "from_nas_or_server": {"type": "boolean"},
+    },
+    "required": [
+        "power_on_hours",
+        "reallocated_or_pending",
+        "health_pct",
+        "smart_screenshot_mentioned",
+        "tested",
+        "warranty_until",
+        "from_nas_or_server",
+    ],
+}
+
+
+def schema_for(category: str | None) -> dict:
+    """The triage form: the common one, plus "disk" for hard disks."""
+    if category != "hdd":
+        return RESPONSE_SCHEMA
+    return {
+        **RESPONSE_SCHEMA,
+        "properties": {**RESPONSE_SCHEMA["properties"], "disk": DISK_SCHEMA},
+        "required": [*RESPONSE_SCHEMA["required"], "disk"],
+    }
+
+
+def system_prompt(category: str | None) -> str:
+    return SYSTEM_PROMPT + (DISK_PROMPT if category == "hdd" else "")
+
+
 MAX_DESCRIPTION = 3000  # characters; long ads are mostly copy-pasted spec sheets
 
 
@@ -208,6 +268,7 @@ class Triage:
     ships: bool = False  # the LLM's reading; alerts.score_deals asks a regex first (geo.shipping_offer)
     specs: dict = field(default_factory=dict)
     one_line_verdict: str = ""
+    disk: dict = field(default_factory=dict)  # hard disks only: SMART and the like (DISK_PROMPT)
 
     def as_dict(self) -> dict:
         return dict(self.__dict__)
@@ -354,7 +415,73 @@ def clean(data: dict, source: str = "") -> tuple[Triage, list[str]]:
         "cpu": (str(specs["cpu"]).strip() or None) if specs.get("cpu") else None,
     }
     t.one_line_verdict = " ".join(str(data.get("one_line_verdict", "")).split())[:200]
+    if isinstance(data.get("disk"), dict):
+        t.disk = clean_disk(data["disk"], source, notes)
     return t, notes
+
+
+# What the ad has to talk about for a disk answer to count (small models fill in plausible numbers).
+SECTOR_WORDS = re.compile(r"sektor|realok|premapov|realloc|pending|bad block|vadn")
+SMART_WORDS = re.compile(r"smart|crystal|sentinel|screen|vypis|cdi\b")
+TESTED_WORDS = re.compile(r"test|prover")
+WARRANTY_WORDS = re.compile(r"zaruk|warranty|garanc")
+SERVER_WORDS = re.compile(r"\bnas\b|server|truenas|unraid|raid|datacent|synology|qnap")
+
+
+def numbers(text: str) -> set[int]:
+    """Every number in a text, with Czech thousands separators ('12 000', '12.000') joined."""
+    t = re.sub(r"(?<=\d)[\s.](?=\d{3}\b)", "", text)
+    return {int(n) for n in re.findall(r"\d+", t)}
+
+
+def clean_disk(raw: dict, source: str, notes: list[str]) -> dict:
+    """The disk answer, with every claim checked against the ad: numbers must be in it, flags need words."""
+    text = _ascii(source)
+    found = numbers(source)
+    out: dict = {}
+    hours = _int(raw.get("power_on_hours"))
+    if hours is not None and source and hours not in found:
+        notes.append(f"ignored power_on_hours {hours}: not in the ad")
+        hours = None
+    out["power_on_hours"] = hours
+    realloc = raw.get("reallocated_or_pending")
+    if isinstance(realloc, str):
+        realloc = _bool(realloc) if not re.search(r"\d", realloc) else _int(realloc) or 0
+    if realloc is not None and source and not SECTOR_WORDS.search(text):
+        notes.append(f"ignored reallocated_or_pending {realloc!r}: the ad says nothing about sectors")
+        realloc = None
+    if (
+        isinstance(realloc, int)
+        and not isinstance(realloc, bool)
+        and realloc > 0
+        and source
+        and realloc not in found
+    ):
+        notes.append(f"reallocated_or_pending {realloc} is not in the ad: kept as 'some'")
+        realloc = True
+    out["reallocated_or_pending"] = realloc
+    health = _int(raw.get("health_pct"))
+    if health is not None and (health > 100 or (source and health not in found)):
+        notes.append(f"ignored health_pct {health}: not in the ad")
+        health = None
+    out["health_pct"] = health
+    for name, words in (
+        ("smart_screenshot_mentioned", SMART_WORDS),
+        ("tested", TESTED_WORDS),
+        ("from_nas_or_server", SERVER_WORDS),
+    ):
+        value = _bool(raw.get(name, False))
+        if value and source and not words.search(text):
+            notes.append(f"ignored {name!r}: nothing in the ad says so")
+            value = False
+        out[name] = value
+    warranty = raw.get("warranty_until")
+    warranty = " ".join(str(warranty).split())[:40] if warranty else None
+    if warranty and source and not WARRANTY_WORDS.search(text):
+        notes.append("ignored warranty_until: the ad doesn't mention a warranty")
+        warranty = None
+    out["warranty_until"] = warranty
+    return out
 
 
 FALLBACK = Triage(condition="used", one_line_verdict="(LLM triage failed; not checked)")
@@ -376,10 +503,12 @@ def triage(client, deal: dict, cache_dir: Path | None) -> Outcome:
     Raises LLMUnavailable when Ollama can't be reached, so the caller can queue the ad for later.
     """
     user = build_prompt(deal)
+    category = deal.get("category")
+    base, schema = system_prompt(category), schema_for(category)
     raw, stats, error = "", {}, None
     for attempt in range(2):
-        system = SYSTEM_PROMPT if attempt == 0 else SYSTEM_PROMPT + "\nAnswer with the JSON object only."
-        raw, stats, cached = chat_cached(client, system, user, cache_dir)
+        system = base if attempt == 0 else base + "\nAnswer with the JSON object only."
+        raw, stats, cached = chat_cached(client, system, user, cache_dir, schema)
         stats = {**stats, "cached": cached}
         try:
             data, notes = parse_answer(raw)
@@ -395,8 +524,9 @@ def triage(client, deal: dict, cache_dir: Path | None) -> Outcome:
 HARD_SCAM = {"shipping_only", "deposit_or_prepay"}
 
 
-def penalty(t: Triage) -> tuple[float, str | None]:
-    """(multiplier, reason to drop). See README "Deal score" for the table."""
+def penalty(t: Triage, features: dict | None = None) -> tuple[float, str | None]:
+    """(multiplier, reason to drop). See README "Deal score" for the table; `features` are the
+    normalizer's (disks: interface, SMR)."""
     if t.is_wanted_ad:
         return 0.0, "wanted ad"
     if t.for_parts or t.condition == "broken":
@@ -418,10 +548,48 @@ def penalty(t: Triage) -> tuple[float, str | None]:
         factor *= 0.8
     if t.warranty_or_receipt:
         factor *= 1.1
+    if features is not None and features.get("capacity_tb") and "kind" in features:
+        disk_factor, reason = disk_penalty(t.disk or {}, features)
+        if reason:
+            return 0.0, reason
+        factor *= disk_factor
     return round(factor, 3), None
 
 
-def score(discount: float, confidence: float, t: Triage) -> tuple[float, float, str | None]:
+POWER_ON_LIMIT = 50_000  # hours (~5.7 years running): an old drive, whatever SMART says otherwise
+
+
+def smart_known(disk: dict) -> bool:
+    return (
+        any(
+            disk.get(k) not in (None, False)
+            for k in ("power_on_hours", "health_pct", "smart_screenshot_mentioned")
+        )
+        or disk.get("reallocated_or_pending") is not None
+    )
+
+
+def disk_penalty(disk: dict, features: dict) -> tuple[float, str | None]:
+    """Hard disks on top of the common penalties: (multiplier, reason to drop)."""
+    if features.get("interface") == "sas":
+        return 0.0, "SAS drive: not usable on this server (SATA controller, no SAS HBA)"
+    realloc = disk.get("reallocated_or_pending")
+    if realloc is True or (isinstance(realloc, int) and not isinstance(realloc, bool) and realloc > 0):
+        return 0.0, "reallocated/pending sectors"
+    factor = 1.0
+    hours = disk.get("power_on_hours")
+    if hours is not None and hours > POWER_ON_LIMIT:
+        factor *= 0.6
+    if not smart_known(disk):
+        factor *= 0.85
+    if features.get("smr"):
+        factor *= 0.7
+    return factor, None
+
+
+def score(
+    discount: float, confidence: float, t: Triage, features: dict | None = None
+) -> tuple[float, float, str | None]:
     """(score, penalty, drop reason): score = discount x confidence x penalty."""
-    factor, reason = penalty(t)
+    factor, reason = penalty(t, features)
     return round(discount * confidence * factor, 4), factor, reason

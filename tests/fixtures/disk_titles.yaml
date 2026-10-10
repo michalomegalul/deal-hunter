@@ -166,7 +166,7 @@
 - {title: Icy Dock MB982IP-1S-1 redukce 3.5" na 2.5", excluded: accessory}
 - {title: Samsung 980 500Gb M2 SSD - nove/nepouzite, model: ssd nvme 500gb, kind: ssd_nvme, capacity_tb: 0.5}
 - {title: Externí disk WD 8tb, model: external 8tb, kind: hdd_35, capacity_tb: 8.0, external: true}
-- {title: Synology NAS na díly + 2× funkční HDD 2 TB Seagate Green, excluded: nas_device}
+- {title: Synology NAS na díly + 2× funkční HDD 2 TB Seagate Green, excluded: broken}
 - {title: Externí záložní HDD Toshiba 1 TB -100%, model: external25 1tb, kind: hdd_25, capacity_tb: 1.0, external: true}
 - {title: 'Funkční 3,5'''' disk Seagate ST500DM002 500GB, vadné sektory', excluded: broken}
 - {title: Samsung 990 PRO 4TB M.2 (MZ-V9P4T0BW), model: ssd nvme 4tb, kind: ssd_nvme, capacity_tb: 4.0}

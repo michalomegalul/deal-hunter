@@ -30,8 +30,8 @@ PRIOR_N (5) samples:
 
     w = n / (n + PRIOR_N)          fair = exp(w * ln(median) + (1 - w) * ln(prior))
 
-- GPUs: prior = current new price (Zboží.cz, fetched in the last 30 days) x the typical used/new
-  ratio. The ratio is the median of median/new over models that have both a new price and at least
+- GPUs and disks: prior = current new price (Zboží.cz, fetched in the last 30 days) x the typical
+  used/new ratio of that category (disks: 0.6 until there is data, see NEW_RATIO_FALLBACK_BY_CATEGORY). The ratio is the median of median/new over models that have both a new price and at least
   `confident_n` samples (so no model's prior is built from its own shrunk value); with fewer than 3
   such models it is 0.75 (current cards hold their value; 0.6 pulled fresh models 12-16 % too low).
   Clipped to [0.35, 0.9].
@@ -79,7 +79,10 @@ SPEC_KEYS = ("ram_gb", "ssd_gb")
 
 CONFIDENT_N = 15  # below this many samples a prior is used (the alert gate's default)
 PRIOR_N = 5.0  # a new-price prior counts as this many samples
-NEW_RATIO_FALLBACK = 0.75  # used/new before enough models have both
+NEW_RATIO_FALLBACK = 0.75  # used/new before enough models have both (GPUs and anything not listed below)
+# Used disks lose more against new than graphics cards do (no warranty, unknown hours): a guess until
+# there are 3 disk keys with 15 samples and a Zboží price.
+NEW_RATIO_FALLBACK_BY_CATEGORY = {"hdd": 0.6}
 NEW_RATIO_CLIP = (0.35, 0.9)
 NEW_RATIO_MIN_MODELS = 3
 AUCTION_UPLIFT = 1.5  # Bazoš retail of a working unit vs the state auction's as-is wholesale price
@@ -369,15 +372,24 @@ def new_prices_for(models, zbozi: dict[str, tuple[int, int]], usd_czk: float) ->
     return out
 
 
-def used_new_ratio(prices: dict[str, FairPrice], new: dict[str, NewPrice], confident_n: int) -> float:
-    """Typical used/new price ratio from models with enough samples and a current (Zboží) new price."""
+def used_new_ratio(
+    prices: dict[str, FairPrice], new: dict[str, NewPrice], confident_n: int, category: str | None = None
+) -> float:
+    """Typical used/new price ratio from models with enough samples and a current (Zboží) new price.
+
+    Per category (GPUs and disks age differently); `category=None` pools everything.
+    """
     ratios = sorted(
         fp.median / new[m].czk
         for m, fp in prices.items()
-        if m in new and new[m].source == "zbozi" and fp.n >= confident_n and fp.prior is None
+        if m in new
+        and new[m].source == "zbozi"
+        and fp.n >= confident_n
+        and fp.prior is None
+        and (category is None or fp.category == category)
     )
     if len(ratios) < NEW_RATIO_MIN_MODELS:
-        return NEW_RATIO_FALLBACK
+        return NEW_RATIO_FALLBACK_BY_CATEGORY.get(category or "", NEW_RATIO_FALLBACK)
     mid = (
         ratios[len(ratios) // 2]
         if len(ratios) % 2
@@ -406,12 +418,14 @@ def apply_priors(
 ) -> float:
     """Shrink thin models toward a prior, attach new prices and the sanity flag (in place).
 
-    `auction_units`: {model: [per-unit final prices of ended auction lots]}. Returns the used/new ratio.
+    `auction_units`: {model: [per-unit final prices of ended auction lots]}. Returns the GPU used/new ratio
+    (each category gets its own, see used_new_ratio).
     See the module docstring for the rules.
     """
     new, auction_units = new or {}, auction_units or {}
-    ratio = used_new_ratio(prices, new, confident_n)
+    ratios = {c: used_new_ratio(prices, new, confident_n, c) for c in {fp.category for fp in prices.values()}}
     for model, fp in prices.items():
+        ratio = ratios[fp.category]
         np_ = new.get(model)
         if np_ is not None:
             fp.new_price, fp.new_source, fp.new_detail = np_.czk, np_.source, np_.detail
@@ -453,7 +467,7 @@ def apply_priors(
         data_median = fp.raw_median or fp.median  # what the ads say, before any prior pulled it down
         if fp.new_price and max(fp.median, data_median) >= SANITY_NEW_SHARE * fp.new_price:
             fp.over_new = True
-    return ratio
+    return ratios.get("gpu", NEW_RATIO_FALLBACK)
 
 
 def auction_unit_prices(lots: list[tuple[int, dict]]) -> dict[str, list[float]]:

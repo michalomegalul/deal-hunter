@@ -47,8 +47,14 @@ CATEGORY_SECTIONS = {
     "gpu": ("graficka",),
     "office_pc": ("pc", "notebook"),
     "office_laptop": ("pc", "notebook"),
+    "hdd": ("hdd",),
 }
-CATEGORY_TAG = {"gpu": "video_game", "office_pc": "desktop_computer", "office_laptop": "computer"}
+CATEGORY_TAG = {
+    "gpu": "video_game",
+    "office_pc": "desktop_computer",
+    "office_laptop": "computer",
+    "hdd": "floppy_disk",
+}
 
 
 # --- ntfy ---------------------------------------------------------------------------------------------
@@ -206,6 +212,7 @@ class Rules:
     candidate_discount: float
     usd_czk: float = 23.5  # launch MSRPs to Kč (display and the sanity check only)
     distance: DistanceRules | None = None  # None = no pickup rule (every distance is fine)
+    hdd_min_tb: float = 8.0  # server fit: smaller disks are recorded, never pushed
 
 
 def category_days(data_since: dict, category: str, now: datetime) -> float:
@@ -279,9 +286,19 @@ def format_alert(
     """(title, message, tags) for one deal push."""
     title = deal["title"][:90]
     sample = f", n={fp.n}, {fp.level} confidence" if fp else ""
-    lines = [f"{kc(deal['price'])} vs ~{kc(deal['fair'])} fair (−{deal['discount']:.0%}){sample}"]
+    features = deal.get("features") or {}
+    qty = int(features.get("quantity") or 1)
+    each = f"{qty}× " if qty > 1 else ""
+    per = "/ks" if qty > 1 else ""
+    lines = [f"{each}{kc(deal['price'])}{per} vs ~{kc(deal['fair'])} fair (−{deal['discount']:.0%}){sample}"]
     new = new_text(fp)
     lines.append(f"{deal['model']}" + (f" · {new}" if new else ""))
+    if deal.get("category") == "hdd":
+        from deal_hunter import storage
+
+        disk = ((deal.get("triage_result") or {}).get("disk")) or {}
+        new_czk = fp.new_price if fp is not None and fp.new_source == "zbozi" else None
+        lines.append(storage.summary_line(features, disk, deal["price"], new_czk))
     if deal.get("verdict"):
         lines.append(f"🤖 {deal['verdict']}")
     place = place_line(deal, rules.distance if rules is not None else None)
@@ -357,6 +374,21 @@ def find_candidates(conn, prices: dict[str, FairPrice], rules: Rules) -> int:
     return found
 
 
+def screen_disks(conn, rules: Rules, stats: CycleStats) -> None:
+    """Disk candidates that can't go into the home server (SAS, 2.5", SSD, too small) skip the LLM:
+    they are kept as would_alert with the reason, for tuning (storage.server_fit)."""
+    from deal_hunter import storage
+    from deal_hunter.db import repository as repo
+
+    for deal in repo.deals_in_state(conn, "triage"):
+        if deal["category"] != "hdd":
+            continue
+        why = storage.server_fit(deal.get("features") or {}, rules.hdd_min_tb)
+        if why:
+            repo.update_deal(conn, deal["listing_id"], state="would_alert", reason=why)
+            stats.would_alert += 1
+
+
 def run_triage(conn, client, cache_dir, limit: int, stats: CycleStats) -> None:
     """Ask the LLM about queued candidates (best first, at most `limit` per cycle)."""
     from deal_hunter.db import repository as repo
@@ -416,7 +448,7 @@ def score_deals(conn, llm_model: str, rules: Rules) -> None:
             repo.update_deal(conn, deal["listing_id"], state="dropped", reason="triage failed")
             continue
         t = triage.Triage(**row["result"])
-        value, factor, reason = triage.score(deal["discount"], deal["confidence"], t)
+        value, factor, reason = triage.score(deal["discount"], deal["confidence"], t, deal.get("features"))
         fields = {
             "score": value,
             "penalty": factor,
@@ -539,7 +571,7 @@ def gate_status(prices: dict[str, FairPrice], data_since: dict, rules: Rules, no
             waiting[model] = why
     days = {
         name: round(category_days(data_since, c, now), 1)
-        for name, c in (("gpu", "gpu"), ("office", "office_pc"))
+        for name, c in (("gpu", "gpu"), ("office", "office_pc"), ("hdd", "hdd"))
     }
     return {"ready": ready, "waiting": waiting, "days": days}
 
@@ -637,6 +669,7 @@ def work_once(
     prices = pricing.run(conn, rules.min_samples, rules.usd_czk)
     stats.models = len(prices)
     stats.candidates = find_candidates(conn, prices, rules)
+    screen_disks(conn, rules, stats)
     if llm is not None:
         run_triage(conn, llm, cache_dir, triage_limit, stats)
         score_deals(conn, llm.model, rules)

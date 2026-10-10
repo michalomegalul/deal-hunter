@@ -57,6 +57,11 @@ def test_curated_pages_are_allowed_and_keyed_by_real_models():
     catalog = {m.name for m in normalize.load_catalog().models.values()}
     for model, urls in pages.items():
         assert urls and all(allowed(u) for u in urls)
+        if model.startswith(zbozi.DISK_KEYS):
+            for url in urls:  # disk slugs carry the product name: it must give the same key
+                slug = url.rstrip("/").rsplit("/", 1)[1].replace("-", " ")
+                assert normalize.classify(slug, "hdd").model == model, url
+            continue
         base = model.rsplit(" ", 1)[0] if model.endswith("gb") else model
         assert base in catalog, model
         # the slug must not name another card (part numbers in slugs can confuse the normalizer, so
@@ -64,3 +69,13 @@ def test_curated_pages_are_allowed_and_keyed_by_real_models():
         for url in urls:
             slug = url.rstrip("/").rsplit("/", 1)[1].replace("-", " ")
             assert normalize.classify(slug, "graficka").model in (model, base, None), url
+
+
+def test_disk_product_page(fixture):
+    p = parse_product(fixture("zbozi_ironwolf_8tb.html"))
+    assert p == Product("Seagate IronWolf 8 TB (ST8000VN004)", zbozi.DISK_CATEGORY, 8290, 29)
+    assert check(p, "hdd35 nas 8tb") is None
+    assert "not 'hdd35 nas 12tb'" in check(p, "hdd35 nas 12tb")
+    assert "not internal hard disks" in check(Product(p.name, zbozi.GPU_CATEGORY, 1, 1), "hdd35 nas 8tb")
+    disks = [m for m in zbozi.pages() if m.startswith(zbozi.DISK_KEYS)]
+    assert len(disks) >= 7 and sum(len(zbozi.pages()[m]) for m in disks) >= 10

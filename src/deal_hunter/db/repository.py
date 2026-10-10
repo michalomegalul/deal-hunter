@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from psycopg.types.json import Jsonb
 
 from deal_hunter.bazos import Listing
+from deal_hunter.storage import unit_price
 
 
 def connect(url: str | None = None, autocommit: bool = False) -> psycopg.Connection:
@@ -305,7 +306,13 @@ def price_samples(conn: psycopg.Connection, window_days: int) -> list:
         "AND l.last_seen > now() - make_interval(days => %s)",
         (window_days,),
     ).fetchall()
-    return [Sample(*row) for row in rows]
+    samples = []
+    for row in rows:
+        s = Sample(*row)
+        s.price = unit_price(s.price, s.features)  # disks: one drive of a multi-drive ad, or None
+        if s.price:
+            samples.append(s)
+    return samples
 
 
 def save_fair_prices(conn: psycopg.Connection, prices: list) -> None:
@@ -364,13 +371,22 @@ def data_since(conn: psycopg.Connection) -> dict[str, object]:
 
 
 def active_priced(conn: psycopg.Connection, max_age_days: float) -> list[tuple]:
-    """Active matched ads with a price, first seen recently: (id, model, category, price, features)."""
-    return conn.execute(
+    """Active matched ads with a price, first seen recently: (id, model, category, price, features).
+
+    The price is per drive for multi-disk ads (storage.unit_price); ads where that is unclear are left out.
+    """
+    rows = conn.execute(
         "SELECT l.id, n.model, n.category, l.price_czk, n.features FROM listings l "
         "JOIN normalized n ON n.listing_id = l.id WHERE l.gone_at IS NULL AND n.model IS NOT NULL "
         "AND l.price_kind = 'fixed' AND l.price_czk > 0 AND l.first_seen > now() - make_interval(secs => %s)",
         (max_age_days * 86400,),
     ).fetchall()
+    out = []
+    for lid, model, category, price, features in rows:
+        price = unit_price(price, features)
+        if price:
+            out.append((lid, model, category, price, features))
+    return out
 
 
 def upsert_candidate(
@@ -400,7 +416,9 @@ def upsert_candidate(
 def deals_in_state(conn: psycopg.Connection, *states: str) -> list[dict]:
     cur = conn.execute(
         "SELECT d.*, l.title, l.url, l.location, l.psc, l.seller, l.description, l.gone_at, l.first_seen, "
-        "l.images, l.distance_km, l.distance_src, n.features FROM deals d JOIN listings l ON l.id = d.listing_id "
+        "l.images, l.distance_km, l.distance_src, n.features, "
+        "(SELECT t.result FROM triage t WHERE t.listing_id = d.listing_id AND t.status = 'done' "
+        " ORDER BY t.prompt_version DESC, t.updated_at DESC LIMIT 1) AS triage_result FROM deals d JOIN listings l ON l.id = d.listing_id "
         "JOIN normalized n ON n.listing_id = d.listing_id WHERE d.state = ANY(%s) ORDER BY d.discount DESC",
         (list(states),),
     )

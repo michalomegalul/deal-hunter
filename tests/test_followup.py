@@ -202,3 +202,26 @@ def test_lot_followup_text():
     assert "• 14× Dell Latitude 5511 (untested, missing charger) → fair 6 000 Kč (medium, n=12)" in message
     assert "Valuation: revenue" in message and "labour" in message
     assert "🔍 inspection: po domluvě v Praze" in message and "📍 pickup: Praha 4" in message
+
+
+def test_disk_followup_and_message():
+    from deal_hunter.storage import normalize
+
+    title = "3× Toshiba MG09 18TB enterprise HDD, záruka do 4. 2. 2027"
+    r = normalize(title, "Cena 13 500 Kč/ks.")
+    ad = {
+        **AD,
+        "title": title,
+        "price_czk": 13500,
+        "model": r.model,
+        "category": "hdd",
+        "features": r.features,
+    }
+    message = seller_message(ad)
+    assert message == f"Dobrý den, zajímám se o disky Toshiba MG09 18TB. {ASK}"
+    fp = FairPrice(r.model, "hdd", 9, 9, 15000, 14000, 16000, 0.5, "medium")
+    fp.new_price, fp.new_source, fp.new_detail = 17503, "zbozi", "1 shop"
+    disk = {"power_on_hours": 12000, "reallocated_or_pending": 0}
+    _, text = followup.format_listing(ad, fp, 15000, {**TRIAGE, "disk": disk}, message, 12500, NOW)
+    assert "💾 3× 18 TB · 750 Kč/TB (new ~972 Kč/TB) · SATA? · CMR ✓ · SMART: 12 000 h, 0 reallocated" in text
+    assert "💬 If negotiating: ~12 500 Kč" in text and text.endswith(message)

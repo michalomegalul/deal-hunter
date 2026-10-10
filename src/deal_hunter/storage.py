@@ -138,8 +138,11 @@ NOT_A_DRIVE = re.compile(
 )
 NAS_DEVICE = re.compile(
     r"\b(ds ?\d{3,4}(j|se|play|\+)?|ts ?\d{3}\w*|qnap|diskstation|beestation|bst\d{3}\w*|my ?cloud|[24] ?big"
-    r"|nas server|hd 35nas|d2 quadra)\b|^nas\b|(?<!\bdo )(?<!\bpro )(?<!\bna )(?<!\bz )(?<!\bze )\bnas\b(?! disk)"
+    r"|nas server|hd 35nas|d2 quadra)\b"
 )
+# A bare 'NAS' is a box ("NAS Synology ...") unless it names a NAS drive line ("Seagate NAS IronWolf",
+# "Red Plus NAS") or is what the drive is for ("disky do NAS", "vhodný pro NAS").
+NAS_WORD = re.compile(r"^nas\b|(?<!\bdo )(?<!\bpro )(?<!\bna )(?<!\bz )(?<!\bze )\bnas\b(?! disk)")
 ACCESSORY = re.compile(
     r"\b(ramec\w*|caddy|redukc\w*|adapter\w*|box|kabel\w*|dok|dokovac\w*|docking|dock|sacht\w*|supl\w*|pouzdr\w*"
     r"|obal\w*|case|enclosure|radic\w*|controller|hba|cage|kolebk\w*|sled|tray|hyper m2|chladic\w*)\b"
@@ -488,7 +491,7 @@ def normalize(title: str, description: str | None = None) -> StorageResult:
     d = prepare(description or "")
     if WANTED.search(t):
         return StorageResult(excluded_reason="wanted")
-    if NAS_DEVICE.search(t):
+    if NAS_DEVICE.search(t) or (NAS_WORD.search(t) and find_line(t, None) is None):
         return StorageResult(excluded_reason="nas_device")
     drive = DRIVE_WORD.search(t)
     part = ACCESSORY.search(t)

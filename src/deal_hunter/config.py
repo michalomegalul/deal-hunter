@@ -13,7 +13,7 @@ VERSION = version("deal-hunter")
 USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~1 request per 3 s)"
 AUCTION_USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, a few requests per hour)"
 NEW_PRICE_USER_AGENT = (
-    f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~35 product pages a week)"
+    f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~50 product pages a week)"
 )
 
 # Hard ceiling for `hunt backfill`, whatever --pages says: we seed history, we don't mirror the site.

@@ -189,11 +189,13 @@ def seller_message(listing: dict) -> str:
     return TEMPLATE.format(noun=noun, item=item or "z vašeho inzerátu")
 
 
-def disk_summary(features: dict | None, t: dict | None) -> str:
-    """The disk line of a follow-up (storage.py): capacity, Kč/TB, badges, SMART."""
+def disk_summary(features: dict | None, t: dict | None, price: int | None, fp) -> str:
+    """The disk line of a follow-up (storage.py): capacity, Kč/TB vs new, badges, SMART."""
     from deal_hunter import storage
 
-    return storage.summary_line(features or {}, (t or {}).get("disk") or {})
+    f = features or {}
+    new = fp.new_price if fp is not None and fp.new_source == "zbozi" else None
+    return storage.summary_line(f, (t or {}).get("disk") or {}, storage.unit_price(price, f), new)
 
 
 # --- formatting ---------------------------------------------------------------------------------------
@@ -281,7 +283,7 @@ def format_listing(
         meta.append(f"seller {listing['seller']}")
     if meta:
         lines.append(" · ".join(meta))
-    extra = disk_summary(listing.get("features"), t) if listing.get("category") == "hdd" else ""
+    extra = disk_summary(listing.get("features"), t, price, fp) if listing.get("category") == "hdd" else ""
     if extra:
         lines.append(extra)
     lines.append(triage_summary(t))

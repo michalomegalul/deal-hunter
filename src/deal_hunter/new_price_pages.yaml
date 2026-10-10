@@ -1,4 +1,5 @@
-# Zboží.cz product pages used for each GPU model's current new price (zbozi.py).
+# Zboží.cz product pages used for each GPU model's (and, since Phase 9, each disk class's) current new
+# price (zbozi.py).
 #
 # Zboží's robots.txt allows product pages (/vyrobek/<slug>/) but not search or filtered listings, and
 # the category listing is rendered in the browser, so models can't be looked up automatically. These
@@ -68,3 +69,28 @@ models:
   arc b580:
     - https://www.zbozi.cz/vyrobek/asrock-intel-arc-b580-challenger-12gb-oc-90-ga5lzz-00uanf/
     - https://www.zbozi.cz/vyrobek/onix-odyssey-intel-arc-b580-12-gb-8346-00178/
+
+  # --- hard disks (Phase 9): checked 2026-10-10, ~10 popular 3.5" SATA drives that had offers. The key is
+  # class + capacity (storage.py), so a page prices every drive of that class and size; pushes show the
+  # new price per TB. Exos X16 16 TB, Toshiba MG08 16 TB / MG07 14 TB and WD Gold 8 TB had no offers left
+  # (end of life); a Toshiba MG09 16 TB with one marketplace offer at ~35 700 Kč was left out, and so was a
+  # "Toshiba N300 8 GB" page (wrong name).
+  hdd35 nas 8tb:
+    - https://www.zbozi.cz/vyrobek/seagate-ironwolf-8-tb-st8000vn004/
+    - https://www.zbozi.cz/vyrobek/western-digital-red-plus-nas-8-tb-wd80efzz/
+    - https://www.zbozi.cz/vyrobek/seagate-ironwolf-pro-8-tb-st8000nt001/
+  hdd35 nas 12tb:
+    - https://www.zbozi.cz/vyrobek/seagate-nas-ironwolf-12-tb-st12000vn0008/
+    - https://www.zbozi.cz/vyrobek/western-digital-red-plus-12-tb-wd120efgx/
+  hdd35 nas 16tb:
+    - https://www.zbozi.cz/vyrobek/seagate-ironwolf-pro-16-tb-st16000nt001/
+  hdd35 enterprise 12tb:
+    - https://www.zbozi.cz/vyrobek/seagate-exos-x18-12-tb-st12000nm000j/
+  hdd35 enterprise 16tb:
+    - https://www.zbozi.cz/vyrobek/seagate-enterprise-exos-x18-16-tb-st16000nm000j/
+  hdd35 enterprise 18tb:
+    - https://www.zbozi.cz/vyrobek/seagate-exos-x18-18tb-st18000nm000j/
+    - https://www.zbozi.cz/vyrobek/toshiba-enterprise-capacity-mg09-18-tb-mg09aca18te/
+  hdd35 enterprise 20tb:
+    - https://www.zbozi.cz/vyrobek/seagate-exos-x20-20-tb-st20000nm007d/
+    - https://www.zbozi.cz/vyrobek/toshiba-enterprise-capacity-mg10-20-tb-mg10aca20te/

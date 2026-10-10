@@ -131,7 +131,7 @@ def cmd_review(args: argparse.Namespace) -> None:
         )
     print(
         f"\n{len(rows)} unmatched (not a known model, not excluded). "
-        "Add rules to gpu_catalog.yaml (GPUs) or office.py (PCs, laptops)."
+        "Add rules to gpu_catalog.yaml (GPUs), office.py (PCs, laptops) or storage_catalog.yaml (disks)."
     )
 
 
@@ -172,6 +172,7 @@ def _rules(settings):
         candidate_discount=settings.candidate_discount,
         usd_czk=settings.usd_czk,
         distance=_distance(settings),
+        hdd_min_tb=settings.hdd_min_tb,
     )
 
 
@@ -224,6 +225,8 @@ def cmd_price(args: argparse.Namespace) -> None:
                 f"{model} ({fp.category}): fair ~{_kc(fp.median)} Kč, IQR {_kc(fp.q25)}-{_kc(fp.q75)}, "
                 f"n={fp.n} of {fp.n_listings} ads ({fp.sold} gone fast), confidence {fp.confidence:.2f} ({fp.level})"
             )
+            if fp.category == "hdd":
+                print(f"  {_per_tb(fp)}")
             if fp.new_price:
                 from deal_hunter.alerts import new_text
 
@@ -255,6 +258,20 @@ def cmd_price(args: argparse.Namespace) -> None:
                 )
 
 
+def _per_tb(fp) -> str:
+    """'812 Kč/TB (new 1 036 Kč/TB)' for a disk key ('hdd35 nas 8tb')."""
+    import re
+
+    m = re.search(r"(\d+(?:\.\d+)?)(tb|gb)$", fp.model)
+    if m is None:
+        return ""
+    tb = float(m.group(1)) / (1000 if m.group(2) == "gb" else 1)
+    text = f"{_kc(round(fp.median / tb))} Kč/TB"
+    if fp.new_price and fp.new_source == "zbozi":
+        text += f" (new {_kc(round(fp.new_price / tb))} Kč/TB)"
+    return text
+
+
 def cmd_prices(args: argparse.Namespace) -> None:
     from deal_hunter.db import repository as repo
     from deal_hunter.pricing import LEVEL_RANK
@@ -283,6 +300,8 @@ def cmd_prices(args: argparse.Namespace) -> None:
             flags.append("USED>=95% NEW")
         if p.prior_note:
             flags.append(p.prior_note)
+        if p.category == "hdd":
+            flags.insert(0, _per_tb(p))
         print(
             f"{p.model:<28} {p.category:<13} {p.n:>4} {_kc(p.median):>8} {iqr:>15} {p.confidence:>5.2f}  {p.level:<6} "
             f"{new:>8}  {prior:>13}  {'; '.join(flags)}"
@@ -811,7 +830,7 @@ def _notify_test_ad(listing_id: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="hunt", description="Bazoš deal hunter (GPUs, ex-office PCs/laptops)"
+        prog="hunt", description="Bazoš deal hunter (GPUs, ex-office PCs/laptops, hard disks)"
     )
     sub = parser.add_subparsers(required=True)
 
@@ -837,7 +856,7 @@ def main() -> None:
     p = sub.add_parser("stats", help="what has been collected so far")
     p.set_defaults(func=cmd_stats)
 
-    p = sub.add_parser("normalize", help="map listing titles to canonical models (GPUs, office PCs/laptops)")
+    p = sub.add_parser("normalize", help="map listing titles to canonical models (GPUs, office, disks)")
     p.add_argument("--all", action="store_true", help="redo every listing, not just new/outdated ones")
     p.add_argument("-v", "--verbose", action="store_true", help="print counts per model")
     p.set_defaults(func=cmd_normalize)
@@ -856,7 +875,7 @@ def main() -> None:
     p.set_defaults(func=cmd_price)
 
     p = sub.add_parser("prices", help="fair price table: model, n, median, IQR, confidence, new price, prior")
-    p.add_argument("--category", choices=["gpu", "office", "office_pc", "office_laptop"], default=None)
+    p.add_argument("--category", choices=["gpu", "office", "office_pc", "office_laptop", "hdd"], default=None)
     p.add_argument("--min-level", choices=["low", "medium", "high"], default="low")
     p.add_argument(
         "--no-prior", action="store_true", help="raw medians, without the new-price/auction priors"

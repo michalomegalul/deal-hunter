@@ -14,10 +14,12 @@ lowest offer across its pages: the cheapest way to buy one new, roughly.
 A product page is server-rendered: its `__NEXT_DATA__` JSON has the product name, the category, the
 lowest offer (`minPrice`, in hellers) and the number of shops. A page is only accepted if it is in the
 graphics card category and its name, run through our own GPU normalizer, gives the same pricing key:
-a wrong or moved URL can't silently price the wrong card.
+a wrong or moved URL can't silently price the wrong card. Hard disks (Phase 9) work the same way: the
+internal hard disk category and the storage normalizer ('Seagate IronWolf 8 TB (ST8000VN004)' ->
+'hdd35 nas 8tb'), so a disk's new price is per class and capacity, and pushes show it per TB.
 
 Fetched weekly (HUNTER_NEW_PRICE_DAYS), at least 6 s apart, with the honest User-Agent and a request
-budget of its own (`http_throttle` row 3): ~35 requests a week.
+budget of its own (`http_throttle` row 3): ~50 requests a week.
 """
 
 import json
@@ -37,6 +39,8 @@ log = logging.getLogger(__name__)
 
 BASE_URL = "https://www.zbozi.cz"
 GPU_CATEGORY = "pocitace/pocitacove-komponenty/graficke-karty"
+DISK_CATEGORY = "pocitace/ukladani-dat/pevne-disky/interni-pevne-disky"
+DISK_KEYS = ("hdd", "external", "ssd")  # pricing keys of the storage normalizer (storage.py)
 RETRY_AFTER = timedelta(hours=24)  # a failed or rejected read is retried after this long
 NEXT_DATA = re.compile(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.DOTALL)
 
@@ -83,9 +87,14 @@ def parse_product(html: str) -> Product | None:
 
 def check(product: Product, model: str) -> str | None:
     """Why this page can't be the model's new price (None = fine)."""
-    if product.category != GPU_CATEGORY:
+    if model.startswith(DISK_KEYS):
+        if product.category != DISK_CATEGORY:
+            return f"category {product.category!r} is not internal hard disks"
+        got = normalize.classify(product.name, "hdd").model
+    elif product.category != GPU_CATEGORY:
         return f"category {product.category!r} is not graphics cards"
-    got = normalize.classify(product.name, "graficka").model
+    else:
+        got = normalize.classify(product.name, "graficka").model
     if got != model:
         return f"{product.name!r} normalizes to {got!r}, not {model!r}"
     return None
