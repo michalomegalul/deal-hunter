@@ -17,7 +17,7 @@ graphics card category and its name, run through our own GPU normalizer, gives t
 a wrong or moved URL can't silently price the wrong card.
 
 Fetched weekly (HUNTER_NEW_PRICE_DAYS), at least 6 s apart, with the honest User-Agent and a request
-budget of its own (`http_throttle` row 3): ~60 requests a week.
+budget of its own (`http_throttle` row 3): ~35 requests a week.
 """
 
 import json

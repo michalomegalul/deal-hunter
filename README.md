@@ -41,7 +41,7 @@ else is built on what it collects.
 - **Feedback** (`hunt feedback --loop`, its own small service): listens to the 👍/👎 topic live. A 👍
   sends a detailed follow-up within seconds (photo, prices, the LLM's reading, the description and a
   drafted Czech message to the seller); "Bought ✅" starts the flips log. See "👍 follow-ups".
-- **New prices** (inside the worker, weekly): the lowest current offer on Zboží.cz for ~30 GPU models,
+- **New prices** (inside the worker, weekly): the lowest current offer on Zboží.cz for ~20 GPU models,
   plus launch MSRPs in the GPU catalog. Shown in pushes, used as a sanity check and as a prior for
   models with few ads. See "New prices".
 
@@ -213,7 +213,7 @@ multi-choice filters (any URL with a comma), `sId=`/`pId=`/`catOrder=`, the shop
 (`/action/`, `/clickthru`) and most multi-parameter URLs; product pages (`/vyrobek/<slug>/`) are
 allowed and listed in its sitemap. The graphics card category is rendered in the browser (the server
 sends no products), so there is no robots-compliant way to look a model up. Instead
-**`new_price_pages.yaml` lists 1-3 product pages per model**, for ~30 popular models, picked by hand
+**`new_price_pages.yaml` lists 1-3 product pages per model**, for ~20 popular models, picked by hand
 once (from the sitemap and from the "similar products" on product pages) among cards that had offers.
 
 - A product page is server-rendered; the parser reads its `__NEXT_DATA__` JSON: name, category,
@@ -223,7 +223,7 @@ once (from the sitemap and from the "similar products" on product pages) among c
 - A model's new price = the lowest offer across its pages read in the last 30 days, stored in
   `new_prices` (model, url, product, min_price, shops, fetched_at, error).
 - Weekly per page (`HUNTER_NEW_PRICE_DAYS`), at most 10 pages per worker cycle, ≥ 6 s apart, the
-  honest User-Agent, its own budget (`http_throttle` row 3): ~60 requests a week. A failed or rejected
+  honest User-Agent, its own budget (`http_throttle` row 3): ~35 requests a week. A failed or rejected
   page is retried after a day.
 - `hunt newprices [--fetch] [--all]` shows (and reads) the pages.
 
@@ -516,7 +516,7 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
   measurements.
 - The auction LLM reads only the description, attachment names and up to two list PDFs. Scanned PDFs
   have no text; specs per unit are rarely given, so units are priced at the model's reference spec.
-- **New prices are a hand-picked sample.** `new_price_pages.yaml` covers ~30 models with 1-3 SKUs each;
+- **New prices are a hand-picked sample.** `new_price_pages.yaml` covers 19 models with 1-3 SKUs each;
   pages go stale as cards sell out, and older generations have no new offers at all. Launch MSRPs are
   launch prices (in USD, converted with a fixed rate), not what a card costs today.
 - **The priors are assumptions**: the 0.6 used/new fallback, the 1.5 auction-to-retail uplift and the

@@ -7,6 +7,11 @@
 # lowest offer across its pages; each page must normalize to the model it is listed under (checked on
 # every read and in tests/test_zbozi.py).
 #
+# Checked 2026-10-10 by reading every page once: dropped were pages whose server HTML had no product
+# data, a Gigabyte RX 9070 XT whose name our normalizer can't read (part number glued to the model),
+# the RX 7800 XT (no offers left) and the RTX 5090 (only two marketplace offers at ~174 000 Kč, three
+# times the MSRP: not a useful "new" price).
+#
 # Pages go stale (sold out, end of life): `hunt newprices` lists pages without offers. Replace them
 # every few months. Keys are pricing keys ('rtx 3060 12gb', 'rtx 3070').
 models:
@@ -22,13 +27,11 @@ models:
   rtx 4060:
     - https://www.zbozi.cz/vyrobek/gigabyte-geforce-rtx-4060-eagle-oc-8-gb-gv-n4060eagle-oc-8gd/
   rtx 5050:
-    - https://www.zbozi.cz/vyrobek/gigabyte-nvidia-geforce-rtx-5050-8-gb-gv-n5050wf2oc-8gd/
     - https://www.zbozi.cz/vyrobek/msi-geforce-rtx-5050-ventus-2x-oc/
     - https://www.zbozi.cz/vyrobek/asus-dual-geforce-rtx-5050-8-gb-90yv0n72-m0na00/
   rtx 5060:
     - https://www.zbozi.cz/vyrobek/msi-geforce-rtx-5060-8-gb-gaming-oc/
     - https://www.zbozi.cz/vyrobek/msi-geforce-rtx-5060-8g-ventus-2x-oc-g5060-8v2c/
-    - https://www.zbozi.cz/vyrobek/gigabyte-geforce-rtx-5060-windforce-oc-8-gb-gv-n5060wf2oc-8gd/
   rtx 5060 ti 8gb:
     - https://www.zbozi.cz/vyrobek/gainward-geforce-rtx-5060-ti-ghost-8-gb-ne7506t019p1-gb2062b/
     - https://www.zbozi.cz/vyrobek/gigabyte-geforce-rtx-5060-ti-eagle-oc-8g-gv-n506teagle-oc-8gd/
@@ -42,18 +45,12 @@ models:
     - https://www.zbozi.cz/vyrobek/gigabyte-geforce-rtx-5070-windforce-oc-sff-12-gb-gv-n5070wf3oc-12gd/
   rtx 5070 ti:
     - https://www.zbozi.cz/vyrobek/msi-geforce-rtx-5070-ti-16g-ventus-3x-oc-912-v531-083/
-    - https://www.zbozi.cz/vyrobek/msi-geforce-rtx-5070-ti-16-gb-gaming-trio-oc-plus-912-v531-056/
   rtx 5080:
     - https://www.zbozi.cz/vyrobek/asus-prime-geforce-rtx-5080-16-gb-oc-90yv0lx0-m0na00/
     - https://www.zbozi.cz/vyrobek/gigabyte-geforce-rtx-5080-windforce-oc-sff-16g-gv-n5080wf3oc-16gd/
-  rtx 5090:
-    - https://www.zbozi.cz/vyrobek/msi-geforce-rtx-5090-32-g-ventus-3x-oc/
-    - https://www.zbozi.cz/vyrobek/gigabyte-geforce-rtx-5090-windforce-oc-32-gb-gv-n5090wf3oc-32gd/
   rx 7600:
     - https://www.zbozi.cz/vyrobek/asus-dual-radeon-rx-7600-evo-8-gb-90yv0ld0-m0na00/
     - https://www.zbozi.cz/vyrobek/gigabyte-gaming-radeon-rx-7600-oc-8-gb-gv-r76gaming-oc-8gd/
-  rx 7800 xt:
-    - https://www.zbozi.cz/vyrobek/sapphire-pulse-radeon-rx-7800-xt-16-gb-11330-02-20g/
   rx 9060 xt 16gb:
     - https://www.zbozi.cz/vyrobek/asus-dual-amd-radeon-rx-9060-xt-16-gb-90yv0lg2-m0na00/
     - https://www.zbozi.cz/vyrobek/asus-prime-radeon-rx-9060-xt-o16g-90yv0lf1-m0na00/
@@ -64,7 +61,6 @@ models:
   rx 9070 gre:
     - https://www.zbozi.cz/vyrobek/asus-prime-geforce-rx-9070-gre-12-gb-90yv0pp0-m0na00/
   rx 9070 xt:
-    - https://www.zbozi.cz/vyrobek/gigabyte-gaming-radeon-rx-9070-xt-oc-16g-gv-r9070xtgaming-oc-16gd/
     - https://www.zbozi.cz/vyrobek/sapphire-pulse-radeon-rx-9070-xt-11348-03-20g/
     - https://www.zbozi.cz/vyrobek/asus-prime-amd-radeon-rx-9070-xt-90yv0l71-m0na00/
   arc a380:

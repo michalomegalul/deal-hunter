@@ -53,7 +53,7 @@ def test_only_plain_product_pages_are_allowed(url, ok):
 
 def test_curated_pages_are_allowed_and_keyed_by_real_models():
     pages = zbozi.pages()
-    assert len(pages) >= 20
+    assert len(pages) >= 15
     catalog = {m.name for m in normalize.load_catalog().models.values()}
     for model, urls in pages.items():
         assert urls and all(allowed(u) for u in urls)
