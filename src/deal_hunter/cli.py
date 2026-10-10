@@ -705,6 +705,7 @@ def _feedback_context(settings, conn, throttle_conn, bazos):
         usd_czk=settings.usd_czk,
         offer_discount=settings.offer_discount,
         auction_costs=_auction_rules(settings).costs,
+        distance=_distance(settings),
     )
 
 

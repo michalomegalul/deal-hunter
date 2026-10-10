@@ -888,7 +888,8 @@ def record_followup(
 def listing_for_followup(conn: psycopg.Connection, listing_id: int) -> dict | None:
     """Everything a follow-up shows about an ad: the listing, its model and its deal row (if any)."""
     cur = conn.execute(
-        "SELECT l.*, n.model, n.category, n.features, d.fair, d.discount, d.verdict, d.state AS deal_state "
+        "SELECT l.*, n.model, n.category, n.features, d.fair, d.discount, d.verdict, d.state AS deal_state, "
+        "d.ships "
         "FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id LEFT JOIN deals d ON d.listing_id = l.id "
         "WHERE l.id = %s",
         (listing_id,),

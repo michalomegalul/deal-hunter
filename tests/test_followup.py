@@ -1,15 +1,14 @@
-"""The 👍 follow-up without a database: the offer, the Czech draft and its evidence check, formatting."""
+"""The 👍 follow-up without a database: the offer, the message to the seller, formatting."""
 
-import json
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
-from deal_hunter import followup, triage
+from deal_hunter import followup
 from deal_hunter.auctions import Costs, Extraction, Item, value_lot
-from deal_hunter.followup import check_draft, numbers, offer_price, template_draft
+from deal_hunter.followup import offer_price, seller_message
+from deal_hunter.normalize import classify
 from deal_hunter.pricing import FairPrice
-from tests.test_triage import FakeLLM
 
 NOW = datetime(2026, 10, 10, 12, tzinfo=UTC)
 AD = {
@@ -44,71 +43,79 @@ def test_offer_respects_the_configured_discount():
     assert offer_price(10000, 0.05) == 9500 and offer_price(10000, 0.10) == 9000
 
 
-def test_numbers_join_czech_thousands():
-    assert numbers("Nabízím 4 100 Kč, RTX 3060 12GB") == {4100, 3060, 12}
-    assert numbers("cena 4.100,- nebo 4 000") == {4100, 4000}
+ASK = "Mohl byste mi prosím sdělit, zda je stále k dispozici?"
 
 
-GOOD_DRAFT = (
-    "Dobrý den, mám zájem o Gigabyte RTX 3060 Gaming OC. Je ještě k dispozici? "
-    "Mohu nabídnout 4 100 Kč při osobním odběru v Brně. S pozdravem"
-)
-
-
-def test_a_faithful_draft_passes():
-    assert check_draft(GOOD_DRAFT, AD, 4100, pickup=True) == []
+def message_for(title: str, section: str) -> str:
+    r = classify(title, section)
+    return seller_message(
+        {"title": title, "model": r.model, "category": r.category, "section": section, "features": r.features}
+    )
 
 
 @pytest.mark.parametrize(
-    "draft, problem",
+    "section, title, item",
     [
-        (GOOD_DRAFT.replace("4 100", "4 000"), "the offer 4100 is not in it"),
-        (GOOD_DRAFT + " Karta má 3 roky záruku.", "numbers not in the ad: [3]"),
-        ("Dobrý den, nabízím 4 100 Kč, pošlete to prosím na dobírku. Děkuji", "talks about shipping"),
-        ("Dobrý den, nabízím 4 100 Kč, viz https://example.com. Děkuji", "link, e-mail or phone number"),
-        ("Dobrý den, " + "moc " * 200 + "nabízím 4 100 Kč.", "too long"),
-        ("", "empty"),
+        # the user's own example
+        (
+            "graficka",
+            "Prodám ZOTAC GAMING GeForce RTX 3070 Twin Edge OC 8GB",
+            "grafickou kartu ZOTAC RTX 3070",
+        ),
+        # real titles (tests/fixtures/titles.yaml, office_titles.yaml): brand + model in the seller's spelling
+        (
+            "graficka",
+            "Nová GAINWARD GeForce RTX 5070 Python III - Pečetěno, záruka",
+            "grafickou kartu GAINWARD RTX 5070",
+        ),
+        ("graficka", "PRODÁM RTX 4090 24GB", "grafickou kartu RTX 4090"),
+        (
+            "graficka",
+            "NOVÁ - MSI GeForce RTX 5060 Ti 8G GAMING TRIO OC",
+            "grafickou kartu MSI RTX 5060 Ti 8GB",
+        ),
+        ("graficka", "Nvidia RTX 3080 ti Gigabyte", "grafickou kartu Gigabyte RTX 3080 ti"),
+        ("graficka", "RTX3070", "grafickou kartu RTX3070"),
+        ("graficka", "Rx 6750xt", "grafickou kartu Rx 6750xt"),
+        ("graficka", "PALiT GeForce RTX 4070 Ti GameRock, 12GB GDDR6X", "grafickou kartu PALiT RTX 4070 Ti"),
+        (
+            "graficka",
+            "GeForce GTX 1080 Ti Founders Edition + Accelero Xtreme III",
+            "grafickou kartu GTX 1080 Ti",
+        ),
+        ("graficka", "Gigabyte RTX 3060 Gaming OC 12GB", "grafickou kartu Gigabyte RTX 3060 12GB"),
+        ("graficka", "Intel Arc A770 16G", "grafickou kartu Intel Arc A770 16GB"),
+        ("graficka", "🔥 ASUS TUF RTX 3080 10GB 🔥 TOP STAV 9000 Kč", "grafickou kartu ASUS RTX 3080 10GB"),
+        (
+            "pc",
+            "Dell Optiplex 5040 SFF - i3-6100, 8GB, 128GB SSD, VÍCE KUSŮ",
+            "počítač Dell Optiplex 5040 SFF",
+        ),
+        ("pc", "HP ProDesk 600 G2 - i3-6100, 4GB DDR4, 500GB HDD, VÍCE KUSŮ", "počítač HP ProDesk 600 G2"),
+        ("notebook", "Lenovo Think Pad X13 G2", "notebook Lenovo ThinkPad X13 Gen 2"),
+        ("notebook", "DELL Latitude 5490 i5/8GB/256SSD", "notebook DELL Latitude 5490"),
+        ("pc", "Lenovo ThinkCentre M720q Tiny i5-8400T", "počítač Lenovo ThinkCentre M720q"),
+        ("pc", 'HP EliteOne 800 G3 23" AiO', "all-in-one počítač HP EliteOne 800 G3"),
     ],
 )
-def test_a_draft_that_invents_facts_is_rejected(draft, problem):
-    problems = check_draft(draft, AD, 4100, pickup=True)
-    assert any(p.startswith(problem) for p in problems), problems
+def test_message_to_the_seller(section, title, item):
+    assert message_for(title, section) == f"Dobrý den, zajímám se o {item}. {ASK}"
 
 
-def test_pickup_only_when_the_ad_says_so():
-    ad = {**AD, "description": "Prodám grafiku, funkční."}
-    assert not followup.pickup_allowed(ad["description"])
-    assert followup.pickup_allowed(AD["description"])
-    assert "talks about pickup, the ad doesn't offer it" in check_draft(GOOD_DRAFT, ad, 4100, pickup=False)
+def test_message_style():
+    text = message_for("Prodám ZOTAC GAMING GeForce RTX 3070 Twin Edge OC 8GB", "graficka")
+    assert text == (
+        "Dobrý den, zajímám se o grafickou kartu ZOTAC RTX 3070. "
+        "Mohl byste mi prosím sdělit, zda je stále k dispozici?"
+    )
+    for banned in ("Mohl(a)", "Děkuji", "Kč", "nabíd", "PRODÁM", "Twin Edge"):
+        assert banned not in text
+    assert seller_message({"title": "Grafika", "model": None, "category": "gpu"}) == (
+        f"Dobrý den, zajímám se o grafickou kartu z vašeho inzerátu. {ASK}"
+    )
 
 
-def test_the_template_never_says_more_than_the_ad():
-    for pickup in (True, False):
-        text = template_draft(AD, 4100, pickup)
-        assert text.startswith("Dobrý den, mám zájem o Gigabyte RTX 3060 Gaming OC 12GB.")
-        assert "4 100 Kč" in text and ("osobním" in text) is pickup
-        assert check_draft(text, AD, 4100, pickup) == []
-    assert "Rtx 3060 Super Cena" in template_draft({**AD, "title": "RTX 3060 SUPER CENA!!!"}, 4100, False)
-
-
-def test_draft_from_the_llm_or_the_template():
-    llm = FakeLLM(json.dumps({"message": GOOD_DRAFT}))
-    text, how, _ = followup.draft_message(llm, AD, 4100, None)
-    assert (text, how) == (GOOD_DRAFT, "llm")
-    system, user = llm.calls[0]
-    assert "Offer price to propose: 4 100 Kč" in user and "pickup_in_person: yes" in user
-    assert "do not" in system.lower()
-
-    invented = json.dumps({"message": "Dobrý den, nabízím 4 100 Kč, karta je 1 rok stará."})
-    text, how, notes = followup.draft_message(FakeLLM(invented), AD, 4100, None)
-    assert how == "template" and text == template_draft(AD, 4100, True)
-    assert any("numbers not in the ad" in n for n in notes)
-
-    text, how, _ = followup.draft_message(FakeLLM(triage.LLMUnavailable("down")), AD, 4100, None)
-    assert how == "template"
-    assert followup.draft_message(None, AD, 4100, None)[1] == "template"
-    assert followup.draft_message(FakeLLM("not json at all"), AD, 4100, None)[1] == "template"
-
+MESSAGE = f"Dobrý den, zajímám se o grafickou kartu Gigabyte RTX 3060 12GB. {ASK}"
 
 TRIAGE = {
     "condition": "used",
@@ -131,26 +138,27 @@ def fair_price():
 
 
 def test_listing_followup_text():
-    title, message = followup.format_listing(AD, fair_price(), 6000, TRIAGE, GOOD_DRAFT, 4100, NOW)
+    title, message = followup.format_listing(AD, fair_price(), 6000, TRIAGE, MESSAGE, 4100, NOW)
     assert title == "👍 Gigabyte RTX 3060 Gaming OC 12GB"
     lines = message.splitlines()
     assert lines[0] == "💰 4 500 Kč · fair ~6 000 Kč (−25%), n=9 medium · new ~7 490 Kč (Zboží, 3 shops)"
     assert lines[1] == "🏷 rtx 3060 12gb"
-    assert lines[2] == "📍 Brno 602 00 · posted 09.10. · seen 5 h ago · 👁 87 · seller Petr"
+    assert lines[2] == "📍 Brno · 182 km · posted 09.10. · seen 5 h ago · 👁 87 · seller Petr"
     assert lines[3].startswith("🤖 used · defects: noisy fan · receipt/warranty ✓ · flags: none")
     assert "„Receipt, pickup only, worth a look.“" in message
-    assert "📝 Prodám grafiku" in message and message.endswith(GOOD_DRAFT)
-    assert "✉️ Message (offer 4 100 Kč):" in message
-    test_title, _ = followup.format_listing(AD, None, None, None, GOOD_DRAFT, 4100, NOW, test=True)
+    assert "📝 Prodám grafiku" in message and message.endswith(MESSAGE)
+    assert "\n\n💬 If negotiating: ~4 100 Kč\n\n✉️ Message:\n" + MESSAGE in message
+    assert message.endswith(MESSAGE) and "4 100" not in MESSAGE
+    test_title, _ = followup.format_listing(AD, None, None, None, MESSAGE, 4100, NOW, test=True)
     assert test_title.startswith("TEST · 👍")
 
 
 def test_listing_followup_fits_in_one_ntfy_message():
     long_ad = {**AD, "description": "Popis karty se spoustou detailů. " * 300}
-    _, message = followup.format_listing(long_ad, fair_price(), 6000, TRIAGE, GOOD_DRAFT, 4100, NOW)
+    _, message = followup.format_listing(long_ad, fair_price(), 6000, TRIAGE, MESSAGE, 4100, NOW)
     assert len(message.encode()) <= followup.NTFY_LIMIT
-    assert "[…]" in message and message.endswith(GOOD_DRAFT)  # the draft is never cut
-    desc = message.split("📝 ", 1)[1].split("\n\n✉️", 1)[0]
+    assert "[…]" in message and message.endswith(MESSAGE)  # the message is never cut
+    desc = message.split("📝 ", 1)[1].split("\n\n💬", 1)[0]
     assert len(desc) <= followup.MAX_DESCRIPTION + 4
 
 
@@ -159,6 +167,10 @@ def test_listing_followup_without_triage_or_price():
         {**AD, "model": None, "views": None}, None, None, None, "x", 4100, NOW
     )
     assert message.splitlines()[0] == "💰 4 500 Kč" and "🤖 not triaged" in message
+    _, message = followup.format_listing(
+        AD, None, None, None, "x", 0, NOW, place="📍 Ostrava · 280 km (ships)"
+    )
+    assert "💬" not in message and message.splitlines()[2].startswith("📍 Ostrava · 280 km (ships) · posted")
 
 
 def test_gone_text():

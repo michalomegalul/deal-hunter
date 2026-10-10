@@ -263,9 +263,8 @@ def first_image(item: dict) -> str | None:
     return images[0] if images and str(images[0]).startswith("http") else None
 
 
-def place_line(item: dict, rules: "Rules | None" = None) -> str:
+def place_line(item: dict, dist: DistanceRules | None = None) -> str:
     """'📍 Ostrava · 280 km (ships)' for a deal or listing dict (distance_km, ships, location, psc)."""
-    dist = rules.distance if rules is not None else None
     km = item.get("distance_km")
     if "distance_km" not in item:  # not stored yet: work it out now
         home = dist.home if dist else geo.PRAGUE_CENTRE
@@ -285,7 +284,7 @@ def format_alert(
     lines.append(f"{deal['model']}" + (f" · {new}" if new else ""))
     if deal.get("verdict"):
         lines.append(f"🤖 {deal['verdict']}")
-    place = place_line(deal, rules)
+    place = place_line(deal, rules.distance if rules is not None else None)
     if place:
         lines.append(place)
     tags = [CATEGORY_TAG.get(deal["category"], "shopping_cart")]

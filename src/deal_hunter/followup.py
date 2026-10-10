@@ -1,22 +1,25 @@
-"""The detailed follow-up after a 👍: everything about the ad or lot in one push, plus a draft message.
+"""The detailed follow-up after a 👍: everything about the ad or lot in one push, plus a message to send.
 
 A 👍 on a deal push means "interested". The feedback service (feedback.py) then sends one more push
-with what you need to decide and act: the photo, price vs fair vs new, location, posted time, views,
-seller, the LLM's reading of the ad, the description, and a short polite Czech message to the seller
-proposing a price, ready to copy. Buttons: "Open ad" and "Bought ✅" (which starts the flips log).
+with what you need to decide and act: the photo, price vs fair vs new, location and distance, posted
+time, views, seller, the LLM's reading of the ad, the description, a suggested price if you want to
+haggle, and a short Czech message to the seller, ready to copy. Buttons: "Open ad" and "Bought ✅"
+(which starts the flips log).
 
-The offer is computed here, not by the LLM: ~7 % below the asking price (HUNTER_OFFER_DISCOUNT),
-rounded to a round number, and never more than 10 % below. The LLM only words the message. Its draft
-must not invent facts, so it is checked like the triage's scam quotes:
+The message is a fixed template, not an LLM draft: it has to sound like a person, and it must never
+say anything the ad doesn't. It names the item the way people do ("grafickou kartu ZOTAC RTX 3070")
+and only asks whether it is still available:
 
-- it must contain our offer, and every other number in it must appear in the ad (no made-up
-  specs, dates or prices);
-- it may only talk about picking the item up in person if the ad says so, and about shipping only if
-  the ad mentions shipping;
-- no links, e-mail addresses or phone numbers, at most 600 characters.
+    Dobrý den, zajímám se o grafickou kartu ZOTAC RTX 3070. Mohl byste mi prosím sdělit, zda je
+    stále k dispozici?
 
-A draft that fails any check is replaced by a fixed template with the same offer, so there is always
-a message, and it never says anything the ad doesn't.
+No offer in it (the price is talked about once the seller answers); the suggested offer is shown
+separately, ~7 % below asking (HUNTER_OFFER_DISCOUNT), rounded, never more than 10 % below.
+
+The item name is the brand and model, cleaned from the title: the words we recognise (the board
+partner or maker, the chip / line / model, the capacity) in the seller's own spelling, nothing else,
+so "PRODÁM", prices, emoji and sales talk never end up in the message. An ad without a model (only
+test pushes get that far) is "... o grafickou kartu z vašeho inzerátu".
 
 Auction lots get their own follow-up: the item list, the valuation breakdown, the max bid, the end
 time, inspection and pickup.
@@ -26,31 +29,8 @@ import re
 import unicodedata
 from datetime import datetime
 
-from deal_hunter import triage
-
-DRAFT_VERSION = 1
 MAX_DESCRIPTION = 1500
-MAX_DRAFT = 600
 NTFY_LIMIT = 3900  # bytes; ntfy turns longer messages into an attachment (limit 4096)
-
-SYSTEM_PROMPT = """You write short messages in Czech to sellers on Bazos.cz (Czech classifieds) for a buyer \
-who wants to buy the item. Write ONE message:
-- polite and friendly, formal Czech ("vykání"), 2 to 4 short sentences, starting with "Dobrý den,";
-- say the buyer is interested in the item (name it briefly, as in the ad title) and ask whether it is \
-still available;
-- propose exactly the offer price you are given, in Kč, as a reasonable offer (never call the asking \
-price too high or the item bad);
-- mention picking the item up in person ONLY if "pickup_in_person" is yes;
-- do NOT state anything else about the item, the price history, shipping, dates or specs; do not \
-invent facts; no links, no phone numbers;
-- end with "Děkuji" or "S pozdravem" (no name).
-Answer with JSON: {"message": "..."}."""
-
-SCHEMA = {
-    "type": "object",
-    "properties": {"message": {"type": "string"}},
-    "required": ["message"],
-}
 
 
 def _ascii(text: str) -> str:
@@ -87,107 +67,133 @@ def offer_price(price: int, discount: float = 0.07) -> int:
     return max(step, min(offer, price - step)) if price > step else price
 
 
-# --- the Czech draft ------------------------------------------------------------------------------------
+# --- the message to the seller --------------------------------------------------------------------------
 
-PICKUP_AD = re.compile(r"osobni (odber|prevzeti|predani|vyzvednuti)|osobne|vyzvednut")
-SHIPPING = re.compile(r"zasl|posl|post|balik|dobirk|doprav|zasilk|odesl|kuryr|balikovn|zasilkovn")
-PICKUP_DRAFT = re.compile(r"osobn|vyzvedn|prevzet|predani|prijed|prijel")
-FORBIDDEN = re.compile(r"https?://|www\.|@|\+\d{3}")
+TEMPLATE = "Dobrý den, zajímám se o {noun} {item}. Mohl byste mi prosím sdělit, zda je stále k dispozici?"
 
+# What the item is, in the accusative ("zajímám se o ...").
+NOUNS = {
+    "gpu": "grafickou kartu",
+    "office_pc": "počítač",
+    "office_laptop": "notebook",
+    "aio": "all-in-one počítač",
+    "hdd": "disk",
+    "hdd_many": "disky",
+    "external": "externí disk",
+    "ssd": "SSD",
+}
+SECTION_CATEGORY = {"graficka": "gpu", "pc": "office_pc", "notebook": "office_laptop", "hdd": "hdd"}
 
-def pickup_allowed(ad_text: str) -> bool:
-    """The ad offers (or insists on) personal pickup."""
-    return bool(PICKUP_AD.search(_ascii(ad_text)))
+GPU_BRANDS = (
+    "asus|msi|gigabyte|zotac|palit|gainward|sapphire|powercolor|xfx|asrock|evga|pny|kfa2|galax|inno3d"
+    "|biostar|manli|colorful|sparkle|acer|dell|hp|lenovo|fujitsu"
+)
+CHIP_MAKERS = "nvidia|amd|intel"
+GPU_SPAN = re.compile(
+    r"(?<![a-z0-9])(?:(?:rtx|gtx|gt|rx|arc)[\s-]*)?(?P<number>\d{4}|[ab]\d{3})"
+    r"(?:\s*(?:ti\s*super|ti|super|xtx|xt|gre|s))?(?![a-z0-9])",
+    re.IGNORECASE,
+)
 
-
-def numbers(text: str) -> set[int]:
-    """Every number in a text, with Czech thousands separators ('6 500', '6.500') joined."""
-    t = re.sub(r"(?<=\d)[  .](?=\d{3}\b)", "", text)
-    return {int(n) for n in re.findall(r"\d+", t)}
-
-
-def build_prompt(listing: dict, offer: int, pickup: bool) -> str:
-    description = (listing.get("description") or "").strip()[:1500] or "(no description)"
-    return "\n".join(
-        [
-            f"Ad title: {listing['title']}",
-            f"Asking price: {kc(listing['price_czk'])}",
-            f"Offer price to propose: {kc(offer)}",
-            f"pickup_in_person: {'yes' if pickup else 'no'}",
-            "",
-            "The ad (for context only; do not repeat facts from it):",
-            description,
-        ]
-    )
-
-
-def check_draft(draft: str, listing: dict, offer: int, pickup: bool) -> list[str]:
-    """Problems with an LLM draft (empty list = fine). See the module doc."""
-    problems = []
-    text = " ".join(draft.split())
-    ad = f"{listing['title']}\n{listing.get('description') or ''}"
-    if not text:
-        return ["empty"]
-    if len(text) > MAX_DRAFT:
-        problems.append(f"too long ({len(text)} chars)")
-    if offer not in numbers(text):
-        problems.append(f"the offer {offer} is not in it")
-    allowed = numbers(ad) | {offer, listing.get("price_czk") or 0}
-    invented = sorted(numbers(text) - allowed)
-    if invented:
-        problems.append(f"numbers not in the ad: {invented[:5]}")
-    a = _ascii(text)
-    if PICKUP_DRAFT.search(a) and not pickup:
-        problems.append("talks about pickup, the ad doesn't offer it")
-    if SHIPPING.search(a) and not SHIPPING.search(_ascii(ad)):
-        problems.append("talks about shipping, the ad doesn't")
-    if FORBIDDEN.search(text):
-        problems.append("link, e-mail or phone number")
-    return problems
+OFFICE_BRANDS = "lenovo|dell|hp|fujitsu"
+CANONICAL = {
+    "thinkpad": "ThinkPad",
+    "thinkcentre": "ThinkCentre",
+    "latitude": "Latitude",
+    "optiplex": "OptiPlex",
+    "elitebook": "EliteBook",
+    "probook": "ProBook",
+    "elitedesk": "EliteDesk",
+    "prodesk": "ProDesk",
+    "eliteone": "EliteOne",
+    "proone": "ProOne",
+    "esprimo": "Esprimo",
+    "sff": "SFF",
+    "x360": "x360",
+    "rtx": "RTX",
+    "gtx": "GTX",
+    "gt": "GT",
+    "rx": "RX",
+    "arc": "Arc",
+    "xt": "XT",
+    "xtx": "XTX",
+    "gre": "GRE",
+}
 
 
-def short_title(title: str, words: int = 6) -> str:
-    """The first few words of the ad title, without shouting or emoji."""
-    clean = re.sub(r"[^\w\s/+.-]", " ", title)
-    parts = clean.split()[:words]
-    text = " ".join(parts)
-    return text if not text.isupper() else text.title()
+def _word(title: str, word: str) -> str | None:
+    """`word` as the seller spelled it in the title (a whole word, any case), or None."""
+    m = re.search(rf"(?<![^\W_]){re.escape(word)}(?![^\W_])", title, re.IGNORECASE)
+    return m.group(0) if m else None
 
 
-def template_draft(listing: dict, offer: int, pickup: bool) -> str:
-    """The fallback message: says nothing the ad doesn't."""
-    text = (
-        f"Dobrý den, mám zájem o {short_title(listing['title'])}. Je ještě k dispozici? "
-        f"Mohu nabídnout {kc(offer)}"
-    )
-    text += ", s osobním převzetím." if pickup else "."
-    return text + " Děkuji za odpověď. S pozdravem"
+def _canonical(token: str) -> str:
+    if token in CANONICAL:
+        return CANONICAL[token]
+    if re.fullmatch(r"[a-z]{1,2}\d+[a-z]*", token):  # t480s, e5470, m720q, g4
+        return token[0].upper() + token[1:]
+    return token.capitalize() if token.isalpha() else token
 
 
-def draft_message(llm, listing: dict, offer: int, cache_dir) -> tuple[str, str, list[str]]:
-    """(message, 'llm' | 'template', notes). Never raises for a bad answer; LLM down -> template."""
-    ad = f"{listing['title']}\n{listing.get('description') or ''}"
-    pickup = pickup_allowed(ad)
-    if llm is None:
-        return template_draft(listing, offer, pickup), "template", ["no LLM configured"]
-    try:
-        raw, _, _ = triage.chat_cached(
-            llm, SYSTEM_PROMPT, build_prompt(listing, offer, pickup), cache_dir, SCHEMA
-        )
-        data, notes = triage.parse_answer(raw)
-        draft = " ".join(str(data.get("message") or "").split())
-    except triage.LLMUnavailable as exc:
-        return template_draft(listing, offer, pickup), "template", [f"LLM unreachable: {exc}"[:200]]
-    except (ValueError, TypeError, KeyError) as exc:
-        return template_draft(listing, offer, pickup), "template", [f"unreadable draft: {exc}"[:200]]
-    problems = check_draft(draft, listing, offer, pickup)
-    if problems:
-        return (
-            template_draft(listing, offer, pickup),
-            "template",
-            notes + [f"draft rejected: {p}" for p in problems],
-        )
-    return draft, "llm", notes
+def _brand(title: str, brands: str) -> str | None:
+    m = re.search(rf"(?<![^\W_])({brands})(?![^\W_])", title, re.IGNORECASE)
+    return m.group(0) if m else None
+
+
+def gpu_name(title: str, key: str) -> str:
+    """'Prodám ZOTAC GAMING GeForce RTX 3070 Twin Edge OC' + 'rtx 3070' -> 'ZOTAC RTX 3070'."""
+    m = re.fullmatch(r"(.+?)(?: (\d{1,2})gb)?", key)
+    name, vram = m.group(1), m.group(2)
+    number = name.split()[1] if len(name.split()) > 1 else name
+    chip = None
+    for span in GPU_SPAN.finditer(title):
+        if span.group("number").lower() == number:
+            chip = " ".join(span.group(0).split())
+            break
+    if chip is None:
+        chip = " ".join(_canonical(t) for t in name.split())
+    parts = [_brand(title, GPU_BRANDS) or _brand(title, CHIP_MAKERS), chip]
+    if vram:
+        parts.append(f"{vram}GB")
+    return " ".join(p for p in parts if p)
+
+
+def office_name(title: str, key: str) -> str:
+    """'Notebook DELL Latitude 5490 i5/8GB' + 'latitude 5490' -> 'DELL Latitude 5490'."""
+    words = [_word(title, t) or _canonical(t) for t in key.split()]
+    brand = _brand(title, OFFICE_BRANDS)
+    return " ".join([brand, *words] if brand else words)
+
+
+def item_name(listing: dict) -> tuple[str, str]:
+    """(noun, item) for the message to the seller."""
+    category = listing.get("category") or SECTION_CATEGORY.get(listing.get("section") or "", "gpu")
+    key = listing.get("model")
+    title = listing.get("title") or ""
+    features = listing.get("features") or {}
+    if category == "hdd":
+        from deal_hunter import storage
+
+        return storage.noun_and_name(title, features)
+    if key and category == "gpu":
+        return NOUNS["gpu"], gpu_name(title, key)
+    if key and category in ("office_pc", "office_laptop"):
+        noun = NOUNS["aio"] if key.startswith(("eliteone", "proone")) else NOUNS[category]
+        return noun, office_name(title, key)
+    return NOUNS.get(category, NOUNS["gpu"]), ""  # no model: "... o grafickou kartu z vašeho inzerátu"
+
+
+def seller_message(listing: dict) -> str:
+    """The message to the seller (see the module doc)."""
+    noun, item = item_name(listing)
+    return TEMPLATE.format(noun=noun, item=item or "z vašeho inzerátu")
+
+
+def disk_summary(features: dict | None, t: dict | None) -> str:
+    """The disk line of a follow-up (storage.py): capacity, Kč/TB, badges, SMART."""
+    from deal_hunter import storage
+
+    return storage.summary_line(features or {}, (t or {}).get("disk") or {})
 
 
 # --- formatting ---------------------------------------------------------------------------------------
@@ -234,13 +240,18 @@ def format_listing(
     fp,
     fair: int | None,
     t: dict | None,
-    draft: str,
+    message: str,
     offer: int,
     now: datetime,
     test: bool = False,
+    place: str | None = None,
 ) -> tuple[str, str]:
-    """(title, message) of the follow-up for a Bazoš ad. `fp` may be None (model not priced yet)."""
-    from deal_hunter.alerts import new_text
+    """(title, message) of the follow-up for a Bazoš ad. `fp` may be None (model not priced yet).
+
+    `message` is the text for the seller (seller_message), `offer` the suggested price when haggling
+    (0 = none), `place` the '📍 town · km' bit (alerts.place_line; worked out here when not given).
+    """
+    from deal_hunter.alerts import new_text, place_line
 
     price = listing.get("price_czk")
     title = ("TEST · " if test else "") + "👍 " + listing["title"]
@@ -257,10 +268,8 @@ def format_listing(
     model = listing.get("model")
     if model:
         lines.append(f"🏷 {model}")
-    where = " ".join(x for x in (listing.get("location"), listing.get("psc")) if x)
-    meta = []
-    if where:
-        meta.append(f"📍 {where}")
+    place = place_line(listing) if place is None else place
+    meta = [place] if place else []
     if listing.get("posted_at"):
         meta.append(f"posted {listing['posted_at']:%d.%m.}")
     if listing.get("first_seen"):
@@ -272,9 +281,13 @@ def format_listing(
         meta.append(f"seller {listing['seller']}")
     if meta:
         lines.append(" · ".join(meta))
+    extra = disk_summary(listing.get("features"), t) if listing.get("category") == "hdd" else ""
+    if extra:
+        lines.append(extra)
     lines.append(triage_summary(t))
     head = "\n".join(lines) + "\n\n📝 "
-    tail = f"\n\n✉️ Message (offer {kc(offer)}):\n{draft}"
+    haggle = f"\n\n💬 If negotiating: ~{kc(offer)}" if offer else ""
+    tail = f"{haggle}\n\n✉️ Message:\n{message}"
     description = " ".join((listing.get("description") or "(no description)").split())
     return title[:200], _fit(head, description, tail)
 
