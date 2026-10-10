@@ -216,3 +216,12 @@ def test_score_is_discount_times_confidence_times_penalty():
     assert score(0.3, 0.6, Triage())[0] == pytest.approx(0.18)
     assert score(0.3, 0.6, Triage(mining_suspected=True))[0] == pytest.approx(0.144)
     assert score(0.5, 0.9, Triage(is_wanted_ad=True)) == (0.0, 0.0, "wanted ad")
+
+
+def test_ships_needs_a_word_about_sending_in_the_ad():
+    t, notes = clean({**GOOD, "ships": True}, "Prodám kartu, osobní odběr nebo pošlu Zásilkovnou.")
+    assert t.ships is True and not notes
+    t, notes = clean({**GOOD, "ships": True}, "Prodám kartu, funkční.")
+    assert t.ships is False and "ignored 'ships'" in notes[0]
+    assert clean(GOOD, "Pošlu PPL.")[0].ships is False  # the field defaults to false
+    assert "ships" in triage.RESPONSE_SCHEMA["required"] and "- ships:" in triage.SYSTEM_PROMPT

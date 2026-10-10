@@ -20,7 +20,8 @@ from pathlib import Path
 
 import httpx
 
-PROMPT_VERSION = 2  # bump when the prompt or schema changes: candidates are triaged again
+# Bump when the prompt or schema changes: candidates are triaged again.
+PROMPT_VERSION = 3  # v3: `ships` for everything, the SMART/disk questions for hard disks
 
 CONDITIONS = ("new", "like_new", "used", "worn", "broken")
 SCAM_SIGNALS = ("shipping_only", "deposit_or_prepay", "too_good", "copied_text", "other")
@@ -53,6 +54,8 @@ the number in the ad", links to outside payment sites.
 - is_bundle: the ad sells more than one main item (a whole PC with the card, several cards, a laptop \
 together with a monitor...). A charger, dock or box that comes with the item does not count.
 - is_wanted_ad: the author wants to BUY (koupím, sháním, hledám), not sell.
+- ships: the seller offers to send the item (Zásilkovna, Balíkovna, PPL, poštou, dobírka, "pošlu", \
+"zašlu"). False when the ad says pickup only, or says nothing about sending it.
 - specs: for PCs and laptops, the RAM in GB, SSD size in GB and CPU model when stated; null otherwise.
 - one_line_verdict: one short English sentence (max 15 words) telling the buyer whether this is worth \
 a look and why."""
@@ -79,6 +82,7 @@ RESPONSE_SCHEMA = {
         },
         "is_bundle": {"type": "boolean"},
         "is_wanted_ad": {"type": "boolean"},
+        "ships": {"type": "boolean"},
         "specs": {
             "type": "object",
             "properties": {
@@ -100,6 +104,7 @@ RESPONSE_SCHEMA = {
         "scam_signals",
         "is_bundle",
         "is_wanted_ad",
+        "ships",
         "specs",
         "one_line_verdict",
     ],
@@ -200,6 +205,7 @@ class Triage:
     scam_quotes: dict = field(default_factory=dict)  # signal -> the ad's own words that show it
     is_bundle: bool = False
     is_wanted_ad: bool = False
+    ships: bool = False  # the LLM's reading; alerts.score_deals asks a regex first (geo.shipping_offer)
     specs: dict = field(default_factory=dict)
     one_line_verdict: str = ""
 
@@ -313,8 +319,12 @@ def clean(data: dict, source: str = "") -> tuple[Triage, list[str]]:
         "urgent_sale",
         "is_bundle",
         "is_wanted_ad",
+        "ships",
     ):
         setattr(t, name, _bool(data.get(name, False)))
+    if t.ships and source and not SHIPPING_WORDS.search(_ascii(source)):
+        t.ships = False  # nothing in the ad is about sending it
+        notes.append("ignored 'ships': the ad says nothing about shipping")
     t.defects = _strings(data.get("defects"))[:10]
     plain_source = _plain(source)
     raw_signals = data.get("scam_signals") or []

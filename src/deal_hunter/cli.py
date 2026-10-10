@@ -142,6 +142,20 @@ def _kc(n) -> str:
     return f"{n:,}".replace(",", " ") if n is not None else "-"
 
 
+def _distance(settings):
+    from deal_hunter.geo import DistanceRules
+
+    if settings.pickup_km <= 0:
+        return None
+    return DistanceRules(
+        home=settings.home,
+        pickup_km=settings.pickup_km,
+        pickup_km_by_category=settings.pickup_km_by_category,
+        shipping_czk=settings.shipping_czk,
+        travel_czk_per_km=settings.travel_czk_per_km,
+    )
+
+
 def _rules(settings):
     from deal_hunter.alerts import Rules, parse_quiet_hours
 
@@ -157,6 +171,7 @@ def _rules(settings):
         quiet_bypass=settings.quiet_bypass_score,
         candidate_discount=settings.candidate_discount,
         usd_czk=settings.usd_czk,
+        distance=_distance(settings),
     )
 
 
@@ -753,7 +768,7 @@ def cmd_notify_test(args: argparse.Namespace) -> None:
 
 def _notify_test_ad(listing_id: int) -> None:
     """A real ad as a deal push, marked TEST; its 👍 asks for a TEST follow-up (nothing is stored as a label)."""
-    from deal_hunter import alerts
+    from deal_hunter import alerts, geo
     from deal_hunter.db import repository as repo
 
     settings = load_settings()
@@ -776,8 +791,11 @@ def _notify_test_ad(listing_id: int) -> None:
         "verdict": row.get("verdict"),
         "location": row.get("location"),
         "psc": row.get("psc"),
+        "distance_km": geo.distance_km(settings.home, row.get("psc"), row.get("location"))[0],
+        "ships": geo.shipping_offer(f"{row['title']}\n{row.get('description') or ''}"),
+        "features": row.get("features"),
     }
-    title, message, tags = alerts.format_alert(deal, fp)
+    title, message, tags = alerts.format_alert(deal, fp, _rules(settings))
     msg_id = ntfy.publish(
         "TEST · " + title,
         message + "\n(TEST push of a real ad: tap 👍 to get the detailed follow-up)",

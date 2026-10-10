@@ -105,6 +105,9 @@ def save_listing(conn: psycopg.Connection, item: Listing, detail: bool) -> tuple
             "location = COALESCE(%(location)s, location), psc = COALESCE(%(psc)s, psc), "
             "posted_at = COALESCE(%(posted_at)s, posted_at), views = COALESCE(%(views)s, views), "
             "seller = COALESCE(%(seller)s, seller), "
+            # a new PSČ or town: the distance is recomputed by the next worker cycle (geo.update_distances)
+            "distance_home = CASE WHEN COALESCE(%(psc)s, psc) IS DISTINCT FROM psc "
+            "  OR COALESCE(%(location)s, location) IS DISTINCT FROM location THEN NULL ELSE distance_home END, "
             "description = CASE WHEN %(detail)s THEN %(description)s "
             "  ELSE COALESCE(description, %(description)s) END, "
             "images = CASE WHEN %(detail)s THEN %(images)s ELSE images END, "
@@ -396,7 +399,7 @@ def upsert_candidate(
 def deals_in_state(conn: psycopg.Connection, *states: str) -> list[dict]:
     cur = conn.execute(
         "SELECT d.*, l.title, l.url, l.location, l.psc, l.seller, l.description, l.gone_at, l.first_seen, "
-        "l.images, n.features FROM deals d JOIN listings l ON l.id = d.listing_id "
+        "l.images, l.distance_km, l.distance_src, n.features FROM deals d JOIN listings l ON l.id = d.listing_id "
         "JOIN normalized n ON n.listing_id = d.listing_id WHERE d.state = ANY(%s) ORDER BY d.discount DESC",
         (list(states),),
     )
@@ -469,6 +472,24 @@ def save_triage(
         )
 
 
+def listings_needing_distance(conn: psycopg.Connection, home_key: str) -> list[tuple]:
+    """(id, psc, location) of listings whose distance was never computed, or for another home."""
+    return conn.execute(
+        "SELECT id, psc, location FROM listings WHERE distance_home IS DISTINCT FROM %s", (home_key,)
+    ).fetchall()
+
+
+def save_distances(
+    conn: psycopg.Connection, rows: list[tuple[int, float | None, str]], home_key: str
+) -> None:
+    """(id, km or None, how) rows, computed for `home_key`."""
+    with conn.transaction(), conn.cursor() as cur:
+        cur.executemany(
+            "UPDATE listings SET distance_km = %s, distance_src = %s, distance_home = %s WHERE id = %s",
+            [(km, how, home_key, lid) for lid, km, how in rows],
+        )
+
+
 def kv_get(conn: psycopg.Connection, key: str, default=None):
     row = conn.execute("SELECT value FROM kv WHERE key = %s", (key,)).fetchone()
     return row[0] if row else default
@@ -503,6 +524,13 @@ def week_summary(conn: psycopg.Connection) -> dict:
             "SELECT vote, count(*) FROM feedback WHERE received_at > now() - interval '7 days' GROUP BY 1"
         ).fetchall()
     )
+    out["out_of_range"] = [
+        r[0]
+        for r in conn.execute(
+            "SELECT reason FROM deals WHERE state = 'would_alert' AND reason LIKE 'out of range: %%' "
+            "AND first_flagged > now() - interval '7 days' ORDER BY score DESC NULLS LAST"
+        ).fetchall()
+    ]
     return out
 
 

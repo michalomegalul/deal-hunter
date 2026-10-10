@@ -32,7 +32,8 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from deal_hunter import pricing, triage
+from deal_hunter import geo, pricing, triage
+from deal_hunter.geo import DistanceRules
 from deal_hunter.pricing import LEVEL_RANK, FairPrice
 
 log = logging.getLogger(__name__)
@@ -204,6 +205,7 @@ class Rules:
     quiet_bypass: float  # scores at least this high are pushed even in quiet hours
     candidate_discount: float
     usd_czk: float = 23.5  # launch MSRPs to Kč (display and the sanity check only)
+    distance: DistanceRules | None = None  # None = no pickup rule (every distance is fine)
 
 
 def category_days(data_since: dict, category: str, now: datetime) -> float:
@@ -261,7 +263,20 @@ def first_image(item: dict) -> str | None:
     return images[0] if images and str(images[0]).startswith("http") else None
 
 
-def format_alert(deal: dict, fp: FairPrice | None) -> tuple[str, str, list[str]]:
+def place_line(item: dict, rules: "Rules | None" = None) -> str:
+    """'📍 Ostrava · 280 km (ships)' for a deal or listing dict (distance_km, ships, location, psc)."""
+    dist = rules.distance if rules is not None else None
+    km = item.get("distance_km")
+    if "distance_km" not in item:  # not stored yet: work it out now
+        home = dist.home if dist else geo.PRAGUE_CENTRE
+        km = geo.distance_km(home, item.get("psc"), item.get("location"))[0]
+    travel = dist.travel_czk_per_km if dist else 0.0
+    return geo.place_text(item.get("location"), item.get("psc"), km, item.get("ships"), travel)
+
+
+def format_alert(
+    deal: dict, fp: FairPrice | None, rules: "Rules | None" = None
+) -> tuple[str, str, list[str]]:
     """(title, message, tags) for one deal push."""
     title = deal["title"][:90]
     sample = f", n={fp.n}, {fp.level} confidence" if fp else ""
@@ -270,9 +285,9 @@ def format_alert(deal: dict, fp: FairPrice | None) -> tuple[str, str, list[str]]
     lines.append(f"{deal['model']}" + (f" · {new}" if new else ""))
     if deal.get("verdict"):
         lines.append(f"🤖 {deal['verdict']}")
-    where = " ".join(x for x in (deal.get("location"), deal.get("psc")) if x)
-    if where:
-        lines.append(f"📍 {where}")
+    place = place_line(deal, rules)
+    if place:
+        lines.append(place)
     tags = [CATEGORY_TAG.get(deal["category"], "shopping_cart")]
     if deal["discount"] >= 0.33:
         tags.append("moneybag")
@@ -408,6 +423,7 @@ def score_deals(conn, llm_model: str, rules: Rules) -> None:
             "penalty": factor,
             "verdict": t.one_line_verdict,
             "priority": priority(deal["discount"]),
+            "ships": ships(deal, t),
         }
         if reason:
             repo.update_deal(conn, deal["listing_id"], state="dropped", reason=reason, **fields)
@@ -419,14 +435,50 @@ def score_deals(conn, llm_model: str, rules: Rules) -> None:
             repo.update_deal(conn, deal["listing_id"], state="ready", reason=None, **fields)
 
 
+def ships(deal: dict, t: triage.Triage) -> bool:
+    """Does the ad offer shipping? What it says outright (geo.shipping_offer) wins over the LLM's reading."""
+    said = geo.shipping_offer(f"{deal.get('title') or ''}\n{deal.get('description') or ''}")
+    return t.ships if said is None else said
+
+
+def pickup_check(deal: dict, rules: Rules) -> str | None:
+    """Why an otherwise good deal is out of reach (None = fine). See README "Distance".
+
+    Within the pickup radius: fine. Outside it, or with an unknown distance: only if the ad ships and
+    the deal still scores after paying for shipping.
+    """
+    dist = rules.distance
+    if dist is None or dist.pickup_km <= 0:
+        return None
+    radius = dist.radius(deal.get("category"))
+    km = deal.get("distance_km")
+    if km is not None and km <= radius:
+        return None
+    where = deal.get("location") or deal.get("psc") or "?"
+    away = f"{where} {km:.0f} km > {radius:g} km" if km is not None else f"{where}: distance unknown"
+    if not deal.get("ships"):
+        return f"out of range: {away}, no shipping"
+    units = max(1, int((deal.get("features") or {}).get("quantity") or 1))
+    price = deal["price"] + dist.shipping_czk / units
+    discount = 1 - price / deal["fair"] if deal["fair"] else 0.0
+    value = discount * (deal["confidence"] or 0) * (deal["penalty"] or 0)
+    if value < rules.min_score:
+        return f"out of range: {away}, ships, but score {value:.3f} after {dist.shipping_czk} Kč shipping"
+    return None
+
+
 def send_alerts(conn, ntfy: Ntfy | None, prices, data_since, rules: Rules, now: datetime, stats: CycleStats):
-    """Gate, quiet hours, daily cap, repost check, push. Best score first."""
+    """Pickup range, gate, quiet hours, daily cap, repost check, push. Best score first."""
     from deal_hunter.db import repository as repo
 
     for deal in repo.deals_in_state(conn, "ready"):
         fp = prices.get(deal["model"])
         is_open, why = gate(fp, data_since, rules, now)
-        if not rules.enabled or ntfy is None:
+        out_of_range = pickup_check(deal, rules)
+        if out_of_range:
+            repo.update_deal(conn, deal["listing_id"], state="would_alert", reason=out_of_range)
+            stats.would_alert += 1
+        elif not rules.enabled or ntfy is None:
             repo.update_deal(conn, deal["listing_id"], state="would_alert", reason="alerts disabled")
             stats.would_alert += 1
         elif not is_open:
@@ -457,7 +509,7 @@ def send_alerts(conn, ntfy: Ntfy | None, prices, data_since, rules: Rules, now: 
         if sent_today >= rules.max_per_day:
             repo.update_deal(conn, lid, state="capped", reason=f"{rules.max_per_day} pushes today already")
             continue
-        title, message, tags = format_alert(deal, prices.get(deal["model"]))
+        title, message, tags = format_alert(deal, prices.get(deal["model"]), rules)
         try:
             msg_id = ntfy.publish(
                 title,
@@ -521,6 +573,10 @@ def digest_text(
                 moves.append((abs(change), f"{model} {change:+.0%} ({kc(old[0])} → {kc(fp.median)})"))
     if moves:
         lines.append("Median moves: " + "; ".join(text for _, text in sorted(moves, reverse=True)[:5]))
+    far = week.get("out_of_range") or []
+    if far:
+        examples = ", ".join(re.sub(r" > .*|,.*", "", r.split(": ", 1)[1]) for r in far[:3])
+        lines.append(f"Out of pickup range (would-alert): {len(far)}, e.g. {examples}")
     if week["votes"]:
         lines.append(f"Your votes: 👍 {week['votes'].get('up', 0)} 👎 {week['votes'].get('down', 0)}")
     if not status["ready"]:
@@ -578,6 +634,7 @@ def work_once(
         except Exception:  # a price comparison site being odd must not stop anything else
             log.exception("new price step failed")
             stats.new_prices = "new prices: failed (see log)"
+    geo.update_distances(conn, rules.distance.home if rules.distance else geo.PRAGUE_CENTRE)
     prices = pricing.run(conn, rules.min_samples, rules.usd_czk)
     stats.models = len(prices)
     stats.candidates = find_candidates(conn, prices, rules)

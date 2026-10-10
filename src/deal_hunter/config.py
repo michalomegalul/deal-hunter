@@ -6,6 +6,8 @@ from importlib.metadata import version
 
 from dotenv import load_dotenv
 
+from deal_hunter.geo import home_point
+
 REPO_URL = "https://github.com/michalomegalul/deal-hunter"
 VERSION = version("deal-hunter")
 USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~1 request per 3 s)"
@@ -69,6 +71,31 @@ class Settings:
     new_price_min_delay: float  # seconds between requests to Zboží.cz (never below 6)
     new_price_per_cycle: int
     offer_discount: float  # the follow-up's proposed price: this much below asking (5-10 %)
+    # --- distance from home and disks (Phase 9) ---
+    home: tuple[float, float]  # HUNTER_HOME_PSC, else HUNTER_HOME_LAT/LON, else Prague centre
+    pickup_km: float  # pickup radius; 0 turns the distance rule off
+    pickup_km_by_category: tuple[tuple[str, float], ...]  # HUNTER_PICKUP_KM_HDD=300 -> (('hdd', 300.0),)
+    shipping_czk: int  # added to the price of an out-of-range ad that ships
+    travel_czk_per_km: float  # shown next to the distance (there and back); 0 = not shown
+    hdd_min_tb: float  # server fit: smallest disk worth alerting
+
+
+def _float_or_none(name: str) -> float | None:
+    raw = os.getenv(name, "").strip()
+    return float(raw) if raw else None
+
+
+def pickup_by_category(env=None) -> tuple[tuple[str, float], ...]:
+    """HUNTER_PICKUP_KM_<CATEGORY>=km for any category (HDD, GPU, OFFICE_PC, OFFICE_LAPTOP; OFFICE = both)."""
+    env = os.environ if env is None else env
+    out: dict[str, float] = {}
+    for name, value in sorted(env.items()):
+        if not name.startswith("HUNTER_PICKUP_KM_") or not value.strip():
+            continue
+        category = name.removeprefix("HUNTER_PICKUP_KM_").lower()
+        for c in ("office_pc", "office_laptop") if category == "office" else (category,):
+            out.setdefault(c, float(value))
+    return tuple(sorted(out.items()))
 
 
 def _flag(name: str, default: str) -> bool:
@@ -126,4 +153,12 @@ def load_settings() -> Settings:
         new_price_min_delay=max(6.0, float(os.getenv("HUNTER_NEW_PRICE_MIN_DELAY", "6.5"))),
         new_price_per_cycle=int(os.getenv("HUNTER_NEW_PRICE_PER_CYCLE", "10")),
         offer_discount=min(0.10, max(0.05, float(os.getenv("HUNTER_OFFER_DISCOUNT", "0.07")))),
+        home=home_point(
+            os.getenv("HUNTER_HOME_PSC"), _float_or_none("HUNTER_HOME_LAT"), _float_or_none("HUNTER_HOME_LON")
+        ),
+        pickup_km=float(os.getenv("HUNTER_PICKUP_KM", "40")),
+        pickup_km_by_category=pickup_by_category(),
+        shipping_czk=int(os.getenv("HUNTER_SHIPPING_CZK", "150")),
+        travel_czk_per_km=float(os.getenv("HUNTER_TRAVEL_CZK_PER_KM", "0")),
+        hdd_min_tb=float(os.getenv("HUNTER_HDD_MIN_TB", "8")),
     )
