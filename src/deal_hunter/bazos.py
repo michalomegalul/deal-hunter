@@ -24,8 +24,9 @@ class Section:
     slug: str  # URL path: /graficka/, /pc/, /notebook/, /hdd/
     rss_cat: int  # www.bazos.cz/rss.php?rub=pc&cat=<n>
     pages: int  # category pages read by every scrape cycle (the RSS feed carries the newest 50)
-    kind: str  # which normalizer reads its titles: gpu | office | storage
+    kind: str  # which normalizer reads its titles: gpu | office | storage | watch
     details: str  # 'all': fetch every new ad's page; 'in_scope': skip ads the normalizer excludes
+    cadence_min: float = 0.0  # minimum minutes between scrapes of this section; 0 = every cycle
 
 
 SECTIONS = {
@@ -33,6 +34,16 @@ SECTIONS = {
     "pc": Section("pc", 12, 1, "office", "in_scope"),  # PC, Počítače
     "notebook": Section("notebook", 10, 1, "office", "in_scope"),  # Notebooky
     "hdd": Section("hdd", 5, 1, "storage", "in_scope"),  # Hard disky, SSD
+    # Phase 10 watchlists: not priced or alerted by the main pipeline (normalize.classify marks
+    # them excluded_reason='watch_only'), only matched against watches.py's keyword/LLM check.
+    # Read every 45 min (Section.cadence_min, enforced in scraper.scrape_once), not every cycle,
+    # to keep the request budget low; checked against robots.txt 2026-10-11 (plain category/RSS
+    # URLs, same as the other sections -- only "hledat"/"cenaod"/"cenado" search URLs are disallowed).
+    "pamet": Section("pamet", 11, 1, "watch", "all", cadence_min=45),  # Paměti (RAM)
+    "sit": Section("sit", 14, 1, "watch", "all", cadence_min=45),  # Síťové prvky
+    "wifi": Section("wifi", 28, 1, "watch", "all", cadence_min=45),  # Wireless, WiFi
+    "case": Section("case", 16, 1, "watch", "all", cadence_min=45),  # Skříně, zdroje
+    "motherboard": Section("motherboard", 19, 1, "watch", "all", cadence_min=45),  # Základní desky
 }
 CATEGORY = "graficka"  # the original section; listings scraped before v0.3.0 all come from it
 RSS_URL = "https://www.bazos.cz/rss.php?rub=pc&cat=4"  # PC > Grafické karty

@@ -291,6 +291,11 @@ def gpu_key(model: Model, vram: int | None) -> str:
 def classify(title: str, section: str = CATEGORY, description: str | None = None) -> Normalized:
     """The pricing key and features of one ad. `description` is only read for disks (storage.py)."""
     kind = SECTIONS.get(section, SECTIONS[CATEGORY]).kind
+    if kind == "watch":
+        # RAM/network/case/motherboard sections (Phase 10): never priced or alerted by this
+        # pipeline, only matched against watches.py. Excluded early so they don't show up as
+        # unmatched GPUs in `hunt stats`/`hunt review`.
+        return Normalized("watch", excluded_reason="watch_only")
     if kind == "storage":
         r = storage.normalize(title, description)
         return Normalized("hdd", r.model, r.features, r.excluded_reason)

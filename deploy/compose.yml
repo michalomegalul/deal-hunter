@@ -75,6 +75,18 @@ services:
     mem_limit: 160m
     profiles: []
 
+  # Holds the watch ntfy topic's stream open: add/list/stop/help commands for watchlists (Phase 10),
+  # replied to on the deals topic. No LLM calls (that's the worker's watch step), so no LLM cache
+  # volume needed. Idles quietly (no crash loop) until NTFY_WATCH_TOKEN is set.
+  watchlist:
+    <<: *hunter
+    command: ["watch", "listen", "--loop"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://hunter:${POSTGRES_PASSWORD}@db:5432/hunter
+    mem_limit: 96m
+    profiles: []
+
   # Read-only LAN website: recent deals, fair prices, open auctions. Port published on the LAN only
   # (no Cloudflare tunnel) - bind it to the homelab's LAN interface if the host has more than one.
   web:

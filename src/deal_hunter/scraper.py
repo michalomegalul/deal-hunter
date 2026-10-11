@@ -201,7 +201,12 @@ def scrape_once(
     def body(stats):
         start = client.requests
         for section, n in section_pages(sections, pages).items():
+            cadence = bazos.SECTIONS[section].cadence_min
+            if cadence and not repo.section_due(conn, section, cadence):
+                continue
             ingest(client, conn, read_section(client, section, n, stats), stats)
+            if cadence:
+                repo.mark_section_scraped(conn, section)
         stats.requests = client.requests - start
 
     return _run(conn, "scrape", body)

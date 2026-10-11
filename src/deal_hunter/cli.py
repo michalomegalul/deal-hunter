@@ -248,6 +248,8 @@ def _ntfy(settings, required: bool = False):
         settings.ntfy_public_url,
         settings.ntfy_feedback_topic,
         settings.ntfy_feedback_token,
+        watch_topic=settings.ntfy_watch_topic,
+        watch_token=settings.ntfy_watch_token,
     )
 
 
@@ -427,7 +429,7 @@ def cmd_work(args: argparse.Namespace) -> None:
     rules = _rules(settings)
 
     def step():
-        from deal_hunter import auction_cycle, zbozi
+        from deal_hunter import auction_cycle, watchlist, zbozi
 
         llm, ntfy, cache = _llm(settings), _ntfy(settings), Path(settings.llm_cache)
         with repo.connect(autocommit=True) as conn, repo.connect(autocommit=True) as throttle_conn:
@@ -446,6 +448,19 @@ def cmd_work(args: argparse.Namespace) -> None:
                         zbozi_http, conn, settings.new_price_days, settings.new_price_per_cycle
                     )
 
+                def watch_step(conn, now):
+                    return watchlist.tick(
+                        conn,
+                        llm,
+                        cache,
+                        ntfy,
+                        now,
+                        settings.watch_scan_hours,
+                        rules.quiet_start,
+                        rules.quiet_end,
+                        settings.watch_max_per_day,
+                    )
+
                 stats = alerts.work_once(
                     conn,
                     rules,
@@ -455,6 +470,7 @@ def cmd_work(args: argparse.Namespace) -> None:
                     settings.triage_per_cycle,
                     auction_step=auction_step if settings.auctions_enabled else None,
                     new_price_step=new_price_step if settings.new_prices_enabled else None,
+                    watch_step=watch_step,
                 )
         print(stats.summary(), flush=True)
 
@@ -890,6 +906,80 @@ def _notify_test_ad(listing_id: int) -> None:
     print(f"Sent TEST push for ad {listing_id} (id {msg_id}), photo: {alerts.first_image(row) or 'none'}")
 
 
+# --- watchlists (Phase 10 part 1) -----------------------------------------------------------------
+
+
+def cmd_watch_add(args: argparse.Namespace) -> None:
+    from deal_hunter import watchlist
+    from deal_hunter.db import repository as repo
+
+    command = watchlist.parse_command("watch " + " ".join(args.text))
+    if command.kind != "add":
+        raise SystemExit(command.error or "could not parse that watch")
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        print(watchlist.execute(conn, command, created_by="cli"))
+
+
+def cmd_watch_list(args: argparse.Namespace) -> None:
+    from deal_hunter import watchlist
+    from deal_hunter.db import repository as repo
+
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        print(watchlist.execute(conn, watchlist.Command("list")))
+
+
+def cmd_watch_stop(args: argparse.Namespace) -> None:
+    from deal_hunter import watchlist
+    from deal_hunter.db import repository as repo
+
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        print(watchlist.execute(conn, watchlist.Command("stop", watch_id=args.id)))
+
+
+def cmd_watch_seed(args: argparse.Namespace) -> None:
+    from deal_hunter import watchlist
+    from deal_hunter.db import repository as repo
+
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        added = watchlist.seed(conn)
+    print(f"Seeded {added} new watch(es); {len(watchlist.SEEDS) - added} already existed.")
+
+
+def cmd_watch_listen(args: argparse.Namespace) -> None:
+    """Commands from the watch ntfy topic: live (--loop, the service) or what is cached now (once)."""
+    from deal_hunter import watchlist
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    if not settings.ntfy_watch_token:
+        if not args.loop:
+            raise SystemExit("Missing NTFY_WATCH_TOKEN (read access to the watch topic) in .env")
+        # The service (compose) runs by default even before the owner sets this up: idle quietly
+        # instead of crash-looping, same spirit as cmd_scrape_fb without FB_COOKIES_FILE.
+        print("watch listener disabled: set NTFY_WATCH_TOKEN to enable it (see .env.example)")
+        while True:
+            time.sleep(3600)
+    ntfy = _ntfy(settings, required=True)
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        ctx = watchlist.Context(conn, ntfy)
+        if args.loop:
+            watchlist.forever(ctx)
+            return
+        since = repo.kv_get(conn, watchlist.LAST_ID_KEY) or "all"
+        events = ntfy.poll_watch(since)
+        for event in events:
+            if event.get("event") != "message":
+                continue
+            print(f"{event['id']}: {watchlist.handle(ctx, event)}")
+            repo.kv_set(conn, watchlist.LAST_ID_KEY, event["id"])
+        print(f"{sum(e.get('event') == 'message' for e in events)} messages since {since}")
+
+
 def cmd_web(args: argparse.Namespace) -> None:
     from deal_hunter import web
 
@@ -998,6 +1088,22 @@ def main() -> None:
     a = asub.add_parser("value", help="one lot: items, mapping and the valuation breakdown")
     a.add_argument("id")
     a.set_defaults(func=cmd_auctions_value)
+
+    p = sub.add_parser("watch", help="watchlists: standing searches matched against every new listing")
+    wsub = p.add_subparsers(required=True)
+    w = wsub.add_parser("add", help="add a watch, e.g. `hunt watch add ddr4 16gb max 1500 km 50 #homelab`")
+    w.add_argument("text", nargs="+")
+    w.set_defaults(func=cmd_watch_add)
+    w = wsub.add_parser("list", help="list every watch and its id")
+    w.set_defaults(func=cmd_watch_list)
+    w = wsub.add_parser("stop", help="deactivate a watch by id")
+    w.add_argument("id", type=int)
+    w.set_defaults(func=cmd_watch_stop)
+    w = wsub.add_parser("seed", help="add the default homelab watches (idempotent)")
+    w.set_defaults(func=cmd_watch_seed)
+    w = wsub.add_parser("listen", help="handle add/list/stop/help commands from the watch ntfy topic")
+    w.add_argument("--loop", action="store_true", help="service: hold the live stream open")
+    w.set_defaults(func=cmd_watch_listen)
 
     p = sub.add_parser("web", help="serve the read-only LAN website (deals, prices, auctions)")
     p.add_argument("--host", default="0.0.0.0", help="default 0.0.0.0 (LAN)")

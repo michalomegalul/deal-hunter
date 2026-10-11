@@ -77,11 +77,25 @@ class Ntfy:
         feedback_topic: str,
         feedback_token: str,
         transport: httpx.BaseTransport | None = None,
+        watch_topic: str = "",
+        watch_token: str = "",
     ):
         self.url, self.topic, self.public_url = url.rstrip("/"), topic, public_url.rstrip("/")
         self.feedback_topic, self.feedback_token = feedback_topic, feedback_token
+        self.watch_topic, self.watch_token = watch_topic, watch_token
         self.http = httpx.Client(
             headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=20, transport=transport
+        )
+        # The watch topic is read with its own (read-only) token, so it gets its own client; the
+        # transport is the same (tests use one httpx.MockTransport for everything).
+        self.watch_http = (
+            httpx.Client(
+                headers={"Authorization": f"Bearer {watch_token}"} if watch_token else {},
+                timeout=20,
+                transport=transport,
+            )
+            if watch_topic
+            else None
         )
 
     def feedback_action(self, label: str, payload: dict, clear: bool = True) -> dict:
@@ -135,24 +149,42 @@ class Ntfy:
         r.raise_for_status()
         return r.json().get("id", "")
 
-    def poll_feedback(self, since: str = "all") -> list[dict]:
-        """Cached messages on the feedback topic (ntfy keeps them ~12 h), without waiting for new ones."""
-        r = self.http.get(f"{self.url}/{self.feedback_topic}/json", params={"poll": "1", "since": since})
+    def _poll(self, http: httpx.Client, topic: str, since: str) -> list[dict]:
+        r = http.get(f"{self.url}/{topic}/json", params={"poll": "1", "since": since})
         r.raise_for_status()
         return [json.loads(line) for line in r.text.splitlines() if line.strip()]
+
+    def poll_feedback(self, since: str = "all") -> list[dict]:
+        """Cached messages on the feedback topic (ntfy keeps them ~12 h), without waiting for new ones."""
+        return self._poll(self.http, self.feedback_topic, since)
+
+    def poll_watch(self, since: str = "all") -> list[dict]:
+        """Cached messages on the watch (management) topic, without waiting for new ones."""
+        if not self.watch_topic:
+            raise RuntimeError("HUNTER_WATCH_TOPIC/NTFY_WATCH_TOKEN not configured")
+        return self._poll(self.watch_http, self.watch_topic, since)
+
+    def _stream(self, http: httpx.Client, topic: str, since: str, read_timeout: float):
+        timeout = httpx.Timeout(20, read=read_timeout)
+        url = f"{self.url}/{topic}/json"
+        with http.stream("GET", url, params={"since": since}, timeout=timeout) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if line.strip():
+                    yield json.loads(line)
 
     def stream_feedback(self, since: str, read_timeout: float = 120):
         """Events on the feedback topic as they arrive (ntfy's JSON stream; keepalives every ~45 s).
 
         Yields parsed events until the connection drops (then the caller reconnects with the last id).
         """
-        timeout = httpx.Timeout(20, read=read_timeout)
-        url = f"{self.url}/{self.feedback_topic}/json"
-        with self.http.stream("GET", url, params={"since": since}, timeout=timeout) as r:
-            r.raise_for_status()
-            for line in r.iter_lines():
-                if line.strip():
-                    yield json.loads(line)
+        yield from self._stream(self.http, self.feedback_topic, since, read_timeout)
+
+    def stream_watch(self, since: str, read_timeout: float = 120):
+        """Events on the watch (management) topic, the same way `stream_feedback` reads its topic."""
+        if not self.watch_topic:
+            raise RuntimeError("HUNTER_WATCH_TOPIC/NTFY_WATCH_TOKEN not configured")
+        yield from self._stream(self.watch_http, self.watch_topic, since, read_timeout)
 
 
 class Vote(NamedTuple):
@@ -352,6 +384,7 @@ class CycleStats:
     digest: bool = False
     auctions: str = ""
     new_prices: str = ""
+    watches: str = ""
 
     def summary(self) -> str:
         return (
@@ -361,6 +394,7 @@ class CycleStats:
             + (", digest sent" if self.digest else "")
             + (f"; {self.auctions}" if self.auctions else "")
             + (f"; {self.new_prices}" if self.new_prices else "")
+            + (f"; {self.watches}" if self.watches else "")
         )
 
 
@@ -665,9 +699,11 @@ def work_once(
     now=None,
     auction_step=None,
     new_price_step=None,
+    watch_step=None,
 ) -> CycleStats:
     """One worker cycle. `auction_step(conn, prices, quiet, now)` is the auction part (auction_cycle.tick);
-    `new_price_step(conn)` reads the Zboží.cz product pages that are due (zbozi.fetch_due)."""
+    `new_price_step(conn)` reads the Zboží.cz product pages that are due (zbozi.fetch_due); `watch_step(conn,
+    now)` is watchlists.py's `tick` (keyword/LLM match of new listings against standing watches, Phase 10)."""
     from deal_hunter.db import repository as repo
 
     now = now or datetime.now(UTC)
@@ -696,6 +732,12 @@ def work_once(
         except Exception:  # the auction site being odd must not stop Bazoš deals
             log.exception("auction step failed")
             stats.auctions = "auctions: failed (see log)"
+    if watch_step is not None:
+        try:
+            stats.watches = watch_step(conn, now)
+        except Exception:  # watchlists being odd must not stop anything else
+            log.exception("watch step failed")
+            stats.watches = "watches: failed (see log)"
     return stats
 
 
