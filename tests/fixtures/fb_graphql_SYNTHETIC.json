@@ -1,0 +1,35 @@
+{
+ "_synthetic": "Hand-made, NOT a real Facebook response. Facebook's GraphQL schema is unpublished and changes often; this is a best-effort guess at the shape marketplace search responses take, built only to exercise facebook.py's parser. See facebook.py's module docstring.",
+ "data": {
+  "marketplace_search": {
+   "feed_units": {
+    "edges": [
+     {
+      "node": {
+       "listing": {
+        "id": "1234567890123456",
+        "marketplace_listing_title": "RTX 3070 8GB - skoro nova",
+        "listing_price": {"amount": "5500", "currency": "CZK"},
+        "location": {"reverse_geocode": {"city": "Praha"}},
+        "primary_listing_photo": {"image": {"uri": "https://scontent.xx.fbcdn.net/synthetic-1.jpg"}},
+        "creation_time": 1760100000
+       }
+      }
+     },
+     {
+      "node": {
+       "listing": {
+        "id": "9876543210987654",
+        "marketplace_listing_title": "ThinkPad T480",
+        "listing_price": {"amount": "7000", "currency": "CZK"},
+        "location": {"reverse_geocode": {"city": "Brno"}},
+        "primary_listing_photo": {"image": {"uri": "https://scontent.xx.fbcdn.net/synthetic-2.jpg"}},
+        "creation_time": 1760200000
+       }
+      }
+     }
+    ]
+   }
+  }
+ }
+}

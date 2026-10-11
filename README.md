@@ -521,6 +521,53 @@ hdd35 enterprise · new ~973 Kč/TB (Zboží, 2 keys, 3 shops)
 - nms.gov.cz has its own, slower budget (≥ 6 s apart, a few dozen requests a day); see "Auctions".
 - Zboží.cz: only product pages robots.txt allows, ≥ 6 s apart, ~50 a week; see "New prices".
 
+## More sources
+
+Bazoš is still the only source deployed, but the pipeline (normalizer → pricing → triage → alerts)
+is source-agnostic: every listing carries a `source` column, and every source maps its own
+categories onto the same four sections (`graficka`/`pc`/`notebook`/`hdd`) before anything else sees
+it. `HUNTER_SOURCES` turns sources on, comma-separated (default `bazos`, unchanged from before this).
+
+- **Sbazar.cz: blocked.** Its robots.txt is `User-agent: * / Disallow: /` -- every path is
+  off-limits to a generic bot, and deal-hunter isn't on the short list of named crawlers (Googlebot,
+  SeznamBot, Bingbot, ...) that get an exception. `sbazar.py`'s `fetch_category` refuses to run
+  (raises, logged, never makes a request) for exactly this reason. The parser itself exists and is
+  unit-tested against a hand-made, clearly-marked *synthetic* fixture, so the groundwork is ready if
+  that ever changes, but nothing has been verified against real Sbazar data.
+- **Aukro.cz: working.** Its own category pages call a JSON API
+  (`POST /backend-web/api/offers/searchItemsCommon`) that robots.txt doesn't restrict; `aukro.py`
+  calls it directly instead of scraping HTML. One category slug per section (its `-aukce`/`-bazar`
+  URL suffixes turned out to be cosmetic -- the API mixes auctions and fixed-price offers in both
+  regardless); each item's own `auction`/`buyNowActive` flags decide `price_kind`: a plain or
+  buy-now-active item is `fixed`; a bidding-only item is `auction` with the current bid kept for
+  display only (`price_samples` already excludes anything that isn't `fixed`, the same as
+  `negotiable`/`in_text`). An auction's `endingTime` is stored in `listings.auction_end_at`.
+  `HUNTER_AUKRO_PAGES` (default 1, 60 items/page) controls how many pages per category per cycle.
+- **Facebook Marketplace: owner's own session, ban risk accepted.** No public API, so `facebook.py`
+  drives headless Chromium (Playwright) with the owner's logged-in cookies -- a Cookie-Editor JSON
+  export at the path in `FB_COOKIES_FILE` (root-only on the server, **never committed**), read and
+  converted to Playwright's cookie format. It opens a marketplace search per configured query
+  (`HUNTER_FB_QUERIES`), captures the page's own GraphQL responses and parses listings out of them,
+  never the DOM. Low and slow: a few seconds between queries, and the whole cycle itself runs every
+  20-30 minutes with jitter (`hunt scrape-fb --loop`), never on the main 10-minute loop. A login wall
+  or checkpoint stops the cycle and sends one ntfy alert ("FB cookies expired"), deduplicated so it
+  only fires once per expiry. Disabled entirely -- `run_once` returns immediately, no browser, no
+  request -- whenever `FB_COOKIES_FILE` is unset. Playwright is the `fb` extra
+  (`uv sync --extra fb && playwright install chromium`), not a dependency of the main install, and
+  ships as a separate, much bigger image (`Dockerfile`'s `fb` stage, `:latest-fb`) and compose
+  service (`fb-scraper`, its own profile: `docker compose --profile fb up -d fb-scraper`), so running
+  it is an explicit choice, not something a plain deploy turns on. The GraphQL parser is tested
+  against a hand-made, clearly-marked *synthetic* fixture -- Facebook's schema is unpublished and
+  changes often, so this is a best-effort shape, not a captured real response.
+
+Every source keeps the site's own id in `listings.external_id`; `listings.id` (the app's internal
+key, used by every join) is that id directly for Bazoš (unchanged, so existing rows didn't move) and
+a deterministic hash of `(source, external_id)` for everything else, so two sources reusing the same
+native id can never collide (`sources.make_id`). `(source, external_id)` has its own unique index --
+that is what actually enforces "ids unique per source". Pricing pools samples across every source
+that feeds a model (more data, same fair price); alerts always show which source a push came from
+(a "via Aukro" / "via FB Marketplace" line) unless it's Bazoš, to keep today's pushes unchanged.
+
 ## Architecture
 
 ```
@@ -556,6 +603,9 @@ pc.bazos.cz ───────────────────► hunt sc
   `auctions.py`: LLM extraction and valuation. `auction_cycle.py`: the auction step of the worker.
 - `feedback.py`: the feedback service (stream, votes, follow-ups). `followup.py`: the follow-up text,
   the offer and the message to the seller. `zbozi.py` + `new_price_pages.yaml`: new prices.
+- `sources.py`: the global id scheme every source shares (`make_id`). `aukro.py`: the Aukro JSON API
+  parser. `sbazar.py`: robots.txt-blocked, parser only (never makes a request). `facebook.py`:
+  Playwright + GraphQL capture, its own `hunt scrape-fb --loop` cadence. See "More sources".
 
 ## Usage
 
@@ -586,6 +636,9 @@ uv run hunt auctions scrape --dry-run   # running IT lots on nms.gov.cz (nothing
 uv run hunt auctions scrape --once      # lists + due detail pages, LLM extraction, valuation (no pushes)
 uv run hunt auctions list               # running lots with valuations, sold lots: final price/unit vs fair
 uv run hunt auctions value 62388        # one lot: items, mapping, valuation breakdown
+HUNTER_SOURCES=bazos,aukro uv run hunt scrape --once  # also read Aukro (see "More sources")
+uv sync --extra fb && uv run playwright install chromium   # only for the fb source
+FB_COOKIES_FILE=cookies.json uv run hunt scrape-fb --once  # one fb cycle (no-op if unset)
 uv run pytest                           # DB tests need DATABASE_URL (they use <db>_test)
 ```
 
@@ -707,6 +760,11 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
       SMART questions for the LLM, disk penalties and a server-fit filter (3.5" SATA, ≥ 8 TB).
 - [ ] **Later (disks):** recognise drives inside NMS server lots; SnapRAID parity once a big disk arrives;
       pool disk prices per class in Kč/TB across capacities while per-key data is thin.
+- [~] **Phase 10: more sources.** `source`/`external_id` columns, a per-source id scheme, Aukro's
+      JSON API live (both auctions and fixed-price offers, auction end time stored); Sbazar found and
+      ready but blocked by robots.txt (`Disallow: /` for a generic bot); Facebook Marketplace via
+      Playwright + the owner's cookies, its own low-and-slow cadence, disabled unless configured. Not
+      deployed yet -- `HUNTER_SOURCES` still defaults to `bazos` alone. See "More sources".
 
 ## Credits
 

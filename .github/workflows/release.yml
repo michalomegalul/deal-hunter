@@ -23,10 +23,26 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
+          target: runtime
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
             ghcr.io/${{ github.repository }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ github.event.release.tag_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # The fb-scraper variant (Playwright + Chromium): its own, much bigger image, built only for
+      # the optional fb-scraper compose service (see Dockerfile's `fb` stage and docker-compose.yml).
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: fb
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}-fb
+            ghcr.io/${{ github.repository }}:latest-fb
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.version=${{ github.event.release.tag_name }}

@@ -17,6 +17,12 @@ dependencies = [
     "tzdata>=2026.5",
 ]
 
+[project.optional-dependencies]
+# Facebook Marketplace only; keeps the main image (Dockerfile) and every other source dependency-free.
+# `uv sync --extra fb && uv run playwright install chromium --with-deps` (see docker-compose.yml's
+# fb-scraper service, which is the only place this gets installed).
+fb = ["playwright>=1.47"]
+
 [project.scripts]
 hunt = "deal_hunter.cli:main"
 

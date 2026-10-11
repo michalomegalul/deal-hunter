@@ -1,0 +1,336 @@
+{
+ "content": [
+  {
+   "itemId": 7136499281,
+   "itemName": "Grafika nvidia quadro",
+   "categoryPath": [
+    {
+     "id": 100695,
+     "name": "Počítače a hry",
+     "seoUrl": "pocitace-a-hry"
+    },
+    {
+     "id": 100701,
+     "name": "Komponenty pro PC",
+     "seoUrl": "pc-komponenty"
+    },
+    {
+     "id": 100752,
+     "name": "Grafické karty do PC",
+     "seoUrl": "pc-graficke-karty"
+    }
+   ],
+   "startingTime": "2026-10-07T21:01:01.792+02:00",
+   "endingTime": "2026-10-14T21:00:06+02:00",
+   "buyNowActive": false,
+   "buyNowPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "quantity": 1,
+   "quantityType": "pieces",
+   "attributes": [
+    {
+     "attributeId": 48,
+     "attributeName": "Stav zboží",
+     "attributeValue": "Použité",
+     "attributeValueId": 2,
+     "position": 0
+    }
+   ],
+   "price": {
+    "amount": 2,
+    "currency": "CZK"
+   },
+   "priceWithShipping": {
+    "amount": 102,
+    "currency": "CZK"
+   },
+   "titleImage": {
+    "position": 0,
+    "titleImage": false,
+    "url": "https://cdn.aukro.cz/images/sk1791399511515/thumbnail/grafika-nvidia-quadro-300213600.jpeg"
+   },
+   "titleImageUrl": "https://cdn.aukro.cz/images/sk1791399511515/thumbnail/grafika-nvidia-quadro-300213600.jpeg",
+   "seoUrl": "grafika-nvidia-quadro",
+   "ppPriorityList": true,
+   "ppPriorityListSort": true,
+   "ppHighlight": true,
+   "ppBoldTitle": true,
+   "buyersCountRelative": 1,
+   "itemState": "ACTIVE",
+   "sellerLogin": "BukaCZE",
+   "seller": {
+    "accountActivated": true,
+    "aukroPlus": false,
+    "avatarUrl": "https://cdn.aukro.cz/avatar-images/101875613/large/b17a674d-799f-4fcc-835a-9dc8482a4f12.jpg",
+    "avatarUrlMedium": "https://cdn.aukro.cz/avatar-images/101875613/medium/b17a674d-799f-4fcc-835a-9dc8482a4f12.jpg",
+    "companyAccount": false,
+    "favouritedByCount": 1,
+    "feedbackUniqueUserCount": 12,
+    "positiveFeedbackPercentage": 0.9231,
+    "rating": 11,
+    "registrationDomain": "CZ",
+    "showName": "BukaCZE",
+    "starType": "WHITE",
+    "userId": 101875613
+   },
+   "userWatching": false,
+   "watchersCount": 2,
+   "pepperLevel": 0,
+   "personalPickup": false,
+   "location": "Hlavní město Praha",
+   "postcode": "11000",
+   "aukroFreePriorityList": false,
+   "charity": false,
+   "paymentViaAukro": true,
+   "buyersProtectionAvailable": true,
+   "retailPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "adultContent": false,
+   "auction": true,
+   "aukroPlus": false,
+   "freeShipping": false,
+   "paymentOnline": false,
+   "links": []
+  },
+  {
+   "itemId": 7136827900,
+   "itemName": "Grafická karta ATI Radeon HD 6850 1GB GDDR5 – funkční",
+   "categoryPath": [
+    {
+     "id": 100695,
+     "name": "Počítače a hry",
+     "seoUrl": "pocitace-a-hry"
+    },
+    {
+     "id": 100701,
+     "name": "Komponenty pro PC",
+     "seoUrl": "pc-komponenty"
+    },
+    {
+     "id": 100752,
+     "name": "Grafické karty do PC",
+     "seoUrl": "pc-graficke-karty"
+    }
+   ],
+   "startingTime": "2026-10-09T15:09:03.234+02:00",
+   "endingTime": "2026-10-16T15:08:20+02:00",
+   "buyNowActive": true,
+   "buyNowPrice": {
+    "amount": 450.0,
+    "currency": "CZK"
+   },
+   "quantity": 1,
+   "quantityType": "pieces",
+   "attributes": [
+    {
+     "attributeId": 48,
+     "attributeName": "Stav zboží",
+     "attributeValue": "Použité",
+     "attributeValueId": 2,
+     "position": 0
+    }
+   ],
+   "price": {
+    "amount": 399.0,
+    "currency": "CZK"
+   },
+   "priceWithShipping": {
+    "amount": 464.0,
+    "currency": "CZK"
+   },
+   "titleImage": {
+    "position": 0,
+    "titleImage": false,
+    "url": "https://cdn.aukro.cz/images/sk1791550490333/thumbnail/graficka-karta-ati-radeon-hd-6850-1gb-gddr5-funkcni-300871733.jpeg"
+   },
+   "titleImageUrl": "https://cdn.aukro.cz/images/sk1791550490333/thumbnail/graficka-karta-ati-radeon-hd-6850-1gb-gddr5-funkcni-300871733.jpeg",
+   "seoUrl": "graficka-karta-ati-radeon-hd-6850-1gb-gddr5-funkcni",
+   "ppPriorityList": true,
+   "ppPriorityListSort": true,
+   "ppHighlight": false,
+   "ppBoldTitle": false,
+   "buyersCountRelative": 0,
+   "itemState": "ACTIVE",
+   "sellerLogin": "janz1545",
+   "seller": {
+    "accountActivated": false,
+    "aukroPlus": false,
+    "companyAccount": false,
+    "favouritedByCount": 0,
+    "feedbackUniqueUserCount": 0,
+    "rating": 0,
+    "registrationDomain": "CZ",
+    "showName": "janz1545",
+    "starType": "NOTHING",
+    "userId": 102837888
+   },
+   "userWatching": false,
+   "watchersCount": 4,
+   "pepperLevel": 0,
+   "personalPickup": true,
+   "location": "Orlová",
+   "postcode": "73514",
+   "aukroFreePriorityList": true,
+   "charity": false,
+   "paymentViaAukro": true,
+   "buyersProtectionAvailable": true,
+   "retailPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "adultContent": false,
+   "auction": true,
+   "aukroPlus": false,
+   "freeShipping": false,
+   "paymentOnline": false,
+   "links": []
+  },
+  {
+   "itemId": 7132266578,
+   "itemName": "ASUS RTX 3070 ROG STRIX OC - 8GB",
+   "categoryPath": [
+    {
+     "id": 100695,
+     "name": "Počítače a hry",
+     "seoUrl": "pocitace-a-hry"
+    },
+    {
+     "id": 100701,
+     "name": "Komponenty pro PC",
+     "seoUrl": "pc-komponenty"
+    },
+    {
+     "id": 100752,
+     "name": "Grafické karty do PC",
+     "seoUrl": "pc-graficke-karty"
+    }
+   ],
+   "startingTime": "2026-10-03T20:01:03+02:00",
+   "endingTime": "2026-11-02T20:00:00+01:00",
+   "buyNowActive": true,
+   "buyNowPrice": {
+    "amount": 7499.0,
+    "currency": "CZK"
+   },
+   "quantity": 1,
+   "quantityType": "pieces",
+   "attributes": [
+    {
+     "attributeId": 10064,
+     "attributeName": "Značka",
+     "attributeValue": "Asus",
+     "attributeValueId": 20,
+     "position": 0
+    },
+    {
+     "attributeId": 48,
+     "attributeName": "Stav zboží",
+     "attributeValue": "Použité",
+     "attributeValueId": 2,
+     "position": 0
+    },
+    {
+     "attributeId": 10065,
+     "attributeName": "Značka grafického čipu",
+     "attributeValue": "nVidia",
+     "attributeValueId": 30,
+     "position": 0
+    },
+    {
+     "attributeId": 8820,
+     "attributeName": "Doba dodání (od obdržení platby)",
+     "attributeValue": "1-2 dny",
+     "attributeValueId": 1,
+     "position": 0
+    },
+    {
+     "attributeId": 10069,
+     "attributeName": "Modelové označení",
+     "attributeValue": "GeForce RTX 30xx",
+     "attributeValueId": 191,
+     "position": 0
+    }
+   ],
+   "price": {
+    "amount": 7499.0,
+    "currency": "CZK"
+   },
+   "priceWithShipping": {
+    "amount": 7608.0,
+    "currency": "CZK"
+   },
+   "titleImage": {
+    "position": 0,
+    "titleImage": false,
+    "url": "https://cdn.aukro.cz/images/sk1788357618396/thumbnail/asus-rtx-3070-rog-strix-oc-8gb-293690714.jpeg"
+   },
+   "titleImageUrl": "https://cdn.aukro.cz/images/sk1788357618396/thumbnail/asus-rtx-3070-rog-strix-oc-8gb-293690714.jpeg",
+   "seoUrl": "asus-rtx-3070-rog-strix-oc-8gb",
+   "ppPriorityList": false,
+   "ppPriorityListSort": false,
+   "ppHighlight": false,
+   "ppBoldTitle": false,
+   "buyersCountRelative": 1,
+   "itemState": "ACTIVE",
+   "sellerLogin": "Athep",
+   "seller": {
+    "accountActivated": true,
+    "aukroPlus": true,
+    "avatarUrl": "https://cdn.aukro.cz/avatar-images/12441946/large/0de34421-8e8a-414a-8d7c-f44eb8776205.jpg",
+    "avatarUrlMedium": "https://cdn.aukro.cz/avatar-images/12441946/medium/0de34421-8e8a-414a-8d7c-f44eb8776205.jpg",
+    "companyAccount": true,
+    "favouritedByCount": 1511,
+    "feedbackUniqueUserCount": 3348,
+    "positiveFeedbackPercentage": 0.9997,
+    "rating": 3348,
+    "registrationDomain": "CZ",
+    "showName": "Athep",
+    "starType": "GOLD",
+    "userId": 12441946
+   },
+   "userWatching": false,
+   "watchersCount": 14,
+   "pepperLevel": 0,
+   "personalPickup": true,
+   "location": "Teplice v Čechách",
+   "postcode": "41501",
+   "aukroFreePriorityList": false,
+   "charity": false,
+   "paymentViaAukro": true,
+   "buyersProtectionAvailable": true,
+   "retailPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "adultContent": false,
+   "auction": false,
+   "aukroPlus": true,
+   "freeShipping": false,
+   "paymentOnline": false,
+   "links": []
+  }
+ ],
+ "page": {
+  "number": 0,
+  "size": 60,
+  "totalElements": 1217,
+  "totalPages": 21
+ },
+ "resultReport": {
+  "algorithmByKey": {
+   "listing": "algorithm not found"
+  },
+  "defaultLayout": "LIST",
+  "defaultSort": "relevance",
+  "defaultSortDirection": "DESC",
+  "excludedCategory": false,
+  "hideAds": false,
+  "sort": "relevance",
+  "sortDirection": "DESC",
+  "state": "DEFAULT"
+ }
+}

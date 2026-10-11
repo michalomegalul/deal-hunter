@@ -1,5 +1,6 @@
 """Scrape cycles: read the RSS feed + category pages, fetch new ads, re-check old ones for removal."""
 
+import json
 import logging
 import time
 from collections.abc import Callable
@@ -204,6 +205,62 @@ def scrape_once(
         stats.requests = client.requests - start
 
     return _run(conn, "scrape", body)
+
+
+def ingest_listings(conn: psycopg.Connection, listings: list[Listing], stats: repo.RunStats) -> None:
+    """Save listings that already carry everything a detail page would add (Aukro, sbazar, fb list
+    APIs return the full ad, not a teaser), so there is no separate detail fetch to do."""
+    stats.seen += len(listings)
+    for item in listings:
+        is_new, changed = repo.save_listing(conn, item, detail=True)
+        stats.new += is_new
+        stats.updated += not is_new
+        stats.price_changes += changed
+
+
+def scrape_aukro_once(
+    client: PoliteClient, conn: psycopg.Connection, pages: int = 1, categories: dict | None = None
+) -> repo.RunStats:
+    """One cycle over every watched Aukro category (see aukro.py on why there's only one slug each,
+    not an '-aukce' and a '-bazar' request): `pages` pages of up to aukro.PAGE_SIZE items each."""
+    from deal_hunter import aukro
+
+    categories = categories if categories is not None else aukro.SECTIONS
+
+    def body(stats):
+        start = client.requests
+        for section, cat in categories.items():
+            for page in range(pages):
+                url = aukro.category_url(cat.seo_url, page)
+                try:
+                    resp = client.post_json(url, aukro.request_body(cat.seo_url))
+                except Exception as exc:  # noqa: BLE001
+                    stats.errors.append(f"{cat.seo_url} page {page}: {exc}")
+                    break
+                if resp.status != 200:
+                    stats.errors.append(f"{cat.seo_url} page {page}: HTTP {resp.status}")
+                    break
+                items = aukro.parse_response(json.loads(resp.text), section)
+                if not items:
+                    break
+                ingest_listings(conn, items, stats)
+        stats.requests = client.requests - start
+
+    return _run(conn, "scrape_aukro", body)
+
+
+def scrape_sbazar_once(conn: psycopg.Connection) -> repo.RunStats:
+    """sbazar.cz disallows us via robots.txt (sbazar.py): log it once per call, touch nothing else."""
+    from deal_hunter import sbazar
+
+    def body(stats):
+        try:
+            sbazar.fetch_category()
+        except RuntimeError as exc:
+            stats.errors.append(str(exc))
+            log.warning(str(exc))
+
+    return _run(conn, "scrape_sbazar", body)
 
 
 def backfill(

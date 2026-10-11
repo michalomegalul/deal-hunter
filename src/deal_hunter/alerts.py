@@ -56,6 +56,8 @@ CATEGORY_TAG = {
     "hdd": "floppy_disk",
 }
 
+SOURCE_LABEL = {"sbazar": "Sbazar", "aukro": "Aukro", "fb": "FB Marketplace"}
+
 
 # --- ntfy ---------------------------------------------------------------------------------------------
 
@@ -310,6 +312,9 @@ def format_alert(
     place = place_line(deal, rules.distance if rules is not None else None)
     if place:
         lines.append(place)
+    source = deal.get("source")
+    if source and source != "bazos":
+        lines.append(f"via {SOURCE_LABEL.get(source, source)}")
     tags = [CATEGORY_TAG.get(deal["category"], "shopping_cart")]
     if deal["discount"] >= 0.33:
         tags.append("moneybag")

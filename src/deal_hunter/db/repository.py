@@ -69,11 +69,15 @@ def save_listing(conn: psycopg.Connection, item: Listing, detail: bool) -> tuple
         ).fetchone()
         if old is None:
             conn.execute(
-                "INSERT INTO listings (id, url, title, price_czk, price_kind, location, psc, posted_at, "
-                "description, images, views, seller, raw_category, section, detail_fetched_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() END)",
+                "INSERT INTO listings (id, source, external_id, url, title, price_czk, price_kind, location, "
+                "psc, posted_at, description, images, views, seller, raw_category, section, auction_end_at, "
+                "detail_fetched_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+                "CASE WHEN %s THEN now() END)",
                 (
                     item.id,
+                    item.source,
+                    item.external_id,
                     item.url,
                     item.title,
                     item.price_czk,
@@ -87,6 +91,7 @@ def save_listing(conn: psycopg.Connection, item: Listing, detail: bool) -> tuple
                     item.seller,
                     item.raw_category,
                     item.section,
+                    item.auction_end_at,
                     detail,
                 ),
             )
@@ -113,6 +118,7 @@ def save_listing(conn: psycopg.Connection, item: Listing, detail: bool) -> tuple
             "  ELSE COALESCE(description, %(description)s) END, "
             "images = CASE WHEN %(detail)s THEN %(images)s ELSE images END, "
             "raw_category = COALESCE(%(category)s, raw_category), "
+            "auction_end_at = COALESCE(%(auction_end_at)s, auction_end_at), "
             "detail_fetched_at = CASE WHEN %(detail)s THEN now() ELSE detail_fetched_at END, "
             "last_seen = now(), gone_at = NULL, gone_reason = NULL "
             "WHERE id = %(id)s",
@@ -132,6 +138,7 @@ def save_listing(conn: psycopg.Connection, item: Listing, detail: bool) -> tuple
                 "description": item.description,
                 "images": Jsonb(item.images),
                 "category": item.raw_category,
+                "auction_end_at": item.auction_end_at,
             },
         )
         return False, changed
@@ -416,7 +423,7 @@ def upsert_candidate(
 def deals_in_state(conn: psycopg.Connection, *states: str) -> list[dict]:
     cur = conn.execute(
         "SELECT d.*, l.title, l.url, l.location, l.psc, l.seller, l.description, l.gone_at, l.first_seen, "
-        "l.images, l.distance_km, l.distance_src, n.features, "
+        "l.images, l.distance_km, l.distance_src, l.source, n.features, "
         "(SELECT t.result FROM triage t WHERE t.listing_id = d.listing_id AND t.status = 'done' "
         " ORDER BY t.prompt_version DESC, t.updated_at DESC LIMIT 1) AS triage_result FROM deals d JOIN listings l ON l.id = d.listing_id "
         "JOIN normalized n ON n.listing_id = d.listing_id WHERE d.state = ANY(%s) ORDER BY d.discount DESC",
