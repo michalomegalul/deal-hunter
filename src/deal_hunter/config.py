@@ -25,7 +25,7 @@ class Settings:
     user_agent: str
     min_delay: float  # seconds between any two requests to Bazoš (never below 3)
     pages: int  # GPU category pages read by every scrape cycle (other sections: bazos.SECTIONS)
-    sections: tuple[str, ...]  # Bazoš sections to scrape: graficka, pc, notebook, hdd
+    sections: tuple[str, ...]  # Bazoš sections to scrape: graficka, pc, notebook, hdd, + watch sections
     loop_minutes: float  # scrape cycle interval
     recheck_hours: float  # how often active listings are re-checked
     recheck_limit: int  # max detail pages per recheck run
@@ -52,6 +52,11 @@ class Settings:
     ntfy_token: str
     ntfy_feedback_topic: str
     ntfy_feedback_token: str  # write-only token for the feedback topic, embedded in the buttons
+    # --- watchlists (Phase 10 part 1) ---
+    ntfy_watch_topic: str  # ntfy topic read for watch add/list/stop/help commands
+    ntfy_watch_token: str  # read-only token for that topic
+    watch_scan_hours: float  # how far back `hunt work` looks for listings to match against watches
+    watch_max_per_day: int  # watch-hit pushes per day, separate from HUNTER_ALERT_MAX_PER_DAY
     alerts_enabled: bool
     alert_min_score: float
     alert_max_per_day: int
@@ -146,7 +151,9 @@ def load_settings() -> Settings:
         pages=int(os.getenv("HUNTER_PAGES", "2")),
         sections=tuple(
             s.strip()
-            for s in os.getenv("HUNTER_SECTIONS", "graficka,pc,notebook,hdd").split(",")
+            for s in os.getenv(
+                "HUNTER_SECTIONS", "graficka,pc,notebook,hdd,pamet,sit,wifi,case,motherboard"
+            ).split(",")
             if s.strip()
         ),
         loop_minutes=float(os.getenv("HUNTER_LOOP_MINUTES", "10")),
@@ -173,6 +180,10 @@ def load_settings() -> Settings:
         ntfy_token=os.getenv("NTFY_TOKEN", ""),
         ntfy_feedback_topic=os.getenv("HUNTER_NTFY_FEEDBACK_TOPIC", "deals-feedback"),
         ntfy_feedback_token=os.getenv("NTFY_FEEDBACK_TOKEN", ""),
+        ntfy_watch_topic=os.getenv("HUNTER_WATCH_TOPIC", "watch"),
+        ntfy_watch_token=os.getenv("NTFY_WATCH_TOKEN", ""),
+        watch_scan_hours=float(os.getenv("HUNTER_WATCH_SCAN_HOURS", "48")),
+        watch_max_per_day=int(os.getenv("HUNTER_WATCH_MAX_PER_DAY", "10")),
         alerts_enabled=_flag("HUNTER_ALERTS_ENABLED", "false"),
         alert_min_score=float(os.getenv("HUNTER_ALERT_MIN_SCORE", "0.12")),
         alert_max_per_day=int(os.getenv("HUNTER_ALERT_MAX_PER_DAY", "5")),

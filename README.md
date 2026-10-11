@@ -51,6 +51,11 @@ else is built on what it collects.
 - **New prices** (inside the worker, weekly): the lowest current offer on Zboží.cz for ~20 GPU models
   and ~10 popular hard disks, plus launch MSRPs in the GPU catalog. Shown in pushes, used as a sanity check and as a prior for
   models with few ads. See "New prices".
+- **Watchlists** (Phase 10 part 1): standing "I want X" searches (DDR4 RAM, an LSI HBA, a rack case, a
+  19" rack, UniFi gear, ...) managed from a phone over ntfy, matched against every new ad from any
+  source/section by a keyword prefilter and then an LLM check, pushed on the deals topic with their
+  own daily cap. Five extra Bazoš sections (RAM, network, cases, motherboards) feed them, read every
+  45 min, not the main 10-min loop. See "Watchlists".
 
 ## Fair price (v1)
 
@@ -214,6 +219,61 @@ at the next bid, the end time, inspection and pickup, or says the lot has ended.
 `hunt notify-test --ad <id>` pushes a real ad as a deal (titled "TEST · …", with its photo); its 👍
 carries `"test": true`, so the follow-up is titled "TEST · 👍 …" and nothing is stored as a label or
 flip. `hunt feedback` (without `--loop`) handles what is cached on the topic once and exits.
+
+## Watchlists
+
+Standing "I want X" searches, outside the GPU/office/disk pipeline above: not priced, not scored,
+just matched and pushed. Two independent pieces (`watchlist.py`).
+
+- **Matching**, inside the worker cycle (`hunt work`, every `HUNTER_WORK_MINUTES`): every active
+  watch is checked against its own recent, not-yet-checked listings (`HUNTER_WATCH_SCAN_HOURS`,
+  default 48 h) from *any* source and section -- not only the five sections below. A cheap
+  keyword/regex prefilter on title + description runs first (`watchlist.prefilter`: include groups
+  OR'd, terms within a group AND'd, an exclude list that drops a match outright); only prefilter
+  hits go to the LLM. The LLM check (the same local Ollama model as `triage.py`, JSON-schema output,
+  temperature 0, disk cache) answers yes/no plus `{product_type, brand, model, condition, price_czk}`
+  with an exact quote from the ad as evidence -- a quote that isn't actually in the ad is treated as
+  no match, same defence as triage's scam-signal quotes. Every (watch, listing) pair that passes the
+  prefilter is recorded in `watch_hits` exactly once (dedups the LLM call); a miss there is never
+  stored, so it is simply looked at again next cycle until it ages out of the scan window. A match
+  is pushed on the `deals` topic (title, price, distance, the LLM's evidence quote, the watch's tag,
+  the source if not Bazoš) respecting quiet hours and its own daily cap (`HUNTER_WATCH_MAX_PER_DAY`,
+  separate from `HUNTER_ALERT_MAX_PER_DAY`).
+- **Management**, its own small ntfy listener and compose service (`hunt watch listen --loop`, the
+  same live-stream pattern as `feedback.py`): reads commands from its own topic
+  (`HUNTER_WATCH_TOPIC`, default `watch`, read with `NTFY_WATCH_TOKEN`) and replies on the `deals`
+  topic. Only messages on that topic are read at all, and only text that parses as one of the
+  commands below does anything; anything else gets a "didn't understand" reply. Tolerant of Czech or
+  English, case-insensitive:
+
+  ```
+  watch ddr4 2x16gb max 1500 km 50 #homelab   (also: sleduj, add, přidej)
+  list                                        (also: seznam, ls)
+  stop 3                                      (also: zastav, smazat, delete, remove)
+  help                                        (also: nápověda, ?)
+  ```
+
+  The same CRUD is available from the CLI: `hunt watch add/list/stop`, plus `hunt watch seed` for
+  the defaults below (idempotent -- matched by `query`, safe to run again after an upgrade).
+
+**Default watches** (`watchlist.SEEDS`; owner lives in Prague, so radii are modest): DDR4 UDIMM
+2x16GB or 2x32GB non-ECC 3200 (excludes ECC/RDIMM/SODIMM/DDR3/DDR5), an LSI HBA (9207-8i / 9300-8i /
+9211-8i, IT mode), a 4U rack case fitting mATX with many 3.5" bays, a 19" rack (rozvaděč) of at
+least 12U, and UniFi gear (`#homelab` tag on all five).
+
+**Five extra Bazoš sections** feed the prefilter with ads the main pipeline never sees: RAM
+(`/pamet/`, RSS `cat=11`), network gear (`/sit/`, `cat=14`; `/wifi/`, `cat=28`), cases/PSUs
+(`/case/`, `cat=16`) and motherboards (`/motherboard/`, `cat=19`) -- plain category/RSS URLs,
+allowed by robots.txt the same way the other four sections are (checked 2026-10-11; only
+`hledat`/`cenaod`/`cenado`-style search URLs are disallowed, and this app never builds those). They
+are read every 45 min (`bazos.Section.cadence_min`, gated in `scraper.scrape_once` via a `kv` entry
+per section), not the main 10-minute loop, to keep the request budget low, and marked
+`excluded_reason='watch_only'` by the normalizer so they never show up as unmatched GPUs in `hunt
+stats`/`hunt review`. They're part of the default `HUNTER_SECTIONS`; drop them from the env var to
+scrape only the original four sections (and disable watchlists in practice). Matching Aukro
+categories were not added: there is no plain `GET` category page to check against robots.txt the
+way Bazoš has, and verifying its JSON API's category slugs for RAM/network/case/motherboard needs
+more than a quick look, so this is left for later rather than guessed at and silently wrong.
 
 ## New prices and priors
 
@@ -629,6 +689,8 @@ pc.bazos.cz ───────────────────► hunt sc
 - `sources.py`: the global id scheme every source shares (`make_id`). `aukro.py`: the Aukro JSON API
   parser. `sbazar.py`: robots.txt-blocked, parser only (never makes a request). `facebook.py`:
   Playwright + GraphQL capture, its own `hunt scrape-fb --loop` cadence. See "More sources".
+- `watchlist.py`: watchlists (Phase 10 part 1) -- the keyword prefilter, the LLM check, the worker's
+  scan + push step, and the `hunt watch listen --loop` command listener. See "Watchlists".
 
 ## Usage
 
@@ -659,13 +721,15 @@ uv run hunt auctions scrape --dry-run   # running IT lots on nms.gov.cz (nothing
 uv run hunt auctions scrape --once      # lists + due detail pages, LLM extraction, valuation (no pushes)
 uv run hunt auctions list               # running lots with valuations, sold lots: final price/unit vs fair
 uv run hunt auctions value 62388        # one lot: items, mapping, valuation breakdown
-<<<<<<< HEAD
 HUNTER_SOURCES=bazos,aukro uv run hunt scrape --once  # also read Aukro (see "More sources")
 uv sync --extra fb && uv run playwright install chromium   # only for the fb source
 FB_COOKIES_FILE=cookies.json uv run hunt scrape-fb --once  # one fb cycle (no-op if unset)
-=======
 uv run hunt web                         # the read-only LAN website (deals, prices, auctions), :8080
->>>>>>> origin/main
+uv run hunt watch seed                  # add the default homelab watches (idempotent)
+uv run hunt watch add ddr4 16gb max 1500 km 50 #homelab  # add a watch from the CLI
+uv run hunt watch list                  # every watch and its id
+uv run hunt watch stop 3                # deactivate a watch
+uv run hunt watch listen [--loop]       # handle add/list/stop/help commands from the watch ntfy topic
 uv run pytest                           # DB tests need DATABASE_URL (they use <db>_test)
 ```
 
@@ -673,14 +737,16 @@ uv run pytest                           # DB tests need DATABASE_URL (they use <
 
 Its own compose stack in `/opt/deal-hunter` on the homelab (CT 121): `db` (Postgres 17),
 `scraper`, `rechecker`, `worker` (256 MB limit; the LLM cache lives in the `hunterdata` volume;
-the auction and new-price steps run inside it) and `feedback` (160 MB limit, the live 👍/👎 listener,
-sharing the LLM cache).
+the auction, new-price and watchlist-matching steps run inside it), `feedback` (160 MB limit, the
+live 👍/👎 listener, sharing the LLM cache) and `watchlist` (96 MB limit, the live watch
+add/list/stop/help listener; idles quietly until `NTFY_WATCH_TOKEN` is set).
 Publishing a GitHub Release builds the image and pushes it to GHCR. `hunter-deploy.timer` notices
 the new release within 5 minutes, pulls it, migrates and restarts the services
 (`deploy/deploy.sh`). Nothing on GitHub can reach into the server. Secrets live only in
-`/opt/deal-hunter/.env`: the database password, `NTFY_TOKEN` (user `deal-hunter`) and
-`NTFY_FEEDBACK_TOKEN` (user `deals-feedback-writer`), next to `HUNTER_ALERTS_ENABLED`. Ollama runs
-on CT 100 (`onboot=1`). If it is off, candidates simply wait.
+`/opt/deal-hunter/.env`: the database password, `NTFY_TOKEN` (user `deal-hunter`),
+`NTFY_FEEDBACK_TOKEN` (user `deals-feedback-writer`) and `NTFY_WATCH_TOKEN` (read-only on the
+`watch` topic), next to `HUNTER_ALERTS_ENABLED`. Ollama runs on CT 100 (`onboot=1`). If it is off,
+candidates (and watch matches) simply wait.
 
 ## Honest limitations
 
@@ -795,6 +861,11 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
       ready but blocked by robots.txt (`Disallow: /` for a generic bot); Facebook Marketplace via
       Playwright + the owner's cookies, its own low-and-slow cadence, disabled unless configured. Not
       deployed yet -- `HUNTER_SOURCES` still defaults to `bazos` alone. See "More sources".
+- [x] **Phase 10 part 1: watchlists.** Standing "I want X" searches managed from a phone over ntfy
+      (`watch`/`list`/`stop`/`help`, Czech or English) or the CLI, a keyword prefilter + LLM check
+      against every new listing from any source/section, pushes with their own daily cap, five
+      default homelab watches (`hunt watch seed`), five extra Bazoš sections (RAM, network, cases,
+      motherboards) at a slower cadence. See "Watchlists".
 
 ## Credits
 

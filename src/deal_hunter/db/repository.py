@@ -530,6 +530,24 @@ def kv_set(conn: psycopg.Connection, key: str, value) -> None:
         )
 
 
+def section_due(conn: psycopg.Connection, section: str, cadence_min: float) -> bool:
+    """Has it been at least `cadence_min` since this section (bazos.Section.cadence_min) was last
+    scraped? True the first time (no kv row yet)."""
+    import datetime as dt
+
+    last = kv_get(conn, f"section_last_scraped:{section}")
+    if not last:
+        return True
+    elapsed = (dt.datetime.now(dt.UTC) - dt.datetime.fromisoformat(last)).total_seconds() / 60
+    return elapsed >= cadence_min
+
+
+def mark_section_scraped(conn: psycopg.Connection, section: str) -> None:
+    import datetime as dt
+
+    kv_set(conn, f"section_last_scraped:{section}", dt.datetime.now(dt.UTC).isoformat())
+
+
 def week_summary(conn: psycopg.Connection) -> dict:
     """Numbers for the weekly digest."""
     out = {}
@@ -994,3 +1012,106 @@ def price_history(conn: psycopg.Connection, listing_id: int) -> list[dict]:
         (listing_id,),
     )
     return _dicts(cur)
+
+
+# --- watchlists (Phase 10 part 1) ------------------------------------------------------------------
+
+
+def insert_watch(
+    conn: psycopg.Connection,
+    query: str,
+    keywords: dict,
+    categories: list[str] | None = None,
+    max_price: int | None = None,
+    radius_km: float | None = None,
+    tag: str | None = None,
+    created_by: str | None = None,
+) -> int:
+    row = conn.execute(
+        "INSERT INTO watches (query, keywords, categories, max_price, radius_km, tag, created_by) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        (query, Jsonb(keywords), Jsonb(categories or []), max_price, radius_km, tag, created_by),
+    )
+    watch_id = row.fetchone()[0]
+    conn.commit()
+    return watch_id
+
+
+def list_watches(conn: psycopg.Connection, active_only: bool = False) -> list[dict]:
+    cur = conn.execute(
+        "SELECT id, query, keywords, categories, max_price, radius_km, tag, active, created_at, created_by "
+        "FROM watches" + (" WHERE active" if active_only else "") + " ORDER BY id"
+    )
+    return _dicts(cur)
+
+
+def get_watch(conn: psycopg.Connection, watch_id: int) -> dict | None:
+    cur = conn.execute(
+        "SELECT id, query, keywords, categories, max_price, radius_km, tag, active, created_at, created_by "
+        "FROM watches WHERE id = %s",
+        (watch_id,),
+    )
+    rows = _dicts(cur)
+    return rows[0] if rows else None
+
+
+def set_watch_active(conn: psycopg.Connection, watch_id: int, active: bool) -> bool:
+    """Returns False if there is no watch with that id."""
+    with conn.transaction():
+        cur = conn.execute("UPDATE watches SET active = %s WHERE id = %s", (active, watch_id))
+    return cur.rowcount == 1
+
+
+def listings_for_watch(conn: psycopg.Connection, watch_id: int, hours: float, limit: int) -> list[dict]:
+    """Recent, active listings (any source/section) this watch hasn't been checked against yet.
+
+    A prefilter miss is never stored in `watch_hits` (see the migration), so it is simply seen
+    again on the next cycle until it ages out of the `hours` window -- bounded and cheap (no LLM
+    call unless the prefilter matches).
+    """
+    cur = conn.execute(
+        "SELECT l.id, l.title, l.description, l.price_czk, l.location, l.psc, l.source, l.url, "
+        "l.images, l.section, l.distance_km FROM listings l "
+        "WHERE l.first_seen > now() - make_interval(hours => %s) AND l.gone_at IS NULL "
+        "AND NOT EXISTS (SELECT 1 FROM watch_hits h WHERE h.watch_id = %s AND h.listing_id = l.id) "
+        "ORDER BY l.first_seen LIMIT %s",
+        (hours, watch_id, limit),
+    )
+    return _dicts(cur)
+
+
+def record_watch_hit(
+    conn: psycopg.Connection, watch_id: int, listing_id: int, matched: bool, result: dict
+) -> bool:
+    """Returns True if this is the first time (watch_id, listing_id) was recorded."""
+    with conn.transaction():
+        cur = conn.execute(
+            "INSERT INTO watch_hits (watch_id, listing_id, matched, result) VALUES (%s, %s, %s, %s) "
+            "ON CONFLICT (watch_id, listing_id) DO NOTHING",
+            (watch_id, listing_id, matched, Jsonb(result)),
+        )
+    return cur.rowcount == 1
+
+
+def pending_watch_matches(conn: psycopg.Connection, limit: int = 100) -> list[dict]:
+    """Matched hits never pushed yet, oldest first, with the listing and the watch they're for."""
+    cur = conn.execute(
+        "SELECT h.watch_id, h.listing_id, h.result, h.created_at, w.query, w.tag, "
+        "l.title, l.price_czk, l.location, l.psc, l.url, l.images, l.source, l.distance_km "
+        "FROM watch_hits h JOIN watches w ON w.id = h.watch_id JOIN listings l ON l.id = h.listing_id "
+        "WHERE h.matched AND h.pushed_at IS NULL ORDER BY h.created_at LIMIT %s",
+        (limit,),
+    )
+    return _dicts(cur)
+
+
+def mark_watch_pushed(conn: psycopg.Connection, watch_id: int, listing_id: int) -> None:
+    conn.execute(
+        "UPDATE watch_hits SET pushed_at = now() WHERE watch_id = %s AND listing_id = %s",
+        (watch_id, listing_id),
+    )
+    conn.commit()
+
+
+def watch_pushes_since(conn: psycopg.Connection, since) -> int:
+    return conn.execute("SELECT count(*) FROM watch_hits WHERE pushed_at >= %s", (since,)).fetchone()[0]
