@@ -528,7 +528,7 @@ Everything from an ad (title, description, seller, location, the LLM's verdict) 
 and is HTML-escaped before it reaches the page; every query is parameterized (no SQL is built in
 `web.py` itself - it calls into `repository.py`, `pricing.py` and `auction_cycle.py`). Run it locally
 with `uv run hunt web` (defaults to `0.0.0.0:8080`); in production it is its own compose service
-(`web`), publishing port 8080 on the homelab's LAN only - no Cloudflare tunnel, since it was never
+(`web`), publishing host port 8090 (8080 is bot-arena's on CT 121) on the homelab's LAN only - no Cloudflare tunnel, since it was never
 meant to be reachable from outside.
 
 ## Being polite
