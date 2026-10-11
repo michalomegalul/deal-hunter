@@ -168,7 +168,10 @@ def test_push_matches_respects_the_daily_cap(conn):
     repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
     ram_listing(conn, listing_id=501)
     ram_listing(conn, listing_id=502, title="Corsair DDR4 2x16GB 3200MHz")
-    llm = FakeLLM(json.dumps(GOOD_ANSWER), json.dumps(GOOD_ANSWER))
+    # each listing needs its own evidence quote: an evidence string that isn't actually in the ad
+    # is treated as unsupported (clean_watch_answer), same anti-hallucination check as triage.py
+    other = {**GOOD_ANSWER, "evidence": "Corsair DDR4 2x16GB 3200MHz"}
+    llm = FakeLLM(json.dumps(GOOD_ANSWER), json.dumps(other))
     watchlist.scan_and_match(conn, llm, None, hours=48)
     assert len(repo.pending_watch_matches(conn)) == 2
     site = FakeNtfy()
