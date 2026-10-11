@@ -282,6 +282,67 @@ def test_auction_units_are_a_lower_anchor_for_office():
     assert fp.median == 1450 and fp.raw_median == 800 and "floor" in fp.prior_note
 
 
+# --- Phase 9 review fix: disks pooled per class in Kč/TB ----------------------------------------------
+
+
+def test_fair_price_per_tb_pools_capacities():
+    samples = [s(i, 980 * 8, model="hdd35 nas", category="hdd", capacity_tb=8.0) for i in range(3)] + [
+        s(10 + i, 1000 * 12, model="hdd35 nas", category="hdd", capacity_tb=12.0) for i in range(3)
+    ]
+    fp = fair_price(samples, per_tb=True)
+    assert fp.per_tb and 980 <= fp.median <= 1000  # a Kč/TB figure, not a Kč one
+    assert fp.for_listing({"capacity_tb": 8.0}) == round(fp.median * 8)
+    assert fp.for_listing({"capacity_tb": 16.0}) == round(fp.median * 16)
+    assert fp.for_listing({}) == 0  # no capacity: nothing to scale by
+
+
+def test_fair_price_per_tb_drops_samples_without_capacity():
+    samples = [s(i, 8000, model="hdd35 nas", category="hdd", capacity_tb=8.0) for i in range(4)]
+    samples.append(s(99, 9000, model="hdd35 nas", category="hdd"))  # no capacity_tb: unusable per-TB
+    fp = fair_price(samples, per_tb=True)
+    assert fp.n == 4 and fp.n_listings == 5
+
+
+def test_estimate_all_pools_hdd35_classes_not_ssd_or_sas():
+    samples = [s(i, 980 * 8, model="hdd35 nas", category="hdd", capacity_tb=8.0) for i in range(4)] + [
+        s(10 + i, 2000, model="ssd sata 1tb", category="hdd", capacity_tb=1.0) for i in range(4)
+    ]
+    prices = estimate_all(samples)
+    assert prices["hdd35 nas"].per_tb and prices["hdd35 nas"].median == pytest.approx(980, abs=1)
+    assert not prices["ssd sata 1tb"].per_tb and prices["ssd sata 1tb"].median == 2000
+
+
+def test_disk_new_per_tb_groups_by_class_and_takes_the_median():
+    zbozi = {
+        "hdd35 nas 8tb": (8000, 10),  # 1000 Kč/TB
+        "hdd35 nas 12tb": (13200, 5),  # 1100 Kč/TB
+        "hdd35 enterprise 16tb": (16000, 2),  # 1000 Kč/TB, different class: ignored for 'hdd35 nas'
+        "rtx 3070": (9990, 2),  # not a disk key: ignored
+    }
+    new = pricing.disk_new_per_tb(zbozi)
+    assert new["hdd35 nas"] == pricing.NewPrice(1050, "zbozi", "2 keys, 15 shops")
+    assert new["hdd35 enterprise"] == pricing.NewPrice(1000, "zbozi", "1 key, 2 shops")
+    assert "rtx 3070" not in new
+
+
+def test_pooled_disk_class_shrinks_toward_a_per_tb_prior():
+    samples = [
+        s(i, p, model="hdd35 nas", category="hdd", capacity_tb=8.0)
+        for i, p in enumerate([700 * 8, 720 * 8, 740 * 8, 760 * 8, 780 * 8])
+    ]
+    prices = estimate_all(samples)
+    fp = prices["hdd35 nas"]
+    assert fp.per_tb and 700 <= fp.median <= 780  # already Kč/TB
+    new = {"hdd35 nas": pricing.NewPrice(1200, "zbozi", "2 keys, 10 shops")}
+    pricing.apply_priors(prices, new, confident_n=15)
+    # the hdd category fallback ratio (0.6, no qualifying model yet), not the GPU one (0.75)
+    assert (
+        fp.prior == round(1200 * pricing.NEW_RATIO_FALLBACK_BY_CATEGORY["hdd"]) and fp.prior_source == "new"
+    )
+    assert fp.for_listing({"capacity_tb": 8.0}) == round(fp.median * 8)
+    assert not fp.over_new
+
+
 def test_auction_unit_prices_only_from_clean_single_model_lots():
     def item(key, q, **kw):
         return {"key": key, "quantity": q, "verified": True, "condition": "untested", **kw}

@@ -85,8 +85,15 @@ def _float_or_none(name: str) -> float | None:
     return float(raw) if raw else None
 
 
+HDD_PICKUP_KM_DEFAULT = 300.0  # disks ship easily; wider than HUNTER_PICKUP_KM unless overridden
+
+
 def pickup_by_category(env=None) -> tuple[tuple[str, float], ...]:
-    """HUNTER_PICKUP_KM_<CATEGORY>=km for any category (HDD, GPU, OFFICE_PC, OFFICE_LAPTOP; OFFICE = both)."""
+    """HUNTER_PICKUP_KM_<CATEGORY>=km for any category (HDD, GPU, OFFICE_PC, OFFICE_LAPTOP; OFFICE = both).
+
+    HDD defaults to HDD_PICKUP_KM_DEFAULT (300 km) even with no env var set; HUNTER_PICKUP_KM_HDD
+    (including =0, to fall back to the plain HUNTER_PICKUP_KM) overrides it like any other category.
+    """
     env = os.environ if env is None else env
     out: dict[str, float] = {}
     for name, value in sorted(env.items()):
@@ -95,6 +102,7 @@ def pickup_by_category(env=None) -> tuple[tuple[str, float], ...]:
         category = name.removeprefix("HUNTER_PICKUP_KM_").lower()
         for c in ("office_pc", "office_laptop") if category == "office" else (category,):
             out.setdefault(c, float(value))
+    out.setdefault("hdd", HDD_PICKUP_KM_DEFAULT)
     return tuple(sorted(out.items()))
 
 

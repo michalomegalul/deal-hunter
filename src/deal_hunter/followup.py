@@ -194,7 +194,7 @@ def disk_summary(features: dict | None, t: dict | None, price: int | None, fp) -
     from deal_hunter import storage
 
     f = features or {}
-    new = fp.new_price if fp is not None and fp.new_source == "zbozi" else None
+    new = fp.new_for_listing(f.get("capacity_tb")) if fp is not None and fp.new_source == "zbozi" else None
     return storage.summary_line(f, (t or {}).get("disk") or {}, storage.unit_price(price, f), new)
 
 

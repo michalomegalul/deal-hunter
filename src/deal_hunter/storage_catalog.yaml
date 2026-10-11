@@ -7,7 +7,7 @@
 #
 # Patterns are regexes on the prepared title (lower case, no accents, "3,5" -> "3.5"; see prepare()).
 # Bump `version` whenever the rules change, so `hunt normalize` re-processes old listings.
-version: 1
+version: 2
 
 # Who made it. Model numbers imply the brand too (storage.py: ST..., WD..., HU..., MG..., HDW...).
 brands:
@@ -62,8 +62,13 @@ externals:
 
 # Seagate enterprise (NM) and 10k/15k (MM/MP/MX) part numbers. Seagate makes most enterprise models in
 # a SATA and a SAS version that differ only in the suffix; listed are the common ones (from Seagate's
-# data sheets as remembered, see the PR's doubts). Unknown suffixes stay 'unknown' unless the text says.
-seagate_sas: [nm0023, nm0025, nm0027, nm0034, nm0045, nm0075, nm0095, nm0096, nm002g, nm004j, nm002d, nm004d]
+# data sheets as remembered). Not every suffix was equally sure to remember right, so `seagate_sas` is
+# split: `certain` sets the interface to SAS; `uncertain` was remembered less confidently (no data
+# sheet checked) and is treated as unknown, same as a suffix that isn't in this table at all - the word
+# "SAS" in the ad's own text, or storage.py's HGST/WD 'S' marker, can still call it SAS from the text.
+seagate_sas:
+  certain: [nm0023, nm0025, nm0034, nm0045, nm0075, nm0095, nm002g, nm004j, nm002d]
+  uncertain: [nm0027, nm0096, nm004d]
 seagate_sata: [nm0007, nm0008, nm0016, nm0018, nm0024, nm0033, nm0035, nm0055, nm0086, nm0115, nm000a, nm001g, nm000j, nm007d]
 
 # SMR / CMR by model number (wins over the line default).

@@ -85,6 +85,17 @@ def test_interface(title, interface):
     assert normalize(title).features.get("interface") == interface
 
 
+def test_uncertain_seagate_nm_suffix_is_unknown_not_sas():
+    # NM0096 was remembered as SAS but never checked against a data sheet (storage_catalog.yaml
+    # marks it `uncertain`): without the word SAS in the text it's left unknown, not guessed.
+    assert storage.part_number("st12000nm0096").interface is None
+    r = normalize("Seagate Exos 12TB ST12000NM0096")
+    assert r.features.get("interface") is None
+    assert storage.badges(r.features).startswith("⚠ check SATA vs SAS")
+    # the same suffix with the word SAS in the title is still certain, from the text
+    assert normalize("Seagate Exos SAS 12TB ST12000NM0096").features.get("interface") == "sas"
+
+
 def test_seagate_10k_and_15k_drives_are_sas():
     assert storage.part_number("seagate st900mm0006").interface == "sas"
     assert storage.part_number("st1200mm0108").kind == "hdd_25"
@@ -95,7 +106,7 @@ def test_sas_drives_get_their_own_key_and_never_fit_the_server():
     assert r.model == "hdd35 enterprise sas 16tb"
     assert storage.server_fit(r.features, 8).startswith("SAS drive: not usable on this server")
     sata = normalize("Seagate Exos X16 16TB ST16000NM001G")
-    assert sata.model == "hdd35 enterprise 16tb" and storage.server_fit(sata.features, 8) is None
+    assert sata.model == "hdd35 enterprise" and storage.server_fit(sata.features, 8) is None
 
 
 @pytest.mark.parametrize(
@@ -132,21 +143,21 @@ def test_host_managed_smr_ultrastar_does_not_fit():
 @pytest.mark.parametrize(
     "title, key",
     [
-        ("WD Red Plus 8TB", "hdd35 nas 8tb"),
-        ("Seagate IronWolf Pro 12TB", "hdd35 nas 12tb"),
-        ("Toshiba N300 8TB", "hdd35 nas 8tb"),
-        ("Seagate Exos X18 18TB ST18000NM000J", "hdd35 enterprise 18tb"),
-        ("WD Gold 10TB", "hdd35 enterprise 10tb"),
-        ("HGST Ultrastar 10TB", "hdd35 enterprise 10tb"),
-        ("Toshiba MG09 18TB", "hdd35 enterprise 18tb"),
-        ("WD Purple 8TB", "hdd35 surveillance 8tb"),
-        ("Seagate SkyHawk 6TB", "hdd35 surveillance 6tb"),
-        ("Seagate Barracuda 4TB", "hdd35 desktop 4tb"),
-        ("Toshiba X300 8TB", "hdd35 desktop 8tb"),
-        ("WD Elements 12TB", "external 12tb"),  # 6 TB and up: a desktop (shuckable) external
-        ("WD Elements Desktop 8TB", "external 8tb"),
-        ("Seagate Expansion Desktop 16TB", "external 16tb"),
-        ("WD My Book 14TB", "external 14tb"),
+        ("WD Red Plus 8TB", "hdd35 nas"),
+        ("Seagate IronWolf Pro 12TB", "hdd35 nas"),
+        ("Toshiba N300 8TB", "hdd35 nas"),
+        ("Seagate Exos X18 18TB ST18000NM000J", "hdd35 enterprise"),
+        ("WD Gold 10TB", "hdd35 enterprise"),
+        ("HGST Ultrastar 10TB", "hdd35 enterprise"),
+        ("Toshiba MG09 18TB", "hdd35 enterprise"),
+        ("WD Purple 8TB", "hdd35 surveillance"),
+        ("Seagate SkyHawk 6TB", "hdd35 surveillance"),
+        ("Seagate Barracuda 4TB", "hdd35 desktop"),
+        ("Toshiba X300 8TB", "hdd35 desktop"),
+        ("WD Elements 12TB", "external"),  # 6 TB and up: a desktop (shuckable) external
+        ("WD Elements Desktop 8TB", "external"),
+        ("Seagate Expansion Desktop 16TB", "external"),
+        ("WD My Book 14TB", "external"),
         ("Seagate Expansion Portable 5TB", "external25 5tb"),
         ("WD Elements 4TB", "external25 4tb"),
         ("Pevný disk 8TB 3.5", "hdd35 8tb"),
@@ -154,13 +165,21 @@ def test_host_managed_smr_ultrastar_does_not_fit():
         ("Seagate 2TB", "hdd 2tb"),  # form unknown
         ("Samsung 870 EVO 1TB", "ssd sata 1tb"),
         ("Samsung 990 PRO 2TB", "ssd nvme 2tb"),
-        ("WD 8TB WD80EFZX", "hdd35 nas 8tb"),  # the model number says Red Plus
-        ("Disk ST16000NM001G", "hdd35 enterprise 16tb"),  # and the capacity
+        ("WD 8TB WD80EFZX", "hdd35 nas"),  # the model number says Red Plus
+        ("Disk ST16000NM001G", "hdd35 enterprise"),  # same class as the 18 TB Exos above: pooled
         ("HDD 1,5TB", "hdd 1.5tb"),
     ],
 )
 def test_pricing_keys(title, key):
     assert normalize(title).model == key
+
+
+def test_hdd35_classes_pool_capacities_into_one_key():
+    assert normalize("WD Red Plus 8TB").model == normalize("WD Red Plus 12TB").model == "hdd35 nas"
+    assert storage.pooled_key("hdd35 nas") and storage.pooled_key("external")
+    assert not storage.pooled_key("hdd35 8tb") and not storage.pooled_key("hdd35 enterprise sas 4tb")
+    assert storage.split_capacity_key("hdd35 nas 8tb") == ("hdd35 nas", 8.0)
+    assert storage.split_capacity_key("hdd35 nas") is None
 
 
 @pytest.mark.parametrize(
@@ -222,7 +241,7 @@ def test_description_fills_in_what_the_title_leaves_out():
         fixture_text("detail_hdd_224787138.html"), "https://pc.bazos.cz/inzerat/224787138/x.php"
     )
     r = normalize(detail.title, detail.description)
-    assert r.model == "hdd35 enterprise 18tb"
+    assert r.model == "hdd35 enterprise"
     f = r.features
     assert (f["part"], f["interface"], f["quantity"], f["price_per"]) == ("MG09ACA18TE", "sata", 3, "unit")
     assert storage.server_fit(f, 8) is None
@@ -236,7 +255,7 @@ def test_description_fills_in_what_the_title_leaves_out():
 
 def test_classify_and_detail_pages_only_for_server_candidates():
     assert classify("WD Red Plus 8TB", "hdd").category == "hdd"
-    assert classify("WD Red Plus 8TB", "hdd").model == "hdd35 nas 8tb"
+    assert classify("WD Red Plus 8TB", "hdd").model == "hdd35 nas"
     assert storage.wants_detail(normalize("WD Red Plus 8TB"))
     assert storage.wants_detail(normalize("HDD 8TB"))  # form unknown: the page may say
     assert not storage.wants_detail(normalize("Samsung 990 PRO 2TB"))
@@ -296,7 +315,7 @@ def test_badges_and_summary():
     f = normalize("Toshiba MG09ACA18TE 18TB").features
     assert storage.badges(f) == "SATA ✓ · CMR ✓"
     assert storage.badges(normalize("Seagate Barracuda 8TB ST8000DM004").features) == "SATA ✓ · SMR ⚠"
-    assert storage.badges(normalize("HDD 8TB 3.5").features) == "SATA? · CMR?"
+    assert storage.badges(normalize("HDD 8TB 3.5").features) == "⚠ check SATA vs SAS · CMR?"
     assert storage.badges(normalize("HGST 4TB HUS724040ALS640").features) == "SAS ✗ · CMR ✓"
     disk = {"power_on_hours": 12000, "reallocated_or_pending": 0, "health_pct": 100, "tested": True}
     line = storage.summary_line(f, disk, price=13500, new_price=8990)

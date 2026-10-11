@@ -221,11 +221,12 @@ def cmd_price(args: argparse.Namespace) -> None:
             print(f"No fair price for {query!r} yet (fewer than 4 priced ads in 60 days, or no such model).")
         for model in models:
             fp = prices[model]
+            unit = "Kč/TB" if fp.per_tb else "Kč"
             print(
-                f"{model} ({fp.category}): fair ~{_kc(fp.median)} Kč, IQR {_kc(fp.q25)}-{_kc(fp.q75)}, "
+                f"{model} ({fp.category}): fair ~{_kc(fp.median)} {unit}, IQR {_kc(fp.q25)}-{_kc(fp.q75)} {unit}, "
                 f"n={fp.n} of {fp.n_listings} ads ({fp.sold} gone fast), confidence {fp.confidence:.2f} ({fp.level})"
             )
-            if fp.category == "hdd":
+            if fp.category == "hdd" and not fp.per_tb:
                 print(f"  {_per_tb(fp)}")
             if fp.new_price:
                 from deal_hunter.alerts import new_text
@@ -235,9 +236,10 @@ def cmd_price(args: argparse.Namespace) -> None:
                     + ("  ** used >= 95 % of new: candidates dropped **" if fp.over_new else "")
                 )
             if fp.prior:
+                suffix = "/TB" if fp.per_tb else ""
                 print(
-                    f"  raw median {_kc(fp.raw_median)} shrunk toward the {fp.prior_source} prior {_kc(fp.prior)} "
-                    f"(weight {fp.prior_weight:g} samples; the gate counts n={fp.n_eff:g})"
+                    f"  raw median {_kc(fp.raw_median)}{suffix} shrunk toward the {fp.prior_source} prior "
+                    f"{_kc(fp.prior)}{suffix} (weight {fp.prior_weight:g} samples; the gate counts n={fp.n_eff:g})"
                 )
             elif fp.prior_note:
                 print(f"  {fp.prior_note}")
@@ -259,7 +261,9 @@ def cmd_price(args: argparse.Namespace) -> None:
 
 
 def _per_tb(fp) -> str:
-    """'812 Kč/TB (new 1 036 Kč/TB)' for a disk key ('hdd35 nas 8tb')."""
+    """'812 Kč/TB (new 1 036 Kč/TB)' for a capacity-specific disk key ('hdd35 enterprise sas 4tb').
+
+    A pooled class (fp.per_tb) is already quoted in Kč/TB; callers skip this for those."""
     import re
 
     m = re.search(r"(\d+(?:\.\d+)?)(tb|gb)$", fp.model)
@@ -301,7 +305,7 @@ def cmd_prices(args: argparse.Namespace) -> None:
         if p.prior_note:
             flags.append(p.prior_note)
         if p.category == "hdd":
-            flags.insert(0, _per_tb(p))
+            flags.insert(0, f"{_kc(p.median)} Kč/TB" if p.per_tb else _per_tb(p))
         print(
             f"{p.model:<28} {p.category:<13} {p.n:>4} {_kc(p.median):>8} {iqr:>15} {p.confidence:>5.2f}  {p.level:<6} "
             f"{new:>8}  {prior:>13}  {'; '.join(flags)}"
@@ -313,6 +317,8 @@ def cmd_prices(args: argparse.Namespace) -> None:
             if args.no_prior
             else "; new = Zboží lowest offer, * = launch MSRP + VAT."
         )
+        + " hdd rows for a class (hdd35 nas/enterprise/desktop/surveillance, external) show Kč/TB, not"
+        " a total price."
     )
 
 

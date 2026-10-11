@@ -102,6 +102,16 @@ def test_pickup_radius_per_category_from_the_environment():
     assert rules.radius("hdd") == 300 and rules.radius("gpu") == 40 and rules.radius(None) == 40
 
 
+def test_hdd_pickup_radius_defaults_to_300_without_any_env():
+    assert pickup_by_category({}) == (("hdd", 300.0),)  # disks ship easily
+    assert pickup_by_category({"HUNTER_PICKUP_KM_OFFICE": "60"}) == (
+        ("hdd", 300.0),
+        ("office_laptop", 60.0),
+        ("office_pc", 60.0),
+    )
+    assert pickup_by_category({"HUNTER_PICKUP_KM_HDD": "50"}) == (("hdd", 50.0),)  # still overridable
+
+
 def rules(**kw):
     return Rules(
         enabled=True,

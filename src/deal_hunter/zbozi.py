@@ -33,7 +33,7 @@ from urllib.parse import urlsplit
 
 import yaml
 
-from deal_hunter import normalize
+from deal_hunter import normalize, storage
 
 log = logging.getLogger(__name__)
 
@@ -90,13 +90,28 @@ def check(product: Product, model: str) -> str | None:
     if model.startswith(DISK_KEYS):
         if product.category != DISK_CATEGORY:
             return f"category {product.category!r} is not internal hard disks"
-        got = normalize.classify(product.name, "hdd").model
-    elif product.category != GPU_CATEGORY:
+        return _check_disk(product, model)
+    if product.category != GPU_CATEGORY:
         return f"category {product.category!r} is not graphics cards"
-    else:
-        got = normalize.classify(product.name, "graficka").model
+    got = normalize.classify(product.name, "graficka").model
     if got != model:
         return f"{product.name!r} normalizes to {got!r}, not {model!r}"
+    return None
+
+
+def _check_disk(product: Product, model: str) -> str | None:
+    """`model` is the page's own per-capacity key ('hdd35 nas 8tb'): checked against the pooled
+    pricing key the product name normalizes to (storage.pricing_key pools 3.5" HDD classes across
+    capacities), and the capacity that key itself claims."""
+    norm = normalize.classify(product.name, "hdd")
+    split = storage.split_capacity_key(model)
+    want_model, want_tb = split if split else (model, None)
+    if norm.model != want_model:
+        return f"{product.name!r} normalizes to {norm.model!r}, not {want_model!r}"
+    if want_tb is not None:
+        got_tb = (norm.features or {}).get("capacity_tb")
+        if got_tb is None or abs(got_tb - want_tb) > 0.05 * want_tb:
+            return f"{product.name!r} is {got_tb} TB, not {want_tb:g} TB (key {model!r})"
     return None
 
 

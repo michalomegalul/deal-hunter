@@ -143,7 +143,7 @@ def test_a_disk_deal_is_pushed_with_capacity_badges_and_smart(conn):
     assert stats.pushed == 1, deal_state(conn)
     push = site.posts[0]
     lines = push["message"].splitlines()
-    assert lines[0].startswith("1 900 Kč vs ~") and lines[1] == "hdd35 nas 8tb"
+    assert lines[0].startswith("1 900 Kč vs ~") and lines[1] == "hdd35 nas"
     assert (
         lines[2]
         == "💾 8 TB · 238 Kč/TB · SATA ✓ · CMR ✓ · SMART: 9 100 h, 0 reallocated/pending, SMART screenshot, from a NAS/server"
@@ -200,7 +200,8 @@ def test_review_and_gate_know_the_disk_section(conn):
     seed_disks(conn)
     normalize.run(conn)
     prices = estimate_all(repo.price_samples(conn, 60))
-    assert {"hdd35 nas 8tb", "hdd35 nas 4tb"} <= set(prices)
-    assert prices["hdd35 nas 8tb"].category == "hdd"
+    # both the 8 TB and 4 TB drives are WD Red Plus / IronWolf (class nas): pooled into one key, Kč/TB
+    assert "hdd35 nas" in prices
+    assert prices["hdd35 nas"].category == "hdd" and prices["hdd35 nas"].per_tb
     status = gate_status(prices, repo.data_since(conn), rules(), datetime.now(UTC))
-    assert status["days"]["hdd"] >= 9.9 and "hdd35 nas 8tb" in status["ready"]
+    assert status["days"]["hdd"] >= 9.9 and "hdd35 nas" in status["ready"]

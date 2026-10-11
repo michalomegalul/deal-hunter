@@ -24,6 +24,26 @@ samples, and clipped to [0, 0.35]. Each sample is moved to its model's reference
 RAM/SSD of that model's ads) before taking the median. A specific ad's fair price is then moved
 back to its own spec. Missing specs are left unadjusted.
 
+Disk pricing (Phase 9 review fix). 3.5" HDDs priced by class + capacity ('hdd35 enterprise 16tb')
+rarely got the 4 ads a fair price needs: most of a class's listings are spread across 6-8 different
+capacities. For a 3.5" HDD with a known class (nas / enterprise / desktop / surveillance) and desktop
+externals (also 3.5"; storage.pooled_key), the pricing key drops the capacity ('hdd35 enterprise') and
+the estimate is run on **Kč/TB** (each sample's price / capacity_tb) instead of Kč: same dedupe,
+weighting, outliers, median/IQR/confidence as above, just on a per-TB figure (`fair_price(...,
+per_tb=True)`). A listing's fair price is that Kč/TB median x its own capacity_tb (`FairPrice.
+for_listing`); quantity is handled as before (storage.unit_price splits a lot price per drive first).
+SAS drives (a market of their own, and rarer now that the interface call is stricter, see storage.py)
+and 3.5" drives with no known class keep their old capacity-specific key, unpooled - as do 2.5" and SSD.
+
+Whether bigger drives cost more per TB: checked against the curated Zboží.cz new-price pages
+(new_price_pages.yaml) on 2026-10-10 - nas class 8/12/16 TB averaged ~1 135 / 1 037 / 1 082 Kč/TB,
+enterprise 12/16/18/20 TB ~1 114 / 947 / 972 / 1 066 Kč/TB: noisy and not monotonic (16 TB enterprise
+was the *cheapest* per TB, not the dearest). That doesn't support a capacity slope, so disks are priced
+**flat per class**: no adjustment, unlike the RAM/SSD slopes above. If real data later shows a
+consistent per-TB trend, the same slope machinery (PRIOR_SLOPE, estimate_adjustment) could be pointed
+at capacity_tb instead of being left out; for now a slope fit to this shape of data would just be noise
+dressed up as a model.
+
 Priors for thin data (Phase 8). A model with fewer than `confident_n` samples (the alert gate's
 HUNTER_ALERT_MIN_SAMPLES, 15) is shrunk toward a prior, in log space, with the prior counting as
 PRIOR_N (5) samples:
@@ -34,7 +54,10 @@ PRIOR_N (5) samples:
   used/new ratio of that category (disks: 0.6 until there is data, see NEW_RATIO_FALLBACK_BY_CATEGORY). The ratio is the median of median/new over models that have both a new price and at least
   `confident_n` samples (so no model's prior is built from its own shrunk value); with fewer than 3
   such models it is 0.75 (current cards hold their value; 0.6 pulled fresh models 12-16 % too low).
-  Clipped to [0.35, 0.9].
+  Clipped to [0.35, 0.9]. For a pooled disk class the "new price" is itself a Kč/TB figure: the median
+  Kč/TB across that class's Zboží keys (disk_new_per_tb), one per capacity - same units as the class's
+  median, so the ratio and the shrink both just work. No confidence boost, and no prior at all when
+  the class is already `over_new`: the same rules as GPUs, just in Kč/TB instead of Kč.
 - Office hardware: prior = the median per-unit final price of ended state auction lots of that model
   (wholesale, as-is) x AUCTION_UPLIFT (1.5: tested, cleaned, sold one by one). Each auction lot counts
   as one sample, at most 3 (instead of PRIOR_N): a few lots are weak evidence. With at least 2 lots the
@@ -149,6 +172,7 @@ class FairPrice:
     new_source: str | None = None  # 'zbozi' | 'msrp'
     new_detail: str | None = None  # '3 shops' / '$499 in 2020'
     over_new: bool = False  # the sanity flag: used fair >= 95 % of new
+    per_tb: bool = False  # median/q25/q75/prior/new_price are Kč/TB, not Kč (pooled 3.5" HDD classes)
 
     @property
     def n_eff(self) -> float:
@@ -160,8 +184,18 @@ class FairPrice:
         return (self.q75 - self.q25) / self.median if self.median else 0.0
 
     def for_listing(self, features: dict | None) -> int:
-        """This model's fair price moved to one ad's RAM/SSD (when known)."""
-        return round(self.median * math.exp(spec_shift(features or {}, self.ref, self.slopes)))
+        """This model's fair price moved to one ad's RAM/SSD (when known), x capacity_tb if per_tb."""
+        features = features or {}
+        price = self.median * math.exp(spec_shift(features, self.ref, self.slopes))
+        if self.per_tb:
+            price *= features.get("capacity_tb") or 0
+        return round(price)
+
+    def new_for_listing(self, capacity_tb: float | None) -> int | None:
+        """new_price as a Kč figure for a disk of this capacity (per_tb models quote it per TB)."""
+        if not self.new_price:
+            return None
+        return round(self.new_price * capacity_tb) if self.per_tb and capacity_tb else self.new_price
 
     def params(self) -> dict:
         out = {"sold": self.sold, "ref": self.ref, "slopes": self.slopes}
@@ -282,16 +316,27 @@ def estimate_adjustment(samples: list[Sample]) -> Adjustment:
     return Adjustment(slopes, n)
 
 
-def fair_price(samples: list[Sample], adjustment: Adjustment | None = None) -> FairPrice | None:
-    """The fair price of one model from its samples, or None with fewer than MIN_SAMPLES."""
+def fair_price(
+    samples: list[Sample], adjustment: Adjustment | None = None, per_tb: bool = False
+) -> FairPrice | None:
+    """The fair price of one model from its samples, or None with fewer than MIN_SAMPLES.
+
+    `per_tb`: each sample's price is divided by its own capacity_tb first, so the result (median,
+    q25, q75) is a Kč/TB figure for a pooled 3.5" HDD class, not a Kč figure for one capacity (see
+    the module doc, "Disk pricing"). A sample without capacity_tb can't be put in Kč/TB and is
+    dropped.
+    """
     if not samples:
         return None
     first = samples[0]
     kept = dedupe(samples)
+    if per_tb:
+        kept = [x for x in kept if x.features.get("capacity_tb")]
     slopes = adjustment.slopes if adjustment else {}
     ref = reference_spec(kept) if slopes else {}
-    adjusted = [s.price * math.exp(-spec_shift(s.features, ref, slopes)) for s in kept]
-    weights = [s.weight for s in kept]
+    base = [x.price / x.features["capacity_tb"] if per_tb else x.price for x in kept]
+    adjusted = [p * math.exp(-spec_shift(x.features, ref, slopes)) for p, x in zip(base, kept)]
+    weights = [x.weight for x in kept]
     if len(kept) < MIN_SAMPLES:
         return None
     rough = weighted_quantile(adjusted, weights, 0.5)
@@ -319,11 +364,14 @@ def fair_price(samples: list[Sample], adjustment: Adjustment | None = None) -> F
         sold=sum(1 for _, _, s in inliers if s.sold_fast),
         ref=ref,
         slopes=slopes,
+        per_tb=per_tb,
     )
 
 
 def estimate_all(samples: list[Sample]) -> dict[str, FairPrice]:
     """Fair prices for every model with enough samples."""
+    from deal_hunter import storage
+
     by_category: dict[str, list[Sample]] = defaultdict(list)
     for s in samples:
         by_category[s.category].append(s)
@@ -334,7 +382,8 @@ def estimate_all(samples: list[Sample]) -> dict[str, FairPrice]:
         for s in group:
             by_model[s.model].append(s)
         for model, model_samples in by_model.items():
-            fp = fair_price(model_samples, adjustment)
+            per_tb = category == "hdd" and storage.pooled_key(model)
+            fp = fair_price(model_samples, adjustment, per_tb=per_tb)
             if fp is not None:
                 out[model] = fp
     return out
@@ -369,6 +418,34 @@ def new_prices_for(models, zbozi: dict[str, tuple[int, int]], usd_czk: float) ->
         elif (m := launch_msrp(model)) is not None:
             usd, year = m
             out[model] = NewPrice(msrp_czk(usd, usd_czk), "msrp", f"${usd} in {year}")
+    return out
+
+
+def disk_new_per_tb(zbozi: dict[str, tuple[int, int]]) -> dict[str, NewPrice]:
+    """Per-class Kč/TB new price, keyed by the pooled pricing key ('hdd35 nas').
+
+    Each Zboží key in `zbozi` prices one capacity ('hdd35 nas 8tb', 'hdd35 nas 12tb', ...);
+    dividing by that capacity and taking the median across a class's keys gives the new Kč/TB that
+    matches the pooled class's own Kč/TB median (see the module doc, "Disk pricing").
+    """
+    from deal_hunter import storage
+
+    by_class: dict[str, list[tuple[float, int]]] = defaultdict(list)
+    for key, (czk, shops) in zbozi.items():
+        split = storage.split_capacity_key(key)
+        if split is None:
+            continue
+        base, tb = split
+        if tb and storage.pooled_key(base):
+            by_class[base].append((czk / tb, shops))
+    out = {}
+    for base, rows in by_class.items():
+        shops = sum(sh for _, sh in rows)
+        out[base] = NewPrice(
+            round(_median([v for v, _ in rows])),
+            "zbozi",
+            f"{len(rows)} key{'s' if len(rows) != 1 else ''}, {shops} shop{'s' if shops != 1 else ''}",
+        )
     return out
 
 
@@ -512,7 +589,9 @@ def with_priors(conn, prices: dict[str, FairPrice], confident_n: int = CONFIDENT
     from deal_hunter import auctions
     from deal_hunter.db import repository as repo
 
-    new = new_prices_for(prices, repo.latest_new_prices(conn), usd_czk)
+    zbozi_raw = repo.latest_new_prices(conn)
+    new = new_prices_for(prices, zbozi_raw, usd_czk)
+    new.update(disk_new_per_tb(zbozi_raw))
     lots = []
     for final, result in repo.sold_lot_extractions(conn):
         for item in result.get("items") or []:  # map again: normalizer improvements apply

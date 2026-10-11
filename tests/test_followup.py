@@ -223,5 +223,8 @@ def test_disk_followup_and_message():
     fp.new_price, fp.new_source, fp.new_detail = 17503, "zbozi", "1 shop"
     disk = {"power_on_hours": 12000, "reallocated_or_pending": 0}
     _, text = followup.format_listing(ad, fp, 15000, {**TRIAGE, "disk": disk}, message, 12500, NOW)
-    assert "💾 3× 18 TB · 750 Kč/TB (new ~972 Kč/TB) · SATA? · CMR ✓ · SMART: 12 000 h, 0 reallocated" in text
+    assert (
+        "💾 3× 18 TB · 750 Kč/TB (new ~972 Kč/TB) · ⚠ check SATA vs SAS · CMR ✓ · SMART: 12 000 h, 0 reallocated"
+        in text
+    )
     assert "💬 If negotiating: ~12 500 Kč" in text and text.endswith(message)

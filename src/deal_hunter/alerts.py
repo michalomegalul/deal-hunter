@@ -257,11 +257,13 @@ def kc(n: float) -> str:
 
 
 def new_text(fp: FairPrice | None) -> str:
-    """'new ~12 990 Kč (Zboží, 3 shops)' / 'launch $499 (2020) ≈ 14 191 Kč' / ''."""
+    """'new ~12 990 Kč (Zboží, 3 shops)' / 'launch $499 (2020) ≈ 14 191 Kč' / 'new ~973 Kč/TB (Zboží, 2
+    keys, 5 shops)' (a pooled disk class, fp.per_tb) / ''."""
     if fp is None or not fp.new_price:
         return ""
     if fp.new_source == "zbozi":
-        return f"new ~{kc(fp.new_price)} (Zboží, {fp.new_detail})"
+        amount = kc(fp.new_price) + ("/TB" if fp.per_tb else "")
+        return f"new ~{amount} (Zboží, {fp.new_detail})"
     return f"launch {fp.new_detail.replace(' in ', ' (')}) ≈ {kc(fp.new_price)}"
 
 
@@ -297,7 +299,11 @@ def format_alert(
         from deal_hunter import storage
 
         disk = ((deal.get("triage_result") or {}).get("disk")) or {}
-        new_czk = fp.new_price if fp is not None and fp.new_source == "zbozi" else None
+        new_czk = (
+            fp.new_for_listing(features.get("capacity_tb"))
+            if fp is not None and fp.new_source == "zbozi"
+            else None
+        )
         lines.append(storage.summary_line(features, disk, deal["price"], new_czk))
     if deal.get("verdict"):
         lines.append(f"🤖 {deal['verdict']}")
@@ -601,7 +607,10 @@ def digest_text(
         if old and LEVEL_RANK[fp.level] >= LEVEL_RANK["medium"] and old[0]:
             change = fp.median / old[0] - 1
             if abs(change) >= 0.05:
-                moves.append((abs(change), f"{model} {change:+.0%} ({kc(old[0])} → {kc(fp.median)})"))
+                suffix = "/TB" if fp.per_tb else ""
+                moves.append(
+                    (abs(change), f"{model} {change:+.0%} ({kc(old[0])}{suffix} → {kc(fp.median)}{suffix})")
+                )
     if moves:
         lines.append("Median moves: " + "; ".join(text for _, text in sorted(moves, reverse=True)[:5]))
     far = week.get("out_of_range") or []

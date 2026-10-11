@@ -6,18 +6,24 @@ description, when we have it) and records what matters for that and for pricing:
 
 - kind: hdd_35 | hdd_25 | hdd (form unknown) | ssd_sata | ssd_nvme | ssd (type unknown)
 - capacity_tb (and capacity_gb)
-- interface: sata | sas | None (unknown), from model numbers (Seagate NM suffixes, HGST/WD Ultrastar
-  'ALE6'/'AL52', Toshiba MGxxACA/MGxxSCA) and words in the text ("SAS", "12Gb/s", "SATA")
+- interface: sata | sas | None (unknown): 'sas' only when it's certain - the word "SAS" (or "12Gb/s")
+  in the title/description, the HGST/WD Ultrastar 'S' model marker (ALS6, ...), or a Seagate NM suffix
+  the catalog marks `certain` (storage_catalog.yaml). Anything else, including a Seagate NM suffix
+  marked `uncertain` (remembered, not checked against a data sheet) is left unknown rather than guessed;
+  an unknown-interface drive can still alert, just flagged "⚠ check SATA vs SAS" (badges(), below).
 - line and class: WD Red Plus/Pro, Red, Purple, Gold, Ultrastar, Seagate IronWolf/Pro, Exos, SkyHawk,
   Barracuda, Toshiba N300/MG/X300/P300, Synology HAT, ...; class nas | enterprise | surveillance |
   desktop; shuckable desktop externals (WD Elements/My Book, Seagate Expansion/Backup Plus) apart
 - smr: True / False / None, from a table of models and line defaults (storage_catalog.yaml)
 - quantity, and whether the price is per piece ('unit'), for all of them ('lot') or unclear ('unknown')
 
-The pricing key is class + capacity: 'hdd35 nas 8tb', 'hdd35 enterprise 16tb', 'hdd35 desktop 4tb',
-'hdd35 enterprise sas 4tb' (SAS drives are a market of their own), 'hdd35 8tb' (line unknown),
-'external 12tb' (desktop externals), 'external25 2tb' (portable), 'hdd25 1tb', 'ssd nvme 1tb',
-'ssd sata 500gb'. The part number is kept as a feature, not in the key.
+The pricing key is class, pooled across capacities for 3.5" HDDs with a known class: 'hdd35 nas',
+'hdd35 enterprise', 'hdd35 desktop', 'hdd35 surveillance', 'external' (desktop externals, also 3.5").
+pricing.py prices these in Kč/TB (see its module doc, "Disk pricing"), not Kč, since a single capacity
+rarely gets the 4 ads a fair price needs. SAS drives keep their own capacity-specific key ('hdd35
+enterprise sas 4tb': a market of their own, and now rarer since the interface call got stricter), as
+does a 3.5" drive with no known line ('hdd35 8tb'), 2.5" ('hdd25 1tb', 'external25 2tb') and SSDs
+('ssd nvme 1tb', 'ssd sata 500gb'). The part number is kept as a feature, not in the key.
 
 Excluded: wanted ads, broken / for parts, accessories without a drive (frames, caddies, enclosures,
 cables, adapters), NAS boxes and multi-bay enclosures, mixed lots (several capacities or brands),
@@ -69,7 +75,8 @@ class Catalog:
     ext_desktop: re.Pattern
     ext_portable: re.Pattern
     ext_any: re.Pattern
-    seagate_sas: frozenset[str]
+    seagate_sas: frozenset[str]  # certain only; see storage_catalog.yaml
+    seagate_sas_uncertain: frozenset[str]
     seagate_sata: frozenset[str]
     smr_models: frozenset[str]
     cmr_models: frozenset[str]
@@ -96,7 +103,8 @@ def load_catalog() -> Catalog:
         ext_desktop=re.compile(raw["externals"]["desktop"]),
         ext_portable=re.compile(raw["externals"]["portable"]),
         ext_any=re.compile(raw["externals"]["any"]),
-        seagate_sas=frozenset(raw["seagate_sas"]),
+        seagate_sas=frozenset(raw["seagate_sas"]["certain"]),
+        seagate_sas_uncertain=frozenset(raw["seagate_sas"].get("uncertain") or ()),
         seagate_sata=frozenset(raw["seagate_sata"]),
         smr_models=frozenset(raw["smr_models"]),
         cmr_models=frozenset(raw["cmr_models"]),
@@ -312,6 +320,8 @@ def part_number(t: str) -> PartInfo:
             line = "hgst deskstar nas" if prefix == "hdn" else "hgst deskstar"
             return PartInfo(model.upper(), "hgst", line, "hdd_35", "sata")
         code = m.group(3)
+        # HGST/WD Ultrastar's own documented markers: 'ALE6'/'ALA6'/'ALN6' SATA, 'AL5x'/'AL4x'/'ALS6'
+        # SAS - certain either way, unlike the Seagate NM suffix table below (see its `uncertain` list).
         interface = "sata" if code in "ean" else "sas" if code in "s45" else None
         brand = "wd" if prefix.startswith("w") else "hgst"
         return PartInfo(
@@ -613,6 +623,25 @@ def normalize(title: str, description: str | None = None) -> StorageResult:
     return StorageResult(pricing_key(features), features)
 
 
+HDD35_CLASSES = ("nas", "enterprise", "surveillance", "desktop")  # pooled, Kč/TB (pricing.py)
+CAPACITY_SUFFIX = re.compile(r"^(?P<base>.+) (?P<num>\d+(?:\.\d+)?)(?P<unit>tb|gb)$")
+
+
+def pooled_key(model: str) -> bool:
+    """True for a Kč/TB-pooled 3.5" HDD key: a known class, or a desktop external (also 3.5")."""
+    return model == "external" or model in {f"hdd35 {c}" for c in HDD35_CLASSES}
+
+
+def split_capacity_key(key: str) -> tuple[str, float] | None:
+    """'hdd35 nas 8tb' -> ('hdd35 nas', 8.0); None if `key` has no trailing capacity (already pooled,
+    e.g. 'hdd35 nas', 'external'). Used to read the capacity-specific keys in new_price_pages.yaml."""
+    m = CAPACITY_SUFFIX.match(key)
+    if not m:
+        return None
+    tb = float(m["num"]) * (1.0 if m["unit"] == "tb" else 0.001)
+    return m["base"], tb
+
+
 def pricing_key(f: dict) -> str:
     cap = cap_text(f["capacity_gb"])
     kind = f["kind"]
@@ -620,7 +649,7 @@ def pricing_key(f: dict) -> str:
         sub = {"ssd_sata": "sata ", "ssd_nvme": "nvme "}.get(kind, "")
         return f"ssd {sub}{cap}"
     if f.get("external"):
-        return f"external {cap}" if kind == "hdd_35" else f"external25 {cap}"
+        return "external" if kind == "hdd_35" else f"external25 {cap}"
     if kind == "hdd_25":
         return f"hdd25 {cap}"
     if kind == "hdd":
@@ -628,7 +657,7 @@ def pricing_key(f: dict) -> str:
     cls = f.get("class")
     if f.get("interface") == "sas":
         return f"hdd35 {cls or 'enterprise'} sas {cap}"
-    return f"hdd35 {cls} {cap}" if cls else f"hdd35 {cap}"
+    return f"hdd35 {cls}" if cls else f"hdd35 {cap}"
 
 
 def unit_price(price: int | None, features: dict | None) -> int | None:
@@ -758,10 +787,10 @@ def noun_and_name(title: str, f: dict) -> tuple[str, str]:
 
 
 def badges(f: dict) -> str:
-    """'SATA ✓ · CMR ✓' / 'SAS ✗' / 'SATA? · SMR ⚠'."""
+    """'SATA ✓ · CMR ✓' / 'SAS ✗' / '⚠ check SATA vs SAS · SMR ⚠'."""
     out = []
     interface = f.get("interface")
-    out.append("SATA ✓" if interface == "sata" else "SAS ✗" if interface == "sas" else "SATA?")
+    out.append("SATA ✓" if interface == "sata" else "SAS ✗" if interface == "sas" else "⚠ check SATA vs SAS")
     smr = f.get("smr")
     out.append("CMR ✓" if smr is False else "SMR ⚠" if smr else "CMR?")
     return " · ".join(out)
