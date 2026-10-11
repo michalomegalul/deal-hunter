@@ -1,0 +1,374 @@
+"""A small, plain, read-only LAN website: `hunt web` (port 8080, stdlib only, no JS framework).
+
+Three pages plus a detail page, all server-rendered HTML with one inline CSS block:
+
+- `/`            recent deals (would-alert or alerted listings), with `?category=` and
+                  `?min_discount=` filters.
+- `/prices`       the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
+- `/auctions`     open nms.gov.cz lots with their valuation (reuses `auction_cycle.value`).
+- `/listing/<id>` one ad: description, triage JSON, price history.
+
+Every value that comes from an ad (title, description, seller, location, the LLM's verdict) is
+untrusted input and is HTML-escaped before it goes on the page. All queries are parameterized
+(`repository.py`/`pricing.py`/`auction_cycle.py`, no SQL built here). Read-only: nothing here ever
+writes to the database.
+"""
+
+import json
+import logging
+from datetime import datetime
+from html import escape as esc
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
+
+log = logging.getLogger(__name__)
+
+CSS = """
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #fff; color: #111; }
+  h1 { font-size: 1.3rem; margin: 0 0 .75rem; }
+  nav { margin-bottom: 1rem; }
+  nav a { margin-right: 1rem; color: #0a58ca; text-decoration: none; }
+  nav a:hover { text-decoration: underline; }
+  form.filters { margin-bottom: 1rem; }
+  form.filters label { margin-right: .5rem; }
+  form.filters input, form.filters select { margin-right: 1rem; }
+  .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; min-width: 600px; }
+  th, td { padding: .35rem .6rem; border-bottom: 1px solid #ddd; text-align: left; white-space: nowrap; }
+  th { background: #f3f3f3; position: sticky; top: 0; }
+  td.wrap, th.wrap { white-space: normal; }
+  tr:hover { background: #f8f8f8; }
+  .muted { color: #777; }
+  .bad { color: #a30000; }
+  .good { color: #146c2e; }
+  .empty { color: #777; padding: 1rem 0; }
+  pre { background: #f5f5f5; padding: .75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  a.ad { color: #0a58ca; text-decoration: none; }
+  a.ad:hover { text-decoration: underline; }
+  footer { margin-top: 2rem; color: #999; font-size: .85rem; }
+"""
+
+NAV = '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/auctions">Auctions</a></nav>'
+
+
+def page(title: str, body: str) -> str:
+    return (
+        '<!doctype html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        f"<title>{esc(title)}</title><style>{CSS}</style></head>"
+        f"<body>{NAV}<h1>{esc(title)}</h1>{body}</body></html>"
+    )
+
+
+def kc(n) -> str:
+    return f"{round(n):,} Kč".replace(",", " ") if n is not None else "-"
+
+
+def pct(x) -> str:
+    return f"{x:.0%}" if x is not None else "-"
+
+
+def km(x) -> str:
+    return f"{x:.0f} km" if x is not None else "-"
+
+
+def when(dt: datetime | None) -> str:
+    if dt is None:
+        return "-"
+    from deal_hunter.alerts import PRAGUE
+
+    return f"{dt.astimezone(PRAGUE):%Y-%m-%d %H:%M}"
+
+
+# --- / : recent deals -------------------------------------------------------------------------------
+
+DEAL_STATES = ("alerted", "queued", "would_alert", "capped")
+CATEGORIES = ("gpu", "office_pc", "office_laptop", "hdd")
+
+
+def _matches_category(row_category: str, wanted: str) -> bool:
+    if wanted == "office":
+        return row_category.startswith("office")
+    return row_category == wanted
+
+
+def render_index(conn, category: str | None = None, min_discount: float | None = None) -> str:
+    from deal_hunter.db import repository as repo
+
+    deals = repo.deals_in_state(conn, *DEAL_STATES)
+    if category:
+        deals = [d for d in deals if _matches_category(d["category"], category)]
+    if min_discount:
+        deals = [d for d in deals if (d["discount"] or 0) >= min_discount]
+    deals.sort(key=lambda d: d["alerted_at"] or d["first_flagged"], reverse=True)
+
+    options = "".join(
+        f'<option value="{esc(c)}"{" selected" if category == c else ""}>{esc(c)}</option>'
+        for c in CATEGORIES
+    )
+    filters = (
+        '<form class="filters" method="get">'
+        f'<label>Category <select name="category"><option value="">any</option>{options}</select></label>'
+        '<label>Min discount % <input type="number" name="min_discount" min="0" max="95" step="1" '
+        f'value="{int(min_discount * 100) if min_discount else ""}"></label>'
+        '<button type="submit">Filter</button>'
+        "</form>"
+    )
+    if not deals:
+        return filters + '<p class="empty">No deals in this view yet.</p>'
+
+    rows = []
+    for d in deals:
+        state_cls = "good" if d["state"] == "alerted" else "muted"
+        rows.append(
+            "<tr>"
+            f'<td class="wrap"><a class="ad" href="{esc(d["url"])}" target="_blank" rel="noopener">'
+            f'{esc(d["title"])}</a><br><a href="/listing/{d["listing_id"]}">details</a></td>'
+            f"<td>{kc(d['price'])}</td>"
+            f"<td>{kc(d['fair'])}</td>"
+            f'<td class="bad">{pct(d["discount"])}</td>'
+            f"<td>{km(d['distance_km'])}</td>"
+            f'<td class="wrap">{esc(d["verdict"] or "")}</td>'
+            f"<td>{esc(d['category'])}</td>"
+            f'<td class="{state_cls}">{esc(d["state"])}</td>'
+            f"<td>{when(d['alerted_at'] or d['first_flagged'])}</td>"
+            "</tr>"
+        )
+    table = (
+        '<div class="tablewrap"><table><thead><tr>'
+        "<th>Ad</th><th>Price</th><th>Fair</th><th>Discount</th><th>Distance</th>"
+        '<th class="wrap">LLM verdict</th><th>Category</th><th>State</th><th>Seen</th>'
+        "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>"
+    )
+    return filters + f'<p class="muted">{len(deals)} deal(s).</p>' + table
+
+
+# --- /prices : fair price table ---------------------------------------------------------------------
+
+
+def render_prices(conn) -> str:
+    from deal_hunter import pricing
+    from deal_hunter.config import load_settings
+
+    settings = load_settings()
+    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    rows = sorted(prices.values(), key=lambda p: (p.category, -p.n, p.model))
+    if not rows:
+        return '<p class="empty">No fair prices yet.</p>'
+
+    body = []
+    for p in rows:
+        median = f"{kc(p.median)}/TB" if p.per_tb else kc(p.median)
+        new = f"{kc(p.new_price)}{'/TB' if p.per_tb else ''} ({p.new_source})" if p.new_price else "-"
+        if p.prior:
+            note = f"{p.prior_source} prior {kc(p.prior)}{'/TB' if p.per_tb else ''}"
+        elif p.prior_note:
+            note = p.prior_note
+        else:
+            note = ""
+        body.append(
+            "<tr>"
+            f"<td>{esc(p.model)}</td>"
+            f"<td>{esc(p.category)}</td>"
+            f"<td>{p.n}</td>"
+            f"<td>{median}</td>"
+            f"<td>{esc(p.level)}</td>"
+            f"<td>{new}</td>"
+            f'<td class="wrap">{esc(note)}</td>'
+            "</tr>"
+        )
+    table = (
+        '<div class="tablewrap"><table><thead><tr>'
+        "<th>Model</th><th>Category</th><th>n</th><th>Median</th><th>Level</th><th>New price</th>"
+        "<th>Prior / note</th></tr></thead><tbody>" + "".join(body) + "</tbody></table></div>"
+    )
+    return f'<p class="muted">{len(rows)} model(s). Asking prices of the last 60 days.</p>' + table
+
+
+# --- /auctions : open nms.gov.cz lots --------------------------------------------------------------
+
+
+def render_auctions(conn) -> str:
+    from deal_hunter import auction_cycle, pricing
+    from deal_hunter.auctions import Costs
+    from deal_hunter.config import load_settings
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    costs = Costs(
+        hourly_rate=settings.auction_hourly_rate,
+        minutes_per_unit=settings.auction_minutes_per_unit,
+        resale_factor=settings.auction_resale_factor,
+        sell_per_week=settings.auction_sell_per_week,
+        lot_cost=settings.auction_lot_cost,
+        lot_hours=settings.auction_lot_hours,
+        target_margin=settings.auction_target_margin,
+        min_profit=settings.auction_min_profit,
+    )
+    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    lots = repo.lots_in_status(conn, "active", "prepared")
+    lots.sort(key=lambda r: (r["end_at"] is None, r["end_at"]))
+    if not lots:
+        return '<p class="empty">No open lots right now.</p>'
+
+    rows = []
+    for lot in lots:
+        x = auction_cycle.extraction_for(conn, lot)
+        now_price = lot.get("current_price") or lot.get("start_price")
+        if x is not None:
+            v = auction_cycle.value(lot, x, prices, costs)
+            max_bid = kc(v.max_bid)
+            profit = kc(v.profit)
+            conf = f"{v.confidence}{' QUALIFIES' if v.qualifies else ''}"
+        else:
+            max_bid = profit = conf = "not extracted yet"
+        rows.append(
+            "<tr>"
+            f'<td class="wrap"><a class="ad" href="{esc(lot["url"])}" target="_blank" rel="noopener">'
+            f"{esc(lot['title'])}</a></td>"
+            f"<td>{when(lot.get('end_at'))}</td>"
+            f"<td>{kc(now_price)}</td>"
+            f"<td>{lot.get('bids') or 0}</td>"
+            f"<td>{max_bid}</td>"
+            f"<td>{profit}</td>"
+            f"<td>{esc(conf)}</td>"
+            "</tr>"
+        )
+    table = (
+        '<div class="tablewrap"><table><thead><tr>'
+        "<th>Lot</th><th>Ends</th><th>Current price</th><th>Bids</th><th>Max bid</th>"
+        "<th>Profit at next bid</th><th>Confidence</th></tr></thead><tbody>"
+        + "".join(rows)
+        + "</tbody></table></div>"
+    )
+    return f'<p class="muted">{len(lots)} open lot(s).</p>' + table
+
+
+# --- /listing/<id> : one ad --------------------------------------------------------------------------
+
+
+def render_listing(conn, listing_id: int) -> str | None:
+    from deal_hunter.db import repository as repo
+
+    row = repo.listing_for_followup(conn, listing_id)
+    if row is None:
+        return None
+
+    lines = [
+        f'<p><a class="ad" href="{esc(row["url"])}" target="_blank" rel="noopener">Open ad</a></p>',
+        "<table>",
+        f"<tr><th>Price</th><td>{kc(row.get('price_czk'))} ({esc(row.get('price_kind') or '')})</td></tr>",
+        f"<tr><th>Fair price</th><td>{kc(row.get('fair'))}</td></tr>",
+        f"<tr><th>Discount</th><td>{pct(row.get('discount'))}</td></tr>",
+        f"<tr><th>Model</th><td>{esc(row.get('model') or '-')}</td></tr>",
+        f"<tr><th>Category</th><td>{esc(row.get('category') or '-')}</td></tr>",
+        f"<tr><th>Location</th><td>{esc(row.get('location') or '-')} ({esc(row.get('psc') or '-')})</td></tr>",
+        f"<tr><th>Distance</th><td>{km(row.get('distance_km'))}</td></tr>",
+        f"<tr><th>Seller</th><td>{esc(row.get('seller') or '-')}</td></tr>",
+        f"<tr><th>Seen</th><td>first {when(row.get('first_seen'))}"
+        + (f", gone {when(row.get('gone_at'))}" if row.get("gone_at") else ", active")
+        + "</td></tr>",
+        f"<tr><th>Deal state</th><td>{esc(row.get('deal_state') or '-')}</td></tr>",
+        f"<tr><th>Verdict</th><td>{esc(row.get('verdict') or '-')}</td></tr>",
+        "</table>",
+    ]
+
+    lines.append("<h2>Description</h2>")
+    desc = row.get("description") or ""
+    lines.append(f"<pre>{esc(desc)}</pre>" if desc else '<p class="muted">No description.</p>')
+
+    triage_row = repo.latest_triage(conn, listing_id)
+    lines.append("<h2>Triage</h2>")
+    if triage_row and triage_row.get("result"):
+        pretty = json.dumps(triage_row["result"], ensure_ascii=False, indent=2)
+        lines.append(f"<pre>{esc(pretty)}</pre>")
+    else:
+        lines.append('<p class="muted">Not triaged (or no result yet).</p>')
+
+    history = repo.price_history(conn, listing_id)
+    lines.append("<h2>Price history</h2>")
+    if history:
+        hist_rows = "".join(
+            f"<tr><td>{when(h['changed_at'])}</td><td>{kc(h['old_price'])} ({esc(h['old_kind'])})</td>"
+            f"<td>{kc(h['new_price'])} ({esc(h['new_kind'])})</td></tr>"
+            for h in history
+        )
+        lines.append(
+            '<div class="tablewrap"><table><thead><tr><th>When</th><th>Old</th><th>New</th></tr></thead>'
+            f"<tbody>{hist_rows}</tbody></table></div>"
+        )
+    else:
+        lines.append('<p class="muted">No price changes recorded.</p>')
+
+    return "".join(lines)
+
+
+# --- HTTP server (stdlib only) -----------------------------------------------------------------------
+
+
+def _not_found() -> str:
+    return page("Not found", '<p class="empty">Nothing here.</p>')
+
+
+def _error(message: str) -> str:
+    return page("Error", f'<p class="bad">{esc(message)}</p>')
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "deal-hunter-web/1.0"
+
+    def log_message(self, fmt, *args):  # quieter than the stdlib default
+        log.info("%s - %s", self.address_string(), fmt % args)
+
+    def _respond(self, status: int, html: str) -> None:
+        data = html.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self) -> None:  # stdlib method name (not snake_case)
+        from deal_hunter.db import repository as repo
+
+        parts = urlsplit(self.path)
+        path, query = parts.path.rstrip("/") or "/", parse_qs(parts.query)
+        try:
+            with repo.connect(autocommit=True) as conn:
+                if path == "/":
+                    category = (query.get("category") or [""])[0].strip() or None
+                    raw_disc = (query.get("min_discount") or [""])[0].strip()
+                    min_discount = float(raw_disc) / 100 if raw_disc else None
+                    body = render_index(conn, category, min_discount)
+                    self._respond(200, page("Deals", body))
+                elif path == "/prices":
+                    self._respond(200, page("Fair prices", render_prices(conn)))
+                elif path == "/auctions":
+                    self._respond(200, page("Open auctions", render_auctions(conn)))
+                elif path.startswith("/listing/"):
+                    raw_id = path.removeprefix("/listing/")
+                    if not raw_id.isdigit():
+                        self._respond(404, _not_found())
+                        return
+                    body = render_listing(conn, int(raw_id))
+                    if body is None:
+                        self._respond(404, _not_found())
+                    else:
+                        self._respond(200, page(f"Listing {raw_id}", body))
+                else:
+                    self._respond(404, _not_found())
+        except Exception:  # LAN-only read-only tool: show a plain message, log the real error
+            log.exception("error rendering %s", self.path)
+            self._respond(500, _error("Something went wrong rendering this page."))
+
+
+def serve(host: str = "0.0.0.0", port: int = 8080) -> None:
+    """Block forever, serving the site (`hunt web`)."""
+    server = ThreadingHTTPServer((host, port), Handler)
+    log.info("deal-hunter web listening on http://%s:%s", host, port)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
