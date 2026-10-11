@@ -75,6 +75,19 @@ services:
     mem_limit: 160m
     profiles: []
 
+  # Read-only LAN website: recent deals, fair prices, open auctions. Port published on the LAN only
+  # (no Cloudflare tunnel) - bind it to the homelab's LAN interface if the host has more than one.
+  web:
+    <<: *hunter
+    command: ["web"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://hunter:${POSTGRES_PASSWORD}@db:5432/hunter
+    ports:
+      - "8080:8080"
+    mem_limit: 128m
+    profiles: []
+
 volumes:
   pgdata:
   hunterdata:

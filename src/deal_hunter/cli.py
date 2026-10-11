@@ -838,6 +838,12 @@ def _notify_test_ad(listing_id: int) -> None:
     print(f"Sent TEST push for ad {listing_id} (id {msg_id}), photo: {alerts.first_image(row) or 'none'}")
 
 
+def cmd_web(args: argparse.Namespace) -> None:
+    from deal_hunter import web
+
+    web.serve(args.host, args.port)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="hunt", description="Bazoš deal hunter (GPUs, ex-office PCs/laptops, hard disks)"
@@ -932,6 +938,11 @@ def main() -> None:
     a = asub.add_parser("value", help="one lot: items, mapping and the valuation breakdown")
     a.add_argument("id")
     a.set_defaults(func=cmd_auctions_value)
+
+    p = sub.add_parser("web", help="serve the read-only LAN website (deals, prices, auctions)")
+    p.add_argument("--host", default="0.0.0.0", help="default 0.0.0.0 (LAN)")
+    p.add_argument("--port", type=int, default=8080)
+    p.set_defaults(func=cmd_web)
 
     p = sub.add_parser("notify-test", help="send one test push to the deals topic")
     p.add_argument(
