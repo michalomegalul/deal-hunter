@@ -88,6 +88,24 @@ services:
     mem_limit: 128m
     profiles: []
 
+  # Facebook Marketplace, logged in as the owner (ban risk accepted, see facebook.py). A separate,
+  # much bigger image (Playwright + Chromium, Dockerfile's `fb` stage) and its own profile, so it
+  # never starts on a plain `docker compose up -d` -- only `docker compose --profile fb up -d
+  # fb-scraper`, once FB_COOKIES_FILE (unset = /dev/null, so other services never fail interpolation) on the host actually points at a fresh Cookie-Editor export.
+  # Low and slow, every 20-30 min (jittered) -- not the main scraper's 10-minute loop.
+  fb-scraper:
+    <<: *hunter
+    image: ghcr.io/michalomegalul/deal-hunter:${HUNTER_VERSION:-latest}-fb
+    command: ["scrape-fb", "--loop"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://hunter:${POSTGRES_PASSWORD}@db:5432/hunter
+      FB_COOKIES_FILE: /run/secrets/fb_cookies.json
+    volumes:
+      - ${FB_COOKIES_FILE:-/dev/null}:/run/secrets/fb_cookies.json:ro
+    mem_limit: 512m
+    profiles: ["fb"]
+
 volumes:
   pgdata:
   hunterdata:

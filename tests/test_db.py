@@ -147,6 +147,26 @@ def test_backfill_stops_at_empty_page(conn):
     assert sum("/graficka/" in p for p in site.paths) == 3  # pages 0, 1 and the empty page 2
 
 
+def test_scrape_aukro_once_ingests_items(conn):
+    from deal_hunter import aukro
+
+    fixture_data = fixture_text("aukro_graficka.json")
+    client = fake_client(lambda request: httpx.Response(200, text=fixture_data))
+    stats = scraper.scrape_aukro_once(
+        client, conn, pages=1, categories={"graficka": aukro.SECTIONS["graficka"]}
+    )
+    assert stats.new == 3 and not stats.errors
+    rows = conn.execute("SELECT source, price_kind FROM listings ORDER BY id").fetchall()
+    assert {r[0] for r in rows} == {"aukro"}
+    assert {r[1] for r in rows} == {"auction", "fixed"}
+
+
+def test_scrape_sbazar_once_refuses(conn):
+    stats = scraper.scrape_sbazar_once(conn)
+    assert stats.errors and "robots.txt" in stats.errors[0]
+    assert conn.execute("SELECT count(*) FROM listings").fetchone()[0] == 0
+
+
 def test_recheck_marks_removed_ads_gone(conn):
     repo.save_listing(conn, ad(11), detail=True)
     repo.save_listing(conn, ad(12), detail=True)
@@ -238,3 +258,52 @@ def test_office_sections_fetch_details_only_in_scope(conn):
     # out-of-scope office ads (gaming PCs, MacBooks) are never re-checked for removal
     conn.execute("UPDATE listings SET last_seen = now() - interval '1 day'")
     assert {r[0] for r in repo.due_for_recheck(conn, 6, 10_000)} == in_scope
+
+
+def test_non_bazos_source_persists_and_is_unique_per_source(conn):
+    from deal_hunter.sources import make_id
+
+    aukro_item = Listing(
+        id=make_id("aukro", "7136499281"),
+        source="aukro",
+        external_id="7136499281",
+        url="https://aukro.cz/grafika-nvidia-quadro-7136499281",
+        title="Grafika nvidia quadro",
+        price_czk=2,
+        price_kind="auction",
+        location="Praha",
+        psc="11000",
+        section="graficka",
+        auction_end_at=date(2026, 10, 14),
+    )
+    is_new, _ = repo.save_listing(conn, aukro_item, detail=True)
+    assert is_new
+    row = conn.execute(
+        "SELECT source, external_id, price_kind, auction_end_at IS NOT NULL FROM listings WHERE id = %s",
+        (aukro_item.id,),
+    ).fetchone()
+    assert row == ("aukro", "7136499281", "auction", True)
+
+    # The same native id reused by a different source must not collide: different internal ids,
+    # both rows persist independently.
+    fb_item = Listing(
+        id=make_id("fb", "7136499281"),
+        source="fb",
+        external_id="7136499281",
+        url="https://www.facebook.com/marketplace/item/7136499281/",
+        title="Unrelated FB listing with the same native id",
+        price_czk=100,
+        price_kind="fixed",
+        section="graficka",
+    )
+    assert fb_item.id != aukro_item.id
+    is_new, _ = repo.save_listing(conn, fb_item, detail=True)
+    assert is_new
+    count = conn.execute("SELECT count(*) FROM listings WHERE external_id = '7136499281'").fetchone()[0]
+    assert count == 2  # one per source
+
+    # A plain Bazoš listing still gets its literal ad id and external_id = str(id), unchanged.
+    bazos_item = ad(id=999, price=500)
+    repo.save_listing(conn, bazos_item, detail=False)
+    row = conn.execute("SELECT source, external_id FROM listings WHERE id = 999").fetchone()
+    assert row == ("bazos", "999")

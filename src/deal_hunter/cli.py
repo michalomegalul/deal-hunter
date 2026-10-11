@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import time
 
 from deal_hunter import scraper
 from deal_hunter.bazos import CATEGORY, SECTIONS
@@ -30,7 +31,14 @@ def _sections(settings, gpu_pages: int) -> dict[str, int]:
 
 
 def cmd_scrape(args: argparse.Namespace) -> None:
+    from deal_hunter.sources import KNOWN_SOURCES
+
     settings = load_settings()
+    unknown = set(settings.sources) - set(KNOWN_SOURCES)
+    if unknown:
+        raise SystemExit(
+            f"Unknown HUNTER_SOURCES: {', '.join(sorted(unknown))} (known: {', '.join(KNOWN_SOURCES)})"
+        )
     pages = args.pages or settings.pages
     sections = _sections(settings, pages)
     if args.dry_run:
@@ -45,9 +53,17 @@ def cmd_scrape(args: argparse.Namespace) -> None:
 
     def step():
         from deal_hunter import normalize
+        from deal_hunter.db import repository as repo
 
         def work(client, conn):
-            stats = scraper.scrape_once(client, conn, pages, sections)
+            if "bazos" in settings.sources:
+                stats = scraper.scrape_once(client, conn, pages, sections)
+            else:
+                stats = repo.RunStats("scrape")
+            if "aukro" in settings.sources:
+                print(scraper.scrape_aukro_once(client, conn, settings.aukro_pages).summary(), flush=True)
+            if "sbazar" in settings.sources:
+                print(scraper.scrape_sbazar_once(conn).summary(), flush=True)
             normalize.run(conn)  # cheap: only new listings (or all, after a catalog version bump)
             return stats
 
@@ -55,6 +71,42 @@ def cmd_scrape(args: argparse.Namespace) -> None:
 
     if args.loop:
         scraper.forever(settings.loop_minutes * 60, step, "scrape")
+    else:
+        step()
+
+
+def cmd_scrape_fb(args: argparse.Namespace) -> None:
+    """Facebook Marketplace via a logged-in browser: its own loop, its own (jittered) cadence.
+
+    Never part of `hunt scrape` -- Playwright is a separate extra and a separate compose service,
+    and FB wants to be read low and slow, not on the main 10-minute cycle. A no-op, once, if
+    FB_COOKIES_FILE isn't set.
+    """
+    import random
+
+    from deal_hunter import facebook
+
+    settings = load_settings()
+    if not settings.fb_cookies_file:
+        print("fb source disabled: set FB_COOKIES_FILE to enable it (see .env.example)")
+        return
+
+    def step():
+        from deal_hunter.db import repository as repo
+
+        with repo.connect(autocommit=True) as conn:
+            repo.migrate(conn)
+            facebook.run_once(settings, conn)
+
+    if args.loop:
+        while True:
+            try:
+                step()
+            except Exception:
+                logging.getLogger(__name__).exception("fb cycle failed")
+            wait = random.uniform(settings.fb_cycle_min_minutes, settings.fb_cycle_max_minutes) * 60
+            logging.getLogger(__name__).info("fb: next cycle in %.0f s", wait)
+            time.sleep(wait)
     else:
         step()
 
@@ -857,6 +909,14 @@ def main() -> None:
     p.add_argument("--dry-run", action="store_true", help="parse and print, no database, no detail pages")
     p.add_argument("--pages", type=int, default=None, help="category pages per cycle (default 2)")
     p.set_defaults(func=cmd_scrape)
+
+    p = sub.add_parser(
+        "scrape-fb", help="Facebook Marketplace via a logged-in browser; no-op unless FB_COOKIES_FILE is set"
+    )
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--once", action="store_true", help="one cycle and exit (the default)")
+    mode.add_argument("--loop", action="store_true", help="service: a cycle every 20-30 min, jittered")
+    p.set_defaults(func=cmd_scrape_fb)
 
     p = sub.add_parser("backfill", help="walk deeper category pages once to seed history")
     p.add_argument("--pages", type=int, default=MAX_BACKFILL_PAGES, help=f"max {MAX_BACKFILL_PAGES}")

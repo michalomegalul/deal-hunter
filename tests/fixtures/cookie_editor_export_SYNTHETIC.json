@@ -1,0 +1,27 @@
+[
+ {
+  "domain": ".facebook.com",
+  "expirationDate": 1830000000,
+  "hostOnly": false,
+  "httpOnly": true,
+  "name": "c_user",
+  "path": "/",
+  "sameSite": "no_restriction",
+  "secure": true,
+  "session": false,
+  "storeId": null,
+  "value": "0000000000000"
+ },
+ {
+  "domain": ".facebook.com",
+  "hostOnly": false,
+  "httpOnly": false,
+  "name": "fr",
+  "path": "/",
+  "sameSite": "lax",
+  "secure": true,
+  "session": true,
+  "storeId": null,
+  "value": "fake.synthetic.cookie.value"
+ }
+]

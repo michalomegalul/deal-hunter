@@ -1,0 +1,346 @@
+{
+ "content": [
+  {
+   "itemId": 7136345984,
+   "itemName": "Seagate Laptop Thin HDD 500GB 2,5\" - Testováno viz fotky",
+   "categoryPath": [
+    {
+     "id": 100695,
+     "name": "Počítače a hry",
+     "seoUrl": "pocitace-a-hry"
+    },
+    {
+     "id": 100701,
+     "name": "Komponenty pro PC",
+     "seoUrl": "pc-komponenty"
+    },
+    {
+     "id": 252974,
+     "name": "Hard disky do PC",
+     "seoUrl": "pc-interni-disky"
+    }
+   ],
+   "startingTime": "2026-10-07T20:05:02.251+02:00",
+   "endingTime": "2026-10-14T20:05:00+02:00",
+   "buyNowActive": false,
+   "buyNowPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "quantity": 1,
+   "quantityType": "pieces",
+   "attributes": [
+    {
+     "attributeId": 48,
+     "attributeName": "Stav zboží",
+     "attributeValue": "Použité",
+     "attributeValueId": 2,
+     "position": 0
+    },
+    {
+     "attributeId": 128915,
+     "attributeName": "Kapacita disku",
+     "attributeValue": "500 GB až 749 GB",
+     "attributeValueId": 3,
+     "position": 10
+    },
+    {
+     "attributeId": 128917,
+     "attributeName": "Formát disku",
+     "attributeValue": "2,5″",
+     "attributeValueId": 2,
+     "position": 30
+    },
+    {
+     "attributeId": 128916,
+     "attributeName": "Typ disku",
+     "attributeValue": "HDD",
+     "attributeValueId": 2,
+     "position": 20
+    },
+    {
+     "attributeId": 10047,
+     "attributeName": "Značka",
+     "attributeValue": "Seagate",
+     "attributeValueId": 120,
+     "position": 60
+    }
+   ],
+   "price": {
+    "amount": 2,
+    "currency": "CZK"
+   },
+   "priceWithShipping": {
+    "amount": 67,
+    "currency": "CZK"
+   },
+   "titleImage": {
+    "position": 0,
+    "titleImage": false,
+    "url": "https://cdn.aukro.cz/images/sk1791308451947/thumbnail/seagate-laptop-thin-hdd-500gb-2-5-testovano-viz-fotky-299990245.jpeg"
+   },
+   "titleImageUrl": "https://cdn.aukro.cz/images/sk1791308451947/thumbnail/seagate-laptop-thin-hdd-500gb-2-5-testovano-viz-fotky-299990245.jpeg",
+   "seoUrl": "seagate-laptop-thin-hdd-500gb-2-5-testovano-viz-fotky",
+   "ppPriorityList": true,
+   "ppPriorityListSort": true,
+   "ppHighlight": false,
+   "ppBoldTitle": false,
+   "buyersCountRelative": 1,
+   "itemState": "ACTIVE",
+   "sellerLogin": "scomputers",
+   "seller": {
+    "accountActivated": true,
+    "aukroPlus": false,
+    "avatarUrl": "https://cdn.aukro.cz/avatar-images/11964935/large/5f69e012-5e1b-4272-86c3-036698192a9c.jpg",
+    "avatarUrlMedium": "https://cdn.aukro.cz/avatar-images/11964935/medium/5f69e012-5e1b-4272-86c3-036698192a9c.jpg",
+    "companyAccount": false,
+    "favouritedByCount": 14,
+    "feedbackUniqueUserCount": 76,
+    "positiveFeedbackPercentage": 0.987,
+    "rating": 75,
+    "registrationDomain": "CZ",
+    "showName": "scomputers",
+    "starType": "BRONZE",
+    "userId": 11964935
+   },
+   "userWatching": false,
+   "watchersCount": 10,
+   "pepperLevel": 1,
+   "personalPickup": false,
+   "location": "Beroun",
+   "postcode": "26601",
+   "aukroFreePriorityList": false,
+   "charity": false,
+   "paymentViaAukro": true,
+   "buyersProtectionAvailable": true,
+   "retailPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "adultContent": false,
+   "auction": true,
+   "aukroPlus": false,
+   "freeShipping": false,
+   "paymentOnline": false,
+   "links": []
+  },
+  {
+   "itemId": 7136943041,
+   "itemName": "WD Purple 6 TB HDD 3,5\" SATA",
+   "categoryPath": [
+    {
+     "id": 100695,
+     "name": "Počítače a hry",
+     "seoUrl": "pocitace-a-hry"
+    },
+    {
+     "id": 100701,
+     "name": "Komponenty pro PC",
+     "seoUrl": "pc-komponenty"
+    },
+    {
+     "id": 252974,
+     "name": "Hard disky do PC",
+     "seoUrl": "pc-interni-disky"
+    }
+   ],
+   "startingTime": "2026-10-10T12:27:03.085+02:00",
+   "endingTime": "2026-10-17T12:26:32+02:00",
+   "buyNowActive": false,
+   "buyNowPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "quantity": 1,
+   "quantityType": "pieces",
+   "attributes": [
+    {
+     "attributeId": 48,
+     "attributeName": "Stav zboží",
+     "attributeValue": "Použité",
+     "attributeValueId": 2,
+     "position": 0
+    }
+   ],
+   "price": {
+    "amount": 1,
+    "currency": "CZK"
+   },
+   "priceWithShipping": {
+    "amount": 80,
+    "currency": "CZK"
+   },
+   "titleImage": {
+    "position": 0,
+    "titleImage": false,
+    "url": "https://cdn.aukro.cz/images/sk1790677778099/thumbnail/wd-purple-6-tb-hdd-3-5-sata-298391153.jpeg"
+   },
+   "titleImageUrl": "https://cdn.aukro.cz/images/sk1790677778099/thumbnail/wd-purple-6-tb-hdd-3-5-sata-298391153.jpeg",
+   "seoUrl": "wd-purple-6-tb-hdd-3-5-sata",
+   "ppPriorityList": true,
+   "ppPriorityListSort": true,
+   "ppHighlight": false,
+   "ppBoldTitle": false,
+   "buyersCountRelative": 1,
+   "itemState": "ACTIVE",
+   "sellerLogin": "LegoResseler",
+   "seller": {
+    "accountActivated": true,
+    "aukroPlus": false,
+    "avatarUrl": "https://cdn.aukro.cz/avatar-images/100147131/large/3571e808-6785-4e9f-8dd0-6549dc45c6d3.jpg",
+    "avatarUrlMedium": "https://cdn.aukro.cz/avatar-images/100147131/medium/3571e808-6785-4e9f-8dd0-6549dc45c6d3.jpg",
+    "companyAccount": false,
+    "favouritedByCount": 37,
+    "feedbackUniqueUserCount": 179,
+    "positiveFeedbackPercentage": 0.9275,
+    "rating": 165,
+    "registrationDomain": "CZ",
+    "showName": "LegoResseler",
+    "starType": "BRONZE",
+    "userId": 100147131
+   },
+   "userWatching": false,
+   "watchersCount": 16,
+   "pepperLevel": 0,
+   "personalPickup": false,
+   "location": "Kyjov 3",
+   "postcode": "69655",
+   "aukroFreePriorityList": false,
+   "charity": false,
+   "paymentViaAukro": true,
+   "buyersProtectionAvailable": true,
+   "retailPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "adultContent": false,
+   "auction": true,
+   "aukroPlus": false,
+   "freeShipping": false,
+   "paymentOnline": false,
+   "links": []
+  },
+  {
+   "itemId": 7136841567,
+   "itemName": "Mix komponentů pevný disky atd",
+   "categoryPath": [
+    {
+     "id": 100695,
+     "name": "Počítače a hry",
+     "seoUrl": "pocitace-a-hry"
+    },
+    {
+     "id": 100701,
+     "name": "Komponenty pro PC",
+     "seoUrl": "pc-komponenty"
+    },
+    {
+     "id": 252974,
+     "name": "Hard disky do PC",
+     "seoUrl": "pc-interni-disky"
+    }
+   ],
+   "startingTime": "2026-10-09T20:50:04.841+02:00",
+   "endingTime": "2026-10-12T20:50:00+02:00",
+   "buyNowActive": false,
+   "buyNowPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "quantity": 1,
+   "quantityType": "pieces",
+   "attributes": [
+    {
+     "attributeId": 48,
+     "attributeName": "Stav zboží",
+     "attributeValue": "Nefunkční / na díly",
+     "attributeValueId": 4,
+     "position": 0
+    },
+    {
+     "attributeId": 8820,
+     "attributeName": "Doba dodání (od obdržení platby)",
+     "attributeValue": "4-6 dní",
+     "attributeValueId": 3,
+     "position": 0
+    }
+   ],
+   "price": {
+    "amount": 449.0,
+    "currency": "CZK"
+   },
+   "priceWithShipping": {
+    "amount": 549.0,
+    "currency": "CZK"
+   },
+   "titleImage": {
+    "position": 0,
+    "titleImage": false,
+    "url": "https://cdn.aukro.cz/images/sk1791558355430/thumbnail/mix-komponentu-pevny-disky-atd-300896020.jpeg"
+   },
+   "titleImageUrl": "https://cdn.aukro.cz/images/sk1791558355430/thumbnail/mix-komponentu-pevny-disky-atd-300896020.jpeg",
+   "seoUrl": "mix-komponentu-pevny-disky-atd",
+   "ppPriorityList": true,
+   "ppPriorityListSort": true,
+   "ppHighlight": false,
+   "ppBoldTitle": false,
+   "buyersCountRelative": 1,
+   "itemState": "ACTIVE",
+   "sellerLogin": "hanitka71",
+   "seller": {
+    "accountActivated": true,
+    "aukroPlus": false,
+    "avatarUrl": "https://cdn.aukro.cz/avatar-images/40237230/large/26bd2aa8-9a9f-4baf-bd00-c9d08b61646a.jpg",
+    "avatarUrlMedium": "https://cdn.aukro.cz/avatar-images/40237230/medium/26bd2aa8-9a9f-4baf-bd00-c9d08b61646a.jpg",
+    "companyAccount": false,
+    "favouritedByCount": 99,
+    "feedbackUniqueUserCount": 471,
+    "positiveFeedbackPercentage": 0.9691,
+    "rating": 456,
+    "registrationDomain": "CZ",
+    "showName": "hanitka71",
+    "starType": "SILVER",
+    "userId": 40237230
+   },
+   "userWatching": false,
+   "watchersCount": 7,
+   "pepperLevel": 0,
+   "personalPickup": false,
+   "location": "Tachov",
+   "postcode": "34701",
+   "aukroFreePriorityList": false,
+   "charity": false,
+   "paymentViaAukro": true,
+   "buyersProtectionAvailable": true,
+   "retailPrice": {
+    "amount": 0.0,
+    "currency": "CZK"
+   },
+   "adultContent": false,
+   "auction": true,
+   "aukroPlus": false,
+   "freeShipping": false,
+   "paymentOnline": false,
+   "links": []
+  }
+ ],
+ "page": {
+  "number": 0,
+  "size": 20,
+  "totalElements": 1466,
+  "totalPages": 74
+ },
+ "resultReport": {
+  "algorithmByKey": {
+   "listing": "algorithm not found"
+  },
+  "defaultLayout": "LIST",
+  "defaultSort": "relevance",
+  "defaultSortDirection": "DESC",
+  "excludedCategory": false,
+  "hideAds": false,
+  "sort": "relevance",
+  "sortDirection": "DESC",
+  "state": "DEFAULT"
+ }
+}

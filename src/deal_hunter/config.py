@@ -29,6 +29,17 @@ class Settings:
     loop_minutes: float  # scrape cycle interval
     recheck_hours: float  # how often active listings are re-checked
     recheck_limit: int  # max detail pages per recheck run
+    # --- more sources, same pipeline (Phase 10) ---
+    sources: tuple[str, ...]  # HUNTER_SOURCES=bazos,sbazar,aukro,fb; default keeps today's behaviour
+    aukro_pages: int  # category pages read per cycle, per Aukro category (60 items/page)
+    fb_cookies_file: str  # Cookie-Editor JSON export path; empty = fb source disabled entirely
+    fb_queries: tuple[tuple[str, str], ...]  # [(search text, section), ...] from HUNTER_FB_QUERIES
+    fb_city: str
+    fb_radius_km: int
+    fb_min_gap: float  # seconds between queries within one fb cycle (low and slow)
+    fb_max_gap: float
+    fb_cycle_min_minutes: float  # the fb cycle itself runs every 20-30 min (jittered), not the 10-min loop
+    fb_cycle_max_minutes: float
     # --- worker: pricing, LLM triage, alerts ---
     work_minutes: float  # worker cycle interval
     ollama_url: str
@@ -110,6 +121,23 @@ def _flag(name: str, default: str) -> bool:
     return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
+def fb_queries(env=None) -> tuple[tuple[str, str], ...]:
+    """HUNTER_FB_QUERIES='rtx 3060:graficka,thinkpad t480:notebook' -> (('rtx 3060', 'graficka'), ...).
+
+    A query without ':<section>' defaults to 'graficka' (most FB GPU searches are plain model names).
+    """
+    env = os.environ if env is None else env
+    raw = env.get("HUNTER_FB_QUERIES", "").strip()
+    out = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        query, _, section = part.partition(":")
+        out.append((query.strip(), section.strip() or "graficka"))
+    return tuple(out)
+
+
 def load_settings() -> Settings:
     load_dotenv()
     return Settings(
@@ -124,6 +152,16 @@ def load_settings() -> Settings:
         loop_minutes=float(os.getenv("HUNTER_LOOP_MINUTES", "10")),
         recheck_hours=float(os.getenv("HUNTER_RECHECK_HOURS", "6")),
         recheck_limit=int(os.getenv("HUNTER_RECHECK_LIMIT", "1500")),
+        sources=tuple(s.strip() for s in os.getenv("HUNTER_SOURCES", "bazos").split(",") if s.strip()),
+        aukro_pages=int(os.getenv("HUNTER_AUKRO_PAGES", "1")),
+        fb_cookies_file=os.getenv("FB_COOKIES_FILE", ""),
+        fb_queries=fb_queries(),
+        fb_city=os.getenv("HUNTER_FB_CITY", "prague"),
+        fb_radius_km=int(os.getenv("HUNTER_FB_RADIUS_KM", "40")),
+        fb_min_gap=float(os.getenv("HUNTER_FB_MIN_GAP", "8")),
+        fb_max_gap=float(os.getenv("HUNTER_FB_MAX_GAP", "15")),
+        fb_cycle_min_minutes=float(os.getenv("HUNTER_FB_CYCLE_MIN_MINUTES", "20")),
+        fb_cycle_max_minutes=float(os.getenv("HUNTER_FB_CYCLE_MAX_MINUTES", "30")),
         work_minutes=float(os.getenv("HUNTER_WORK_MINUTES", "5")),
         ollama_url=os.getenv("HUNTER_OLLAMA_URL", "http://192.168.4.19:11434"),
         llm_model=os.getenv("HUNTER_LLM_MODEL", "gemma3:12b"),

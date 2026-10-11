@@ -1,0 +1,27 @@
+{
+ "_synthetic": "Hand-made, NOT a real sbazar.cz response. robots.txt disallows fetching the site for our User-Agent, so this was never captured live -- it is a best-effort guess at the shape, built only to give sbazar.py's parser something to run against. See sbazar.py's module docstring.",
+ "items": [
+  {
+   "id": "123456789",
+   "name": "RTX 3060 12GB",
+   "url": "https://www.sbazar.cz/inzerat/123456789/rtx-3060-12gb",
+   "price": {"value": 8000, "currency": "CZK"},
+   "locality": {"city": "Praha", "zip": "11000"},
+   "images": [{"url": "https://d18-a.sdn.cz/d_18/c_img_G_B/synthetic1.jpeg"}],
+   "userId": 987654,
+   "dateCreated": "2026-10-05T12:00:00+02:00",
+   "category": {"seoName": "pc-graficke-karty"}
+  },
+  {
+   "id": "223456789",
+   "name": "ThinkPad T480 i5 16GB",
+   "url": "https://www.sbazar.cz/inzerat/223456789/thinkpad-t480",
+   "price": {"value": 6500, "currency": "CZK"},
+   "locality": {"city": "Brno", "zip": "60200"},
+   "images": [],
+   "userId": 123123,
+   "dateCreated": "2026-10-06T09:30:00+02:00",
+   "category": {"seoName": "notebooky"}
+  }
+ ]
+}

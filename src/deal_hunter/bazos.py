@@ -54,7 +54,13 @@ PRICE_KINDS = {
 
 @dataclass
 class Listing:
-    """One ad. Category pages fill most fields; the detail page adds description, images, category."""
+    """One ad. Category pages fill most fields; the detail page adds description, images, category.
+
+    Shared by every source (sbazar.py, aukro.py, facebook.py), not just Bazoš: `source` and
+    `external_id` say where it came from and what the site itself calls it (see sources.py for why
+    `id` isn't simply that); `section` is always one of sources.CANONICAL_SECTIONS, whatever the
+    source's own category is called, so normalize.py/pricing.py/alerts.py stay source-agnostic.
+    """
 
     id: int
     url: str
@@ -70,6 +76,13 @@ class Listing:
     images: list[str] = field(default_factory=list)
     raw_category: str | None = None
     section: str = CATEGORY  # the category page/feed we found it on (graficka | pc | notebook | hdd)
+    source: str = "bazos"  # bazos | sbazar | aukro | fb
+    external_id: str | None = None  # the site's own id, as text; defaults to str(id) if unset
+    auction_end_at: datetime | None = None  # Aukro auctions only
+
+    def __post_init__(self) -> None:
+        if self.external_id is None:
+            self.external_id = str(self.id)
 
 
 def category_url(page: int, section: str = CATEGORY) -> str:
