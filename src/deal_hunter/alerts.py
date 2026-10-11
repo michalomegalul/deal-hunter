@@ -32,7 +32,8 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from deal_hunter import pricing, triage
+from deal_hunter import geo, pricing, triage
+from deal_hunter.geo import DistanceRules
 from deal_hunter.pricing import LEVEL_RANK, FairPrice
 
 log = logging.getLogger(__name__)
@@ -46,8 +47,14 @@ CATEGORY_SECTIONS = {
     "gpu": ("graficka",),
     "office_pc": ("pc", "notebook"),
     "office_laptop": ("pc", "notebook"),
+    "hdd": ("hdd",),
 }
-CATEGORY_TAG = {"gpu": "video_game", "office_pc": "desktop_computer", "office_laptop": "computer"}
+CATEGORY_TAG = {
+    "gpu": "video_game",
+    "office_pc": "desktop_computer",
+    "office_laptop": "computer",
+    "hdd": "floppy_disk",
+}
 
 
 # --- ntfy ---------------------------------------------------------------------------------------------
@@ -204,6 +211,8 @@ class Rules:
     quiet_bypass: float  # scores at least this high are pushed even in quiet hours
     candidate_discount: float
     usd_czk: float = 23.5  # launch MSRPs to Kč (display and the sanity check only)
+    distance: DistanceRules | None = None  # None = no pickup rule (every distance is fine)
+    hdd_min_tb: float = 8.0  # server fit: smaller disks are recorded, never pushed
 
 
 def category_days(data_since: dict, category: str, now: datetime) -> float:
@@ -248,11 +257,13 @@ def kc(n: float) -> str:
 
 
 def new_text(fp: FairPrice | None) -> str:
-    """'new ~12 990 Kč (Zboží, 3 shops)' / 'launch $499 (2020) ≈ 14 191 Kč' / ''."""
+    """'new ~12 990 Kč (Zboží, 3 shops)' / 'launch $499 (2020) ≈ 14 191 Kč' / 'new ~973 Kč/TB (Zboží, 2
+    keys, 5 shops)' (a pooled disk class, fp.per_tb) / ''."""
     if fp is None or not fp.new_price:
         return ""
     if fp.new_source == "zbozi":
-        return f"new ~{kc(fp.new_price)} (Zboží, {fp.new_detail})"
+        amount = kc(fp.new_price) + ("/TB" if fp.per_tb else "")
+        return f"new ~{amount} (Zboží, {fp.new_detail})"
     return f"launch {fp.new_detail.replace(' in ', ' (')}) ≈ {kc(fp.new_price)}"
 
 
@@ -261,18 +272,44 @@ def first_image(item: dict) -> str | None:
     return images[0] if images and str(images[0]).startswith("http") else None
 
 
-def format_alert(deal: dict, fp: FairPrice | None) -> tuple[str, str, list[str]]:
+def place_line(item: dict, dist: DistanceRules | None = None) -> str:
+    """'📍 Ostrava · 280 km (ships)' for a deal or listing dict (distance_km, ships, location, psc)."""
+    km = item.get("distance_km")
+    if "distance_km" not in item:  # not stored yet: work it out now
+        home = dist.home if dist else geo.PRAGUE_CENTRE
+        km = geo.distance_km(home, item.get("psc"), item.get("location"))[0]
+    travel = dist.travel_czk_per_km if dist else 0.0
+    return geo.place_text(item.get("location"), item.get("psc"), km, item.get("ships"), travel)
+
+
+def format_alert(
+    deal: dict, fp: FairPrice | None, rules: "Rules | None" = None
+) -> tuple[str, str, list[str]]:
     """(title, message, tags) for one deal push."""
     title = deal["title"][:90]
     sample = f", n={fp.n}, {fp.level} confidence" if fp else ""
-    lines = [f"{kc(deal['price'])} vs ~{kc(deal['fair'])} fair (−{deal['discount']:.0%}){sample}"]
+    features = deal.get("features") or {}
+    qty = int(features.get("quantity") or 1)
+    each = f"{qty}× " if qty > 1 else ""
+    per = "/ks" if qty > 1 else ""
+    lines = [f"{each}{kc(deal['price'])}{per} vs ~{kc(deal['fair'])} fair (−{deal['discount']:.0%}){sample}"]
     new = new_text(fp)
     lines.append(f"{deal['model']}" + (f" · {new}" if new else ""))
+    if deal.get("category") == "hdd":
+        from deal_hunter import storage
+
+        disk = ((deal.get("triage_result") or {}).get("disk")) or {}
+        new_czk = (
+            fp.new_for_listing(features.get("capacity_tb"))
+            if fp is not None and fp.new_source == "zbozi"
+            else None
+        )
+        lines.append(storage.summary_line(features, disk, deal["price"], new_czk))
     if deal.get("verdict"):
         lines.append(f"🤖 {deal['verdict']}")
-    where = " ".join(x for x in (deal.get("location"), deal.get("psc")) if x)
-    if where:
-        lines.append(f"📍 {where}")
+    place = place_line(deal, rules.distance if rules is not None else None)
+    if place:
+        lines.append(place)
     tags = [CATEGORY_TAG.get(deal["category"], "shopping_cart")]
     if deal["discount"] >= 0.33:
         tags.append("moneybag")
@@ -343,6 +380,21 @@ def find_candidates(conn, prices: dict[str, FairPrice], rules: Rules) -> int:
     return found
 
 
+def screen_disks(conn, rules: Rules, stats: CycleStats) -> None:
+    """Disk candidates that can't go into the home server (SAS, 2.5", SSD, too small) skip the LLM:
+    they are kept as would_alert with the reason, for tuning (storage.server_fit)."""
+    from deal_hunter import storage
+    from deal_hunter.db import repository as repo
+
+    for deal in repo.deals_in_state(conn, "triage"):
+        if deal["category"] != "hdd":
+            continue
+        why = storage.server_fit(deal.get("features") or {}, rules.hdd_min_tb)
+        if why:
+            repo.update_deal(conn, deal["listing_id"], state="would_alert", reason=why)
+            stats.would_alert += 1
+
+
 def run_triage(conn, client, cache_dir, limit: int, stats: CycleStats) -> None:
     """Ask the LLM about queued candidates (best first, at most `limit` per cycle)."""
     from deal_hunter.db import repository as repo
@@ -402,12 +454,13 @@ def score_deals(conn, llm_model: str, rules: Rules) -> None:
             repo.update_deal(conn, deal["listing_id"], state="dropped", reason="triage failed")
             continue
         t = triage.Triage(**row["result"])
-        value, factor, reason = triage.score(deal["discount"], deal["confidence"], t)
+        value, factor, reason = triage.score(deal["discount"], deal["confidence"], t, deal.get("features"))
         fields = {
             "score": value,
             "penalty": factor,
             "verdict": t.one_line_verdict,
             "priority": priority(deal["discount"]),
+            "ships": ships(deal, t),
         }
         if reason:
             repo.update_deal(conn, deal["listing_id"], state="dropped", reason=reason, **fields)
@@ -419,14 +472,50 @@ def score_deals(conn, llm_model: str, rules: Rules) -> None:
             repo.update_deal(conn, deal["listing_id"], state="ready", reason=None, **fields)
 
 
+def ships(deal: dict, t: triage.Triage) -> bool:
+    """Does the ad offer shipping? What it says outright (geo.shipping_offer) wins over the LLM's reading."""
+    said = geo.shipping_offer(f"{deal.get('title') or ''}\n{deal.get('description') or ''}")
+    return t.ships if said is None else said
+
+
+def pickup_check(deal: dict, rules: Rules) -> str | None:
+    """Why an otherwise good deal is out of reach (None = fine). See README "Distance".
+
+    Within the pickup radius: fine. Outside it, or with an unknown distance: only if the ad ships and
+    the deal still scores after paying for shipping.
+    """
+    dist = rules.distance
+    if dist is None or dist.pickup_km <= 0:
+        return None
+    radius = dist.radius(deal.get("category"))
+    km = deal.get("distance_km")
+    if km is not None and km <= radius:
+        return None
+    where = deal.get("location") or deal.get("psc") or "?"
+    away = f"{where} {km:.0f} km > {radius:g} km" if km is not None else f"{where}: distance unknown"
+    if not deal.get("ships"):
+        return f"out of range: {away}, no shipping"
+    units = max(1, int((deal.get("features") or {}).get("quantity") or 1))
+    price = deal["price"] + dist.shipping_czk / units
+    discount = 1 - price / deal["fair"] if deal["fair"] else 0.0
+    value = discount * (deal["confidence"] or 0) * (deal["penalty"] or 0)
+    if value < rules.min_score:
+        return f"out of range: {away}, ships, but score {value:.3f} after {dist.shipping_czk} Kč shipping"
+    return None
+
+
 def send_alerts(conn, ntfy: Ntfy | None, prices, data_since, rules: Rules, now: datetime, stats: CycleStats):
-    """Gate, quiet hours, daily cap, repost check, push. Best score first."""
+    """Pickup range, gate, quiet hours, daily cap, repost check, push. Best score first."""
     from deal_hunter.db import repository as repo
 
     for deal in repo.deals_in_state(conn, "ready"):
         fp = prices.get(deal["model"])
         is_open, why = gate(fp, data_since, rules, now)
-        if not rules.enabled or ntfy is None:
+        out_of_range = pickup_check(deal, rules)
+        if out_of_range:
+            repo.update_deal(conn, deal["listing_id"], state="would_alert", reason=out_of_range)
+            stats.would_alert += 1
+        elif not rules.enabled or ntfy is None:
             repo.update_deal(conn, deal["listing_id"], state="would_alert", reason="alerts disabled")
             stats.would_alert += 1
         elif not is_open:
@@ -457,7 +546,7 @@ def send_alerts(conn, ntfy: Ntfy | None, prices, data_since, rules: Rules, now: 
         if sent_today >= rules.max_per_day:
             repo.update_deal(conn, lid, state="capped", reason=f"{rules.max_per_day} pushes today already")
             continue
-        title, message, tags = format_alert(deal, prices.get(deal["model"]))
+        title, message, tags = format_alert(deal, prices.get(deal["model"]), rules)
         try:
             msg_id = ntfy.publish(
                 title,
@@ -488,7 +577,7 @@ def gate_status(prices: dict[str, FairPrice], data_since: dict, rules: Rules, no
             waiting[model] = why
     days = {
         name: round(category_days(data_since, c, now), 1)
-        for name, c in (("gpu", "gpu"), ("office", "office_pc"))
+        for name, c in (("gpu", "gpu"), ("office", "office_pc"), ("hdd", "hdd"))
     }
     return {"ready": ready, "waiting": waiting, "days": days}
 
@@ -518,9 +607,16 @@ def digest_text(
         if old and LEVEL_RANK[fp.level] >= LEVEL_RANK["medium"] and old[0]:
             change = fp.median / old[0] - 1
             if abs(change) >= 0.05:
-                moves.append((abs(change), f"{model} {change:+.0%} ({kc(old[0])} → {kc(fp.median)})"))
+                suffix = "/TB" if fp.per_tb else ""
+                moves.append(
+                    (abs(change), f"{model} {change:+.0%} ({kc(old[0])}{suffix} → {kc(fp.median)}{suffix})")
+                )
     if moves:
         lines.append("Median moves: " + "; ".join(text for _, text in sorted(moves, reverse=True)[:5]))
+    far = week.get("out_of_range") or []
+    if far:
+        examples = ", ".join(re.sub(r" > .*|,.*", "", r.split(": ", 1)[1]) for r in far[:3])
+        lines.append(f"Out of pickup range (would-alert): {len(far)}, e.g. {examples}")
     if week["votes"]:
         lines.append(f"Your votes: 👍 {week['votes'].get('up', 0)} 👎 {week['votes'].get('down', 0)}")
     if not status["ready"]:
@@ -578,9 +674,11 @@ def work_once(
         except Exception:  # a price comparison site being odd must not stop anything else
             log.exception("new price step failed")
             stats.new_prices = "new prices: failed (see log)"
+    geo.update_distances(conn, rules.distance.home if rules.distance else geo.PRAGUE_CENTRE)
     prices = pricing.run(conn, rules.min_samples, rules.usd_czk)
     stats.models = len(prices)
     stats.candidates = find_candidates(conn, prices, rules)
+    screen_disks(conn, rules, stats)
     if llm is not None:
         run_triage(conn, llm, cache_dir, triage_limit, stats)
         score_deals(conn, llm.model, rules)

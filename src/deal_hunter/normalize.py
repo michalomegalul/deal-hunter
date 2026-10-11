@@ -1,7 +1,7 @@
 """Rule-based normalizers: ad title -> canonical model, or a reason to exclude the ad.
 
 GPUs (the graficka section) are matched here against gpu_catalog.yaml; ex-office PCs and laptops
-(the pc and notebook sections) in office.py. `classify` picks the right one for a listing's section
+(the pc and notebook sections) in office.py; hard disks and SSDs (the hdd section) in storage.py. `classify` picks the right one for a listing's section
 and returns the shared shape the rest of the pipeline uses: category, model (the pricing key) and
 features.
 
@@ -18,7 +18,7 @@ from importlib import resources
 
 import yaml
 
-from deal_hunter import office
+from deal_hunter import office, storage
 from deal_hunter.bazos import CATEGORY, SECTIONS
 
 
@@ -96,8 +96,11 @@ def launch_msrp(key: str) -> tuple[int, int] | None:
 
 
 def version() -> int:
-    """One number for both rule sets: GPU catalog version * 1000 + office rules version."""
-    return load_catalog().version * 1000 + office.VERSION
+    """One number for all rule sets: GPU catalog * 100 000 + office rules * 100 + storage catalog.
+
+    (Until Phase 9 it was GPU * 1000 + office, at most 2003: every old row is re-normalized once.)
+    """
+    return load_catalog().version * 100_000 + office.VERSION * 100 + storage.version()
 
 
 # --- text preparation ---------------------------------------------------------------------------
@@ -272,7 +275,7 @@ def normalize(title: str) -> Result:
 
 @dataclass(frozen=True)
 class Normalized:
-    category: str  # gpu | office (excluded/unmatched office ads) | office_pc | office_laptop
+    category: str  # gpu | office (excluded/unmatched office ads) | office_pc | office_laptop | hdd
     model: str | None = None  # the pricing key: 'rtx 3060 12gb', 'rtx 3070', 'thinkpad t480'
     features: dict = field(default_factory=dict, compare=False)
     excluded_reason: str | None = None
@@ -285,8 +288,13 @@ def gpu_key(model: Model, vram: int | None) -> str:
     return model.name
 
 
-def classify(title: str, section: str = CATEGORY) -> Normalized:
-    if SECTIONS.get(section, SECTIONS[CATEGORY]).kind == "office":
+def classify(title: str, section: str = CATEGORY, description: str | None = None) -> Normalized:
+    """The pricing key and features of one ad. `description` is only read for disks (storage.py)."""
+    kind = SECTIONS.get(section, SECTIONS[CATEGORY]).kind
+    if kind == "storage":
+        r = storage.normalize(title, description)
+        return Normalized("hdd", r.model, r.features, r.excluded_reason)
+    if kind == "office":
         r = office.normalize(title)
         return Normalized(r.category or "office", r.model, r.features, r.excluded_reason)
     r = normalize(title)
@@ -302,8 +310,8 @@ def run(conn, everything: bool = False) -> int:
 
     todo = repo.to_normalize(conn, version(), everything)
     rows = []
-    for listing_id, title, section in todo:
-        r = classify(title, section)
+    for listing_id, title, section, description in todo:
+        r = classify(title, section, description)
         rows.append((listing_id, r.category, r.model, r.features, r.excluded_reason))
     repo.save_normalized(conn, rows, version())
     return len(rows)

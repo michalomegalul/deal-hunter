@@ -216,3 +216,109 @@ def test_score_is_discount_times_confidence_times_penalty():
     assert score(0.3, 0.6, Triage())[0] == pytest.approx(0.18)
     assert score(0.3, 0.6, Triage(mining_suspected=True))[0] == pytest.approx(0.144)
     assert score(0.5, 0.9, Triage(is_wanted_ad=True)) == (0.0, 0.0, "wanted ad")
+
+
+def test_ships_needs_a_word_about_sending_in_the_ad():
+    t, notes = clean({**GOOD, "ships": True}, "Prodám kartu, osobní odběr nebo pošlu Zásilkovnou.")
+    assert t.ships is True and not notes
+    t, notes = clean({**GOOD, "ships": True}, "Prodám kartu, funkční.")
+    assert t.ships is False and "ignored 'ships'" in notes[0]
+    assert clean(GOOD, "Pošlu PPL.")[0].ships is False  # the field defaults to false
+    assert "ships" in triage.RESPONSE_SCHEMA["required"] and "- ships:" in triage.SYSTEM_PROMPT
+
+
+# --- hard disks (Phase 9) -----------------------------------------------------------------------------
+
+DISK_AD = (
+    "3× Toshiba MG09 18TB enterprise HDD\n"
+    "Podle SMART jsou všechny tři v pořádku: 0 vadných sektorů, naběháno 12 400 hodin. Fotky disků i výpis "
+    "SMART jsou v inzerátu. Záruka výrobce do 4. 2. 2027. Běžely v NAS."
+)
+DISK = {
+    "power_on_hours": 12400,
+    "reallocated_or_pending": 0,
+    "health_pct": None,
+    "smart_screenshot_mentioned": True,
+    "tested": False,
+    "warranty_until": "4. 2. 2027",
+    "from_nas_or_server": True,
+}
+SATA_CMR = {"kind": "hdd_35", "capacity_tb": 18.0, "interface": "sata", "smr": False}
+
+
+def test_disk_questions_only_for_disks():
+    assert "disk" in triage.schema_for("hdd")["properties"] and "disk" in triage.schema_for("hdd")["required"]
+    assert "disk" not in triage.schema_for("gpu")["properties"]
+    assert "power_on_hours" in triage.system_prompt("hdd") and "power_on_hours" not in triage.system_prompt(
+        "gpu"
+    )
+    llm = FakeLLM(json.dumps({**GOOD, "ships": False, "disk": DISK}))
+    outcome = triage.triage(
+        llm, {**DEAL, "category": "hdd", "title": "3× Toshiba MG09 18TB", "description": DISK_AD}, None
+    )
+    assert outcome.status == "done" and outcome.result.disk == DISK
+    assert "hard disk" in llm.calls[0][1] and "power_on_hours" in llm.calls[0][0]
+
+
+def test_disk_claims_need_evidence():
+    made_up = {
+        "power_on_hours": 31337,
+        "reallocated_or_pending": 5,
+        "health_pct": 97,
+        "smart_screenshot_mentioned": True,
+        "tested": True,
+        "warranty_until": "2028",
+        "from_nas_or_server": True,
+    }
+    t, notes = clean({**GOOD, "disk": made_up}, "Prodám disk 8TB, funkční.")
+    assert t.disk == {
+        "power_on_hours": None,
+        "reallocated_or_pending": None,
+        "health_pct": None,
+        "smart_screenshot_mentioned": False,
+        "tested": False,
+        "warranty_until": None,
+        "from_nas_or_server": False,
+    }
+    assert len(notes) == 7
+    # sectors are talked about, but the count is not in the ad: 'some'
+    t, _ = clean(
+        {**GOOD, "disk": {**DISK, "reallocated_or_pending": 7}}, "Disk má přemapované sektory, viz SMART."
+    )
+    assert t.disk["reallocated_or_pending"] is True
+    # Czech thousands separators
+    assert clean({**GOOD, "disk": DISK}, DISK_AD)[0].disk["power_on_hours"] == 12400
+
+
+@pytest.mark.parametrize(
+    "disk, features, factor, dropped",
+    [
+        (DISK, SATA_CMR, 1.0, None),
+        ({**DISK, "reallocated_or_pending": 2}, SATA_CMR, 0.0, "reallocated/pending sectors"),
+        ({**DISK, "reallocated_or_pending": True}, SATA_CMR, 0.0, "reallocated/pending sectors"),
+        ({**DISK, "power_on_hours": 61000}, SATA_CMR, 0.6, None),
+        ({}, SATA_CMR, 0.85, None),  # SMART unknown
+        (
+            {**DISK, "power_on_hours": None, "smart_screenshot_mentioned": False},
+            SATA_CMR,
+            1.0,
+            None,
+        ),  # 0 sectors said
+        (DISK, {**SATA_CMR, "smr": True}, 0.7, None),
+        ({}, {**SATA_CMR, "smr": True}, 0.595, None),
+        (DISK, {**SATA_CMR, "interface": "sas"}, 0.0, "SAS drive: not usable on this server"),
+    ],
+)
+def test_disk_penalties(disk, features, factor, dropped):
+    got, reason = penalty(Triage(disk=disk), features)
+    assert got == factor
+    assert (reason or "").startswith(dropped or "")
+    assert (reason is None) is (dropped is None)
+
+
+def test_disk_penalties_stack_with_the_common_ones():
+    value, factor, reason = score(
+        0.4, 0.5, Triage(warranty_or_receipt=True, disk={}), {**SATA_CMR, "smr": True}
+    )
+    assert reason is None and factor == round(1.1 * 0.85 * 0.7, 3) and value == round(0.4 * 0.5 * factor, 4)
+    assert penalty(Triage(disk={}), {"ram_gb": 8})[0] == 1.0  # office features: no disk rules

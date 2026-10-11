@@ -24,8 +24,8 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
-from deal_hunter import followup, pricing, scraper, triage
-from deal_hunter.alerts import PRAGUE, Ntfy, Vote, first_image, parse_vote
+from deal_hunter import followup, geo, pricing, scraper, triage
+from deal_hunter.alerts import PRAGUE, Ntfy, Vote, first_image, parse_vote, place_line
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +47,7 @@ class Context:
     usd_czk: float = 23.5
     offer_discount: float = 0.07
     auction_costs: object = None  # auctions.Costs
+    distance: object = None  # geo.DistanceRules: home and travel cost for the follow-up's distance line
 
 
 # --- follow-ups -----------------------------------------------------------------------------------------
@@ -104,20 +105,21 @@ def listing_followup(ctx: Context, listing_id: int, source_id: str, now: datetim
             log.warning("LLM unreachable for the follow-up of %s: %s", listing_id, exc)
     price = row["price_czk"] or 0
     offer = followup.offer_price(price, ctx.offer_discount) if price else 0
-    if price:
-        draft, how, notes = followup.draft_message(ctx.llm, row, offer, ctx.cache_dir)
-        for note in notes:
-            log.info("draft for %s: %s", listing_id, note)
-    else:
-        draft, how = "(no price in the ad: ask the seller for one)", "none"
-    title, message = followup.format_listing(row, fp, fair, result, draft, offer, now, test)
+    if row.get("ships") is None:
+        row["ships"] = geo.shipping_offer(f"{row['title']}\n{row.get('description') or ''}")
+    if row.get("distance_km") is None:
+        home = ctx.distance.home if ctx.distance else geo.PRAGUE_CENTRE
+        row["distance_km"] = geo.distance_km(home, row.get("psc"), row.get("location"))[0]
+    title, message = followup.format_listing(
+        row, fp, fair, result, followup.seller_message(row), offer, now, test, place_line(row, ctx.distance)
+    )
     actions = [{"action": "view", "label": "Open ad", "url": row["url"], "clear": False}]
     if ctx.ntfy.feedback_token:
         bought = {"ad": listing_id, "vote": "bought", **({"test": True} if test else {})}
         actions.append(ctx.ntfy.feedback_action("Bought ✅", bought))
     ntfy_id = ctx.ntfy.publish(title, message, 4, ["eyes"], row["url"], actions, attach=first_image(row))
     repo.record_followup(conn, "listing", _key(listing_id, test), source_id, "sent", ntfy_id)
-    return f"follow-up for ad {listing_id} sent (draft: {how})"
+    return f"follow-up for ad {listing_id} sent"
 
 
 def lot_followup(ctx: Context, lot_id: str, source_id: str, now: datetime, test: bool = False) -> str:

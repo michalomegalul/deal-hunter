@@ -1,7 +1,7 @@
 # deal-hunter
 
-Watches second-hand ads on [Bazoš.cz](https://pc.bazos.cz/) (graphics cards, plus ex-office mini PCs
-and business laptops), works out what each model normally goes for, has a local LLM read the ads that look cheap, and
+Watches second-hand ads on [Bazoš.cz](https://pc.bazos.cz/) (graphics cards, ex-office mini PCs
+and business laptops, and hard disks for a home server), works out what each model normally goes for, has a local LLM read the ads that look cheap, and
 pushes only the genuinely good deals to a phone (ntfy). It also watches the state's IT auctions on
 [nms.gov.cz](https://nms.gov.cz/) (lots like "14× Dell Latitude 5511") and works out the highest bid that
 still pays after refurbishing and reselling the units.
@@ -13,10 +13,11 @@ else is built on what it collects.
 ## What it does today
 
 - **Scraper** (every 10 min): for each watched section (graphics cards `/graficka/`, PCs `/pc/`,
-  laptops `/notebook/`) reads the RSS feed and the first category pages (2 for GPUs, 1 for the
-  others), and fetches the detail page only for ads it hasn't seen before. In the PC and laptop
-  sections that is only ads the normalizer doesn't exclude (no detail pages for gaming PCs and
-  MacBooks). Prices, views and location on the list pages refresh known ads for free; price changes
+  laptops `/notebook/`, hard disks `/hdd/`) reads the RSS feed and the first category pages (2 for
+  GPUs, 1 for the others), and fetches the detail page only for ads it hasn't seen before. In the PC
+  and laptop sections that is only ads the normalizer doesn't exclude (no detail pages for gaming PCs
+  and MacBooks); in the disk section only drives that could go into the server (no SSDs, no 2.5"
+  drives). Prices, views and location on the list pages refresh known ads for free; price changes
   go to `price_changes`.
 - **Rechecker** (every 6 h): re-fetches active ads that have scrolled off the pages we read. A 404,
   410, "Inzerát je již vymazán" page or a redirect away from the ad sets `gone_at`.
@@ -32,6 +33,11 @@ else is built on what it collects.
   `optiplex 7060 micro` or `elitedesk 800 g4 mini`; RAM, SSD size and CPU are read from the title
   when present. Everything else in those sections (gaming PCs, MacBooks, consumer laptops,
   workstations) is `out_of_scope`, so `hunt review` only shows business titles it couldn't pin down.
+- **Storage normalizer** (`storage.py`, Phase 9): hard disks and SSDs, with the interface (SATA/SAS),
+  the product line, SMR and multi-disk ads worked out, keyed by class and capacity
+  (`hdd35 nas 8tb`, `hdd35 enterprise 16tb`). See "Hard disks".
+- **Distance** (Phase 9): every ad's straight-line distance from home (Prague), from its PSČ. Deals
+  outside the pickup radius only alert when the ad ships. See "Distance from home".
 - **Worker** (every 5 min, `hunt work --loop`): fair prices per model, candidate deals, LLM triage
   of the candidates, the deal score, ntfy pushes (once the gate opens) and a weekly digest.
   Details below.
@@ -39,15 +45,16 @@ else is built on what it collects.
   the LLM's reading of each lot, a valuation with a max sensible bid, pushes before the end, and the
   final prices of ended lots as real sale prices. See "Auctions" below.
 - **Feedback** (`hunt feedback --loop`, its own small service): listens to the 👍/👎 topic live. A 👍
-  sends a detailed follow-up within seconds (photo, prices, the LLM's reading, the description and a
-  drafted Czech message to the seller); "Bought ✅" starts the flips log. See "👍 follow-ups".
-- **New prices** (inside the worker, weekly): the lowest current offer on Zboží.cz for ~20 GPU models,
-  plus launch MSRPs in the GPU catalog. Shown in pushes, used as a sanity check and as a prior for
+  sends a detailed follow-up within seconds (photo, prices, distance, the LLM's reading, the description,
+  a price to haggle with and a short Czech message to the seller); "Bought ✅" starts the flips log. See
+  "👍 follow-ups".
+- **New prices** (inside the worker, weekly): the lowest current offer on Zboží.cz for ~20 GPU models
+  and ~10 popular hard disks, plus launch MSRPs in the GPU catalog. Shown in pushes, used as a sanity check and as a prior for
   models with few ads. See "New prices".
 
 ## Fair price (v1)
 
-Per canonical model (`rtx 3080 10gb`, `thinkpad t480`, `optiplex 7060 micro`, ...), from matched ads
+Per canonical model (`rtx 3080 10gb`, `thinkpad t480`, `optiplex 7060 micro`, `hdd35 nas 8tb`, ...), from matched ads
 with a numeric price seen in the last 60 days (`pricing.py`):
 
 1. **Reposts collapse** to one sample: same model, same seller or same title, price within 5 %.
@@ -82,8 +89,9 @@ CT 100, about 6-10 s per ad. The prompt is in English and the ad is Czech. The c
 schema as Ollama's `format`, `temperature 0`, `think: false`, and caches answers on disk by
 sha256(model + prompt) in the worker's data volume (`triage.py`, the pattern from bot-arena). The
 answer gives condition (new / like_new / used / worn / broken), for_parts, defects,
-mining_suspected, warranty_or_receipt, urgent_sale, scam_signals, is_bundle, is_wanted_ad, specs
-(RAM/SSD/CPU) and a one-line verdict.
+mining_suspected, warranty_or_receipt, urgent_sale, scam_signals, is_bundle, is_wanted_ad, ships (the
+ad offers to send the item; see "Distance from home"), specs (RAM/SSD/CPU) and a one-line verdict. Hard
+disks get extra questions about the drive's health (see "Hard disks"). `PROMPT_VERSION` 3.
 
 Small models like to tick boxes, so a **scam signal only counts with evidence**. The model has to
 quote the ad, and the quote must really appear in it. A "shipping only" quote that actually offers
@@ -109,6 +117,10 @@ score = discount × confidence × penalty          discount = 1 − price / fair
 | any defects listed                                | × 0.8   |
 | mining suspected                                  | × 0.8   |
 | warranty or receipt                               | × 1.1   |
+| disk: reallocated / pending sectors, or SAS       | drop    |
+| disk: over 50 000 power-on hours                  | × 0.6   |
+| disk: nothing about SMART in the ad               | × 0.85  |
+| disk: SMR model or line                           | × 0.7   |
 
 A push needs `score ≥ 0.12` (`HUNTER_ALERT_MIN_SCORE`). Example: 30 % under fair at confidence 0.6
 with a receipt gives 0.3 × 0.6 × 1.1 = 0.198. Priority follows the discount: ≥ 45 % → 5 (urgent),
@@ -118,9 +130,11 @@ with a receipt gives 0.3 × 0.6 × 1.1 = 0.198. Priority follows the discount: �
 
 - Pushes go to topic `deals` on `ntfy.dobsinsky.dev`. The worker publishes over the LAN
   (`http://192.168.4.36`) as user `deal-hunter`. The message holds the title, price vs fair
-  (−X %), n and confidence, the LLM verdict and the location; tapping it opens the ad.
+  (−X %), n and confidence, the LLM verdict and the place with its distance ("📍 Ostrava · 280 km
+  (ships)"); tapping it opens the ad. Disk pushes add a line with the capacity, Kč/TB vs new, the
+  SATA/CMR badges and the SMART summary.
 - **The gate**: a model can only push once it has **≥ 15 priced samples** and its category
-  (GPUs, office) has **≥ 7 days** of data. Until then, deals that would have been pushed are
+  (GPUs, office, disks) has **≥ 7 days** of data. Until then, deals that would have been pushed are
   stored as `would_alert`, so alerts turn themselves on as data accumulates. `hunt gate` shows
   which models are ready. `HUNTER_ALERTS_ENABLED` is the global switch on top.
 - At most 5 pushes a day (`HUNTER_ALERT_MAX_PER_DAY`). The same ad is never pushed twice, and
@@ -137,7 +151,8 @@ with a receipt gives 0.3 × 0.6 × 1.1 = 0.198. Priority follows the discount: �
   `feedback` (deduplicated by ntfy message id) as they arrive. These are the labels for v2. A 👍
   also asks for the detailed follow-up (next section).
 - **Weekly digest**, Sunday 18:00 Prague: new ads, deals flagged / pushed / dropped, the busiest
-  models, median moves of ≥ 5 % against last week's snapshot, your votes. While no model is
+  models, median moves of ≥ 5 % against last week's snapshot, deals kept back as out of pickup range
+  ("Out of pickup range (would-alert): 3, e.g. Ostrava 280 km"), your votes. While no model is
   ready it says "still learning" with the data-days so far.
 - `hunt notify-test` sends one test push (its 👍/👎 store votes for ad 0). `hunt deals` lists
   candidates and what happened to them.
@@ -157,27 +172,33 @@ For a 👍 on a **Bazoš ad** it re-reads the ad page once (the shared Bazoš bu
 👍 Gigabyte RTX 3060 Gaming OC 12GB                                  [the ad's photo]
 💰 4 500 Kč · fair ~6 000 Kč (−25%), n=9 medium · new ~7 490 Kč (Zboží, 3 shops)
 🏷 rtx 3060 12gb
-📍 Brno 602 00 · posted 09.10. · seen 5 h ago · 👁 87 · seller Petr
+📍 Brno · 182 km (ships) · posted 09.10. · seen 5 h ago · 👁 87 · seller Petr
 🤖 used · defects: noisy fan · receipt/warranty ✓ · flags: none
 „Receipt, pickup only, worth a look.“
 
 📝 the description (up to ~1 500 characters, trimmed to fit one ntfy message)
 
-✉️ Message (offer 4 100 Kč):
-Dobrý den, mám zájem o Gigabyte RTX 3060 Gaming OC. Je ještě k dispozici? Mohu nabídnout
-4 100 Kč při osobním odběru v Brně. S pozdravem
+💬 If negotiating: ~4 100 Kč
+
+✉️ Message:
+Dobrý den, zajímám se o grafickou kartu Gigabyte RTX 3060 12GB. Mohl byste mi prosím sdělit, zda je
+stále k dispozici?
                                                     [Open ad]  [Bought ✅]
 ```
 
-- The **offer** is ours, not the LLM's: 7 % below asking (`HUNTER_OFFER_DISCOUNT`, clamped to
-  5-10 %), rounded down to 50 / 100 / 500 / 1 000 Kč depending on the price, and always 3-10 % below.
-- The **message** is drafted by the same local LLM (with its own JSON schema and the disk cache),
-  told to be polite, short, formal ("vykání"), to propose exactly our offer and to say nothing else
-  about the item. The draft is then checked like the triage's scam quotes: our offer must be in it,
-  every other number must appear in the ad, pickup may only be mentioned if the ad offers personal
-  pickup, shipping only if the ad mentions shipping, and no links, e-mails or phone numbers. A draft
-  that fails is replaced by a fixed template with the same offer ("Dobrý den, mám zájem o …. Je ještě
-  k dispozici? Mohu nabídnout … Kč[, s osobním převzetím]. Děkuji za odpověď. S pozdravem").
+- The **message** is a fixed template, not an LLM draft (Phase 9: it has to sound like a person and
+  must never say anything the ad doesn't): "Dobrý den, zajímám se o {noun} {item}. Mohl byste mi prosím
+  sdělit, zda je stále k dispozici?" No offer, no "Děkuji" line. The noun is the category's accusative:
+  "grafickou kartu", "notebook", "počítač", "all-in-one počítač", "disk" ("disky" for several),
+  "externí disk", "SSD". The item is the brand and model cleaned from the title, in the seller's own
+  spelling ("Prodám ZOTAC GAMING GeForce RTX 3070 Twin Edge OC 8GB" → "ZOTAC RTX 3070",
+  "3× Toshiba MG09 18TB enterprise HDD" → "Toshiba MG09 18TB"): only words the normalizer recognised,
+  so "PRODÁM", prices, emoji and sales talk never get in. An ad without a model says "... z vašeho
+  inzerátu".
+- The **offer** ("💬 If negotiating") is shown next to the message, not in it: 7 % below asking
+  (`HUNTER_OFFER_DISCOUNT`, clamped to 5-10 %), rounded down to 50 / 100 / 500 / 1 000 Kč depending on
+  the price, and always 3-10 % below. It is for the conversation once the seller answers.
+- Disk follow-ups add the disk line (capacity, Kč/TB vs new, SATA/CMR badges, SMART).
 - If the ad was never triaged (a 👍 on a test push), it is triaged now.
 - **Bought ✅** POSTs `{"ad": <id>, "vote": "bought"}`; the service records it in `flips`
   (listing, bought_at, buy_price = the asking price, sold_at/sold_price empty) for the Phase 6 ROI log.
@@ -207,7 +228,7 @@ a pricing key without the VRAM ('rtx 3060') gets none. It is converted for displ
 only: `USD × HUNTER_USD_CZK (23.5) × 1.21` (US MSRPs exclude sales tax, Czech prices include 21 % VAT).
 It is a launch price, not a current one: never a prior.
 
-**Current new price: Zboží.cz** (`zbozi.py`, `new_price_pages.yaml`). Heureka blocks all bots.
+**Current new price: Zboží.cz** (`zbozi.py`, `new_price_pages.yaml`; disks since Phase 9, see "Hard disks"). Heureka blocks all bots.
 Zboží's robots.txt (re-checked 2026-10-10) disallows search (`/hledani/`, `/hledej/`, `?q=`),
 multi-choice filters (any URL with a comma), `sId=`/`pId=`/`catOrder=`, the shop click-throughs
 (`/action/`, `/clickthru`) and most multi-parameter URLs; product pages (`/vyrobek/<slug>/`) are
@@ -223,7 +244,7 @@ once (from the sitemap and from the "similar products" on product pages) among c
 - A model's new price = the lowest offer across its pages read in the last 30 days, stored in
   `new_prices` (model, url, product, min_price, shops, fetched_at, error).
 - Weekly per page (`HUNTER_NEW_PRICE_DAYS`), at most 10 pages per worker cycle, ≥ 6 s apart, the
-  honest User-Agent, its own budget (`http_throttle` row 3): ~35 requests a week. A failed or rejected
+  honest User-Agent, its own budget (`http_throttle` row 3): ~50 requests a week (34 GPU + 15 disk pages). A failed or rejected
   page is retried after a day.
 - `hunt newprices [--fetch] [--all]` shows (and reads) the pages.
 
@@ -247,6 +268,7 @@ fair = exp(w · ln(median) + (1 − w) · ln(prior))
 GPUs:   prior = Zboží new price × r,  k = 5
         r = median of (median / new) over models with ≥ 15 samples and a Zboží price
             (at least 3 such models; else 0.75), clipped to [0.35, 0.9]
+Disks:  the same, with r from disk keys only (else 0.6)
 Office: prior = median per-unit final price of ended state auction lots × 1.5,  k = lots (max 3)
 ```
 
@@ -385,6 +407,107 @@ what a used business laptop fetches at a state auction vs what Bazoš sellers as
   document with what is actually sold) is a PDF. Its catalogue had 6 running auctions, all cars, and its
   categories are real estate, cars, machines and "other". No IT lots.
 
+## Distance from home
+
+Home is Prague (`HUNTER_HOME_PSC`, else `HUNTER_HOME_LAT`/`HUNTER_HOME_LON`, default the centre at
+50.0755, 14.4378). `geo.py` turns an ad's PSČ into a point with a bundled table of the ~2 700 Czech
+postal codes (`cz_postcodes.csv`, built from the [GeoNames](https://www.geonames.org/) postal code dump,
+CC BY 4.0); without a PSČ it tries the town name ("Praha 4", "Ústí nad Labem", the town part of
+"Brno-Trnitá"), and a name that several far-apart places share ("Lhota") gives nothing. The
+straight-line distance is stored per listing (`distance_km`, `distance_src`) by the worker and recomputed
+when the home or the ad's place changes.
+
+The rule, applied to deals that are otherwise ready to push:
+
+- **within the pickup radius** (`HUNTER_PICKUP_KM`, default 40 km; per category with
+  `HUNTER_PICKUP_KM_HDD`, `_GPU`, `_OFFICE_PC`, `_OFFICE_LAPTOP` or `_OFFICE`; `HDD` defaults to
+  300 km on its own - disks ship easily - without needing the env var set): as before;
+- **outside it, or the distance is unknown**: only if the ad **ships** and the deal still scores
+  after postage: the score is recomputed with `HUNTER_SHIPPING_CZK` (150 Kč, split over the drives of a
+  multi-disk ad) added to the price, and must stay ≥ `HUNTER_ALERT_MIN_SCORE`;
+- otherwise the deal is kept as `would_alert` with the reason ("out of range: Ostrava 275 km > 40 km,
+  no shipping" / "... ships, but score 0.090 after 150 Kč shipping"), so the radius can be tuned later.
+
+**Does it ship?** A regex on the title and description first: clear offers ("pošlu", "zašlu",
+"Zásilkovna", "Balíkovna", "PPL", "DPD", "dobírka", "poštou", "zaslání"; but not "pošlu fotky / SMART
+výpis") and clear refusals ("neposílám", "pouze osobní odběr"). Only when the ad says neither does the
+LLM's `ships` answer count, and only if the ad uses some word about sending. The decision is stored on
+the deal (`deals.ships`). `HUNTER_TRAVEL_CZK_PER_KM` (default 0) adds "~X Kč there and back" next to the
+distance; it is display only. `HUNTER_PICKUP_KM=0` turns the rule off.
+
+## Hard disks
+
+The main interest since Phase 9: more storage for the home server. It has an Intel SATA controller with
+6 ports (2 used by 2 TB Barracudas) and **no SAS HBA**, so the target is **3.5" SATA CMR drives of 8 TB
+and more**, NAS or enterprise lines.
+
+**Scraping.** The Bazoš section "Hard disky, SSD" (`/hdd/`, RSS `cat=5`) under the same polite rules:
+one RSS feed and one category page per cycle, a detail page only for new drives that could fit (3.5",
+desktop externals, form unknown; no SSDs or 2.5" drives). `hunt backfill --section hdd` seeds history
+once (15 pages: ~300 ads, ~70 detail pages).
+
+**Normalizer** (`storage.py`, `storage_catalog.yaml`, ~300 hand-checked real titles in
+`tests/fixtures/disk_titles.yaml`). From the title, and the description when there is one:
+
+| feature        | how                                                                                   |
+|----------------|---------------------------------------------------------------------------------------|
+| kind           | `hdd_35`, `hdd_25`, `hdd` (form unknown), `ssd_sata`, `ssd_nvme`, `ssd`: words (3,5", "do notebooku", NVMe, M.2 SATA), part numbers, lines |
+| capacity_tb    | "8TB", "8 TB", "8000 GB", "1,92TB"; or the part number (ST8000…, WD80…, MG09ACA18TE) |
+| interface      | `sata` / `sas` / unknown: `sas` only when **certain** - the word "SAS"/"12Gb/s" in the text, the HGST/WD Ultrastar "S" marker (ALS6, ...), a Seagate NM suffix the catalog marks `certain` (ST16000NM002G, ...), or Toshiba MGxx**S**CA; a suffix remembered but not checked against a data sheet (`uncertain` in the catalog) or any other case is left unknown, not guessed - shown as "⚠ check SATA vs SAS" |
+| line, class    | WD Red / Red Plus / Red Pro, Purple, Gold, Ultrastar, Seagate IronWolf / Pro, Exos, Constellation, SkyHawk, Barracuda, Toshiba N300 / MG / X300 / P300, Synology HAT; class `nas`, `enterprise`, `surveillance`, `desktop`; shuckable desktop externals (WD Elements / My Book, Seagate Expansion / Backup Plus) apart |
+| smr            | a table of models (WD40EFAX, ST8000DM004, … SMR; WD40EFRX, ST2000DM001, … CMR) and line defaults (WD Red 2-6 TB and Barracuda 2-8 TB SMR, the NAS/enterprise lines CMR) |
+| quantity       | "4× …", "3 ks", "dva disky"; with `price_per` = `unit` ("7 000 Kč/ks", "cena za kus"), `lot` ("za vše", "cena za oba") or `unknown` |
+
+Pricing keys are **class, pooled across capacities** for a 3.5" HDD with a known class: `hdd35 nas`,
+`hdd35 enterprise`, `hdd35 desktop`, `hdd35 surveillance`, `external` (desktop externals, also 3.5") -
+a single capacity rarely gets the 4 ads a fair price needs, and these are priced in **Kč/TB** instead
+of Kč (see "Fair price" below). SAS drives keep their own capacity-specific key, `hdd35 enterprise sas
+4tb` (a market of their own, and rarer now that the interface call is stricter) - as do a 3.5" drive
+with no known line (`hdd35 8tb`), 2.5" (`hdd25 1tb`, `external25 2tb`) and SSDs (`ssd nvme 1tb`). The
+part number is kept as a feature, not in the key. Excluded: wanted ads, broken / for parts ("vadné
+sektory"; not "0 vadných sektorů"), frames / caddies / boxes / cables / adapters, NAS boxes and multi-bay
+enclosures, mixed lots (several sizes or brands), laptop drives under 1 TB, IDE, external SSDs, memory
+cards, tapes. In the first fetch of 300 ads: 212 matched, 73 excluded, 15 unmatched; 11 were 3.5" drives
+of 8 TB+ that aren't SAS.
+
+**Fair price**, as for everything else (`pricing.py`), from the **price of one drive**: a lot price is
+split over its drives, and a multi-disk ad that doesn't say whether the price is per piece is left out
+of pricing and candidates. For a pooled class the estimate itself runs on Kč/TB (each sample's price
+divided by its own capacity), the same robust median/IQR/confidence as any other model, just flat per
+class - checked against the Zboží new-price numbers below for a capacity trend and found too noisy and
+non-monotonic to support one. A listing's fair price is that Kč/TB median × its own capacity. Shown as
+Kč/TB for pooled classes, Kč and Kč/TB for the rest (`hunt prices --category hdd`). **New prices** from
+curated Zboží.cz pages for ~10 popular drives (Exos X18 12/16/18 TB, Exos X20, IronWolf 8/12 TB,
+IronWolf Pro 8/16 TB, Red Plus 8/12 TB, Toshiba MG09 18 TB, MG10 20 TB), checked against the internal
+hard disk category and the storage normalizer; for a pooled class the per-capacity Zboží offers are
+turned into one Kč/TB figure (the median across that class's capacities), used as a prior with the disk
+used/new ratio (0.6 until there is data) and shown as "new ~972 Kč/TB" in pushes. On 2026-10-10 new
+drives cost ~950-1 150 Kč/TB, with no consistent size trend (16 TB enterprise was the cheapest per TB
+of the four capacities checked, not the dearest).
+
+**Triage.** Disk candidates get extra questions (`triage.DISK_PROMPT`, its own schema): power-on hours,
+reallocated or pending sectors (a number, "some" or 0), health %, a SMART screenshot mentioned, tested,
+warranty until, from a NAS or server. Every answer needs the ad behind it: the hours and health must be
+numbers in the ad (with Czech thousands joined), sector claims need words about sectors, the flags need
+words about SMART / testing / warranty / NAS. Penalties on top of the usual ones: sectors > 0 or SAS →
+drop; > 50 000 h → × 0.6; nothing about SMART → × 0.85; SMR → × 0.7.
+
+**Server fit** (`storage.server_fit`, before the LLM): a 3.5" (or desktop external) SATA drive of at least
+`HUNTER_HDD_MIN_TB` (8) TB that isn't host-managed SMR. Disk candidates that don't fit (SAS, 2.5", SSD,
+too small, form unknown) skip the LLM and are kept as `would_alert` with the reason ("SAS drive: not
+usable on this server (SATA controller, no SAS HBA)", "server fit: 6 TB < 8 TB"). CMR is preferred
+through the SMR penalty, not required. Disks ship easily: 300 km by default (`HUNTER_PICKUP_KM_HDD`,
+overridable).
+
+```
+3× Toshiba MG09 18TB enterprise HDD, záruka do 4. 2. 2027              [the ad's photo]
+3× 8 900 Kč/ks vs ~12 000 Kč fair (−26%), n=9, medium confidence
+hdd35 enterprise · new ~973 Kč/TB (Zboží, 2 keys, 3 shops)
+💾 3× 18 TB · 494 Kč/TB (new ~973 Kč/TB) · SATA ✓ · CMR ✓ · SMART: 12 400 h, 0 reallocated/pending
+🤖 Three healthy enterprise drives with warranty, worth a look.
+📍 Praha 4 · 2 km
+```
+
 ## Being polite
 
 - Only URLs that [robots.txt](https://pc.bazos.cz/robots.txt) allows: the category pages
@@ -393,10 +516,10 @@ what a used business laptop fetches at a state auction vs what Bazoš sellers as
 - At least 3 seconds between any two requests, shared across the scraper and the rechecker
   (a row lock in Postgres), an honest User-Agent that links to this repo, timeouts, and
   exponential backoff on 429/5xx (honouring `Retry-After`).
-- A normal cycle is 7 requests (3 RSS feeds + 4 category pages) plus one per new ad worth keeping,
-  typically under 10 in total, every 10 minutes. `HUNTER_SECTIONS` turns sections off.
+- A normal cycle is 9 requests (4 RSS feeds + 5 category pages) plus one per new ad worth keeping,
+  typically under 12 in total, every 10 minutes. `HUNTER_SECTIONS` turns sections off.
 - nms.gov.cz has its own, slower budget (≥ 6 s apart, a few dozen requests a day); see "Auctions".
-- Zboží.cz: only product pages robots.txt allows, ≥ 6 s apart, ~60 a week; see "New prices".
+- Zboží.cz: only product pages robots.txt allows, ≥ 6 s apart, ~50 a week; see "New prices".
 
 ## Architecture
 
@@ -413,7 +536,7 @@ pc.bazos.cz ───────────────────► hunt sc
           │               push (deals)    ▼
           │                         ntfy (CT 116) ◄──► phone
           │      follow-up (deals)  ▲     │ 👍/👎/bought (deals-feedback, live stream)
-          └──── draft ── hunt feedback --loop ─────────────────────►  feedback, followups, flips
+          └──── triage ─ hunt feedback --loop ─────────────────────►  feedback, followups, flips
    nms.gov.cz ── lists, details, PDFs ──► auction step (in the worker) ──► auction_lots,
                                           auction_extractions, auction_alerts
    zbozi.cz ── product pages (weekly) ──► new-price step (in the worker) ──► new_prices
@@ -424,13 +547,15 @@ pc.bazos.cz ───────────────────► hunt sc
   silently storing garbage.
 - `http.py`: the polite client. `scraper.py`: scrape / backfill / recheck cycles.
 - `db/`: raw psycopg 3 and numbered SQL migrations (`hunt db migrate`).
-- `normalize.py` + `gpu_catalog.yaml`: the rule-based GPU normalizer; `office.py`: the office one.
+- `normalize.py` + `gpu_catalog.yaml`: the rule-based GPU normalizer; `office.py`: the office one;
+  `storage.py` + `storage_catalog.yaml`: disks. `geo.py` + `cz_postcodes.csv`: distances, shipping
+  detection and the pickup rule.
 - `pricing.py`: fair price v1. `triage.py`: Ollama client, prompt, tolerant parser, deal score.
   `alerts.py`: the worker cycle, gate, ntfy, feedback and digest.
 - `nms.py`: nms.gov.cz parsers (list API, detail page, PDF item lists), tested against saved responses.
   `auctions.py`: LLM extraction and valuation. `auction_cycle.py`: the auction step of the worker.
 - `feedback.py`: the feedback service (stream, votes, follow-ups). `followup.py`: the follow-up text,
-  the offer and the Czech draft with its evidence check. `zbozi.py` + `new_price_pages.yaml`: new prices.
+  the offer and the message to the seller. `zbozi.py` + `new_price_pages.yaml`: new prices.
 
 ## Usage
 
@@ -441,12 +566,12 @@ cp .env.example .env
 uv run hunt db migrate
 uv run hunt scrape --once --dry-run     # parse and print, nothing saved
 uv run hunt scrape --once               # one real cycle
-uv run hunt backfill --pages 15         # seed history (capped at 15 pages; --section pc|notebook)
+uv run hunt backfill --pages 15         # seed history (capped at 15 pages; --section pc|notebook|hdd)
 uv run hunt recheck                     # re-check ads not seen for 6 h
 uv run hunt normalize [--all]           # map titles to models (GPUs, office PCs/laptops)
 uv run hunt review [--section pc]       # unmatched titles, to improve the catalog
 uv run hunt stats
-uv run hunt prices [--category office]  # fair price table
+uv run hunt prices [--category hdd]     # fair price table (disks with Kč/TB vs new)
 uv run hunt price --model "rtx 3080"    # one model, with its recent ads
 uv run hunt work                        # one worker cycle (price, triage, score, push, feedback)
 uv run hunt deals [--state would_alert] # candidates and what became of them
@@ -498,7 +623,7 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
 - Reposts are detected by seller name and title, both of which a seller can change.
 - The gate counts data-days per category from the first ad seen. GPU history starts 2026-10-09,
   office history (PCs, laptops) on 2026-10-09 with v0.3.0. Office volume is much lower, so office
-  models take longer to reach 15 samples.
+  models take longer to reach 15 samples. Disk history starts with v0.7.0 (plus its 15-page backfill).
 - `gemma3:12b` is a small model. It misreads things: pickup-only taken for shipping-only, a
   shop's "pay postage up front" taken for a prepay scam. The evidence check removes the worst of
   this, but treat the verdict as a hint, not a judgement.
@@ -522,8 +647,21 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
   launch prices (in USD, converted with a fixed rate), not what a card costs today.
 - **The priors are assumptions**: the 0.75 used/new fallback, the 1.5 auction-to-retail uplift and the
   prior weights (5 samples; one per auction lot) are guesses until there is data to fit them.
-- **The seller message is a draft.** It is checked for invented numbers and claims, but read it before
-  sending; it is formal and generic on purpose.
+- **The seller message is a template.** It only names the item and asks whether it is still available;
+  the item name comes from the words the normalizer recognised, so an odd title gives a short name.
+- **Distances are straight lines** from the PSČ's point (the median of its GeoNames places); by road it
+  is 20-30 % more. GeoNames has some misplaced codes: three Prague ones are corrected, others elsewhere
+  may be off. An ad without a known PSČ or town counts as out of range unless it ships.
+- **Shipping is read from the ad**: a regex for clear offers ("pošlu", "Zásilkovna", "PPL", "dobírkou",
+  ...) and refusals ("neposílám", "pouze osobní odběr"), the LLM's reading only when the ad is vague, and
+  then only if the ad uses a shipping word at all.
+- **Disks are thin data.** In the 300 ads of a first fetch (~6 days) only ~12 were 3.5" drives of 8 TB or
+  more, now pooled per class rather than per class/capacity key, so a class's fair price (≥ 4 ads) and the
+  alert gate (15) still take a couple of weeks; new prices from Zboží help as priors once a class has a
+  few ads. The SMR table and the SAS/SATA suffix table are curated by hand from data sheets as remembered
+  (see `storage_catalog.yaml`); the less certain suffixes are marked `uncertain` and don't call a drive
+  SAS. A title without a part number, or an uncertain suffix, leaves the interface unknown (shown as
+  "⚠ check SATA vs SAS"; SMR still shows "CMR?").
 - Older and workstation cards (GTX 9xx and earlier, RX 400/500, Quadro, ...) are recognised but
   excluded as `out_of_scope`, so the first backfill (which reaches deep into cheap old stock) shows
   a high exclusion rate.
@@ -561,3 +699,18 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
       auction lots. Launch MSRPs in the GPU catalog; lowest current offers from curated Zboží.cz product
       pages; a used ≥ 95 % of new sanity check; thin models shrunk toward new × used/new ratio (GPUs) or
       state auction prices (office); Fujitsu Esprimo and HP EliteOne/ProOne in the office catalog.
+- [x] **Phase 9: distance, a human seller message, hard disks.** Distance from home (Prague) from a
+      bundled GeoNames PSČ table, a pickup radius (per category), out-of-range deals only when the ad
+      ships and still pays after postage; a fixed natural message to the seller instead of the LLM draft,
+      the haggling price shown apart; the Bazoš `/hdd/` section with a storage normalizer (form, capacity,
+      SATA/SAS, line, SMR, multi-disk ads), fair prices per class and capacity with Kč/TB vs new (Zboží),
+      SMART questions for the LLM, disk penalties and a server-fit filter (3.5" SATA, ≥ 8 TB).
+- [ ] **Later (disks):** recognise drives inside NMS server lots; SnapRAID parity once a big disk arrives;
+      pool disk prices per class in Kč/TB across capacities while per-key data is thin.
+
+## Credits
+
+- Postal code coordinates: [GeoNames](https://www.geonames.org/) postal code data for the Czech Republic
+  (https://download.geonames.org/export/zip/CZ.zip), licensed under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); compacted into
+  `src/deal_hunter/cz_postcodes.csv` (one point per PSČ, the median of its places) by `geo.build_table`.

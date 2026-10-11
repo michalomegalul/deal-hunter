@@ -1,0 +1,80 @@
+# Hard disks and SSDs for the storage normalizer (src/deal_hunter/storage.py).
+#
+# The main interest is 3.5" SATA CMR drives of 8 TB and more for a home server with a plain SATA
+# controller (no SAS HBA). So the normalizer cares about: the form factor, the capacity, the interface
+# (SAS drives don't work there), the product line (NAS / enterprise / surveillance / desktop / external)
+# and whether the line or model uses SMR (shingled recording: slow rewrites, bad in RAID/ZFS/SnapRAID).
+#
+# Patterns are regexes on the prepared title (lower case, no accents, "3,5" -> "3.5"; see prepare()).
+# Bump `version` whenever the rules change, so `hunt normalize` re-processes old listings.
+version: 2
+
+# Who made it. Model numbers imply the brand too (storage.py: ST..., WD..., HU..., MG..., HDW...).
+brands:
+  wd: '\b(wd|wdc|western ?digital|wd_?black)\b'
+  seagate: '\bseagate\b'
+  toshiba: '\btoshiba\b'
+  hgst: '\b(hgst|hitachi)\b'
+  samsung: '\bsamsung\b'
+  synology: '\bsynology\b'
+  lacie: '\blacie\b'
+
+# Product lines, first match wins (so 'red plus' before 'red', 'barracuda pro' before 'barracuda').
+# class: nas | enterprise | surveillance | desktop (the pricing key's class). sata_only: the line has no SAS
+# models, so an unknown interface is SATA (Exos, Ultrastar, Toshiba MG, Constellation have SAS twins).
+# smr: true / false / null (unknown, depends on the model); smr_tb: capacities that are SMR when the
+# model number doesn't say otherwise (WD Red 2-6 TB are EFAX = SMR since 2019; the 8 TB+ are CMR).
+lines:
+  - {line: wd red plus, brand: wd, class: nas, sata_only: true, smr: false, pattern: '\bred ?plus\b'}
+  - {line: wd red pro, brand: wd, class: nas, sata_only: true, smr: false, pattern: '\bred ?pro\b'}
+  - {line: wd red, brand: wd, class: nas, sata_only: true, smr: false, smr_tb: [2, 3, 4, 6], pattern: '\bred\b(?! ?(sa|sn)\d)'}
+  - {line: wd purple, brand: wd, class: surveillance, sata_only: true, smr: false, pattern: '\bpurple\b'}
+  - {line: wd gold, brand: wd, class: enterprise, sata_only: true, smr: false, pattern: '\bgold\b'}
+  - {line: ultrastar, brand: wd, class: enterprise, smr: false, pattern: '\bultra ?star\b|\bdc ?hc ?\d{3}\b'}
+  - {line: wd black, brand: wd, class: desktop, sata_only: true, smr: false, pattern: '\bblack\b(?! ?sn\d)'}
+  - {line: wd blue, brand: wd, class: desktop, sata_only: true, smr: null, pattern: '\bblue\b(?! ?(sa|sn)\d)'}
+  - {line: wd green, brand: wd, class: desktop, sata_only: true, smr: null, pattern: '\b(caviar )?green\b'}
+  - {line: seagate ironwolf pro, brand: seagate, class: nas, sata_only: true, smr: false, pattern: '\biron ?wolf ?pro\b'}
+  - {line: seagate ironwolf, brand: seagate, class: nas, sata_only: true, smr: false, pattern: '\biron ?wolf\b'}
+  - {line: seagate exos, brand: seagate, class: enterprise, smr: false, pattern: '\bexos\b'}
+  - {line: seagate constellation, brand: seagate, class: enterprise, smr: false, pattern: '\bconstellation\b|\benterprise capacity\b'}
+  - {line: seagate skyhawk, brand: seagate, class: surveillance, sata_only: true, smr: null, pattern: '\bsky ?hawk\b'}
+  - {line: seagate barracuda pro, brand: seagate, class: desktop, sata_only: true, smr: false, pattern: '\bbarracuda pro\b'}
+  - {line: seagate barracuda, brand: seagate, class: desktop, sata_only: true, smr: null, smr_tb: [2, 3, 4, 5, 6, 8], pattern: '\bbarracuda\b'}
+  - {line: toshiba n300, brand: toshiba, class: nas, sata_only: true, smr: false, pattern: '\bn ?300\b'}
+  - {line: toshiba mg, brand: toshiba, class: enterprise, smr: false, pattern: '\bmg ?(0[4-9]|10|11)\b|\bmg(0[4-9]|10|11)[as]ca'}
+  - {line: toshiba x300, brand: toshiba, class: desktop, sata_only: true, smr: false, pattern: '\bx ?300\b'}
+  - {line: toshiba p300, brand: toshiba, class: desktop, sata_only: true, smr: null, smr_tb: [4, 6], pattern: '\bp ?300\b'}
+  - {line: toshiba s300, brand: toshiba, class: surveillance, sata_only: true, smr: false, pattern: '\bs ?300\b'}
+  - {line: synology hat3300, brand: synology, class: nas, sata_only: true, smr: false, pattern: '\bhat ?33\d\d\b'}
+  - {line: synology hat5300, brand: synology, class: enterprise, sata_only: true, smr: false, pattern: '\bhat ?53\d\d\b'}
+  - {line: hgst deskstar nas, brand: hgst, class: nas, sata_only: true, smr: false, pattern: '\bdeskstar nas\b'}
+  - {line: hgst deskstar, brand: hgst, class: desktop, sata_only: true, smr: false, pattern: '\bdeskstar\b'}
+  - {line: samsung spinpoint, brand: samsung, class: desktop, sata_only: true, smr: false, pattern: '\bspin ?point\b'}
+
+# External drives. Desktop ones hold a 3.5" SATA drive you can take out ("shucking"); portable ones a
+# 2.5" drive, often soldered to USB. A brand-only external ("WD Elements 12TB") of 6 TB or more is a
+# desktop one: portables stop at 5-6 TB.
+externals:
+  desktop: '\b(my ?book|elements desktop|expansion desktop|backup plus (hub|desktop)|one ?touch hub|easystore|d2 professional)\b'
+  portable: '\b(my ?passport|elements portable|expansion portable|backup plus (slim|portable)|one ?touch|canvio|portable|rugged|pocket)\b'
+  any: '\b(externi\w*|external|usb ?(3|c|hdd|disk)?|elements|expansion|backup plus|lacie)\b'
+
+# Seagate enterprise (NM) and 10k/15k (MM/MP/MX) part numbers. Seagate makes most enterprise models in
+# a SATA and a SAS version that differ only in the suffix; listed are the common ones (from Seagate's
+# data sheets as remembered). Not every suffix was equally sure to remember right, so `seagate_sas` is
+# split: `certain` sets the interface to SAS; `uncertain` was remembered less confidently (no data
+# sheet checked) and is treated as unknown, same as a suffix that isn't in this table at all - the word
+# "SAS" in the ad's own text, or storage.py's HGST/WD 'S' marker, can still call it SAS from the text.
+seagate_sas:
+  certain: [nm0023, nm0025, nm0034, nm0045, nm0075, nm0095, nm002g, nm004j, nm002d]
+  uncertain: [nm0027, nm0096, nm004d]
+seagate_sata: [nm0007, nm0008, nm0016, nm0018, nm0024, nm0033, nm0035, nm0055, nm0086, nm0115, nm000a, nm001g, nm000j, nm007d]
+
+# SMR / CMR by model number (wins over the line default).
+smr_models: [st8000dm004, st6000dm003, st4000dm004, st3000dm007, st2000dm005, st2000dm008, st1000lm048, st2000lm015,
+  st4000lm024, st5000lm000, wd20efax, wd30efax, wd40efax, wd60efax, wd20ezaz, wd40ezaz, wd60ezaz, wd10spzx, wd20spzx,
+  hdwd240, hdwd260, dt02aba400, dt02aba600, mq04abf100]
+cmr_models: [st2000dm001, st3000dm001, st1000dm003, st2000dm006, st1000dm010, st4000dm000, st500dm002, st500dm009,
+  st2000dl003, st1000vx001, st32000641as, wd20efrx, wd30efrx, wd40efrx, wd60efrx, wd40ezrz, wd10ezex, wd2003fzex,
+  wd1001fals, wd10eals, wd80ezaz, wd80eazz, hdwd110, hdwd120, hdwd130]

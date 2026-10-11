@@ -21,7 +21,10 @@ from tests.test_triage import GOOD, FakeLLM
 from tests.test_worker import FakeNtfy, make_ntfy, seed
 
 NOW = datetime.now(UTC)
-DRAFT = "Dobrý den, mám zájem o Gigabyte RTX 3080. Je ještě k dispozici? Mohu nabídnout 6 000 Kč. Děkuji"
+MESSAGE = (
+    "Dobrý den, zajímám se o grafickou kartu Gigabyte RTX 3080 10GB. "
+    "Mohl byste mi prosím sdělit, zda je stále k dispozici?"
+)
 
 
 def vote_event(i, body, at=None):
@@ -76,15 +79,19 @@ def test_votes_feedback_lots_and_flips(conn):
 def test_thumbs_up_sends_one_detailed_followup(conn):
     seed(conn)
     site = FakeNtfy()
-    llm = FakeLLM(json.dumps(GOOD), json.dumps({"message": DRAFT}))
+    llm = FakeLLM(json.dumps(GOOD))  # only the on-demand triage: the message is a template
     ctx = context(conn, site, llm=llm)
     result = feedback.handle(ctx, vote_event(1, {"ad": 999, "vote": "up"}))
-    assert "follow-up for ad 999 sent (draft: llm)" in result
+    assert "follow-up for ad 999 sent" in result
     push = site.posts[-1]
     assert push["title"] == "👍 Gigabyte RTX 3080 10GB Vision" and push["priority"] == 4
     assert push["attach"] == "https://www.bazos.cz/img/1/999/999.jpg"
     assert "💰 6 500 Kč · fair ~" in push["message"] and "Prodám, účtenka." in push["message"]
-    assert "🤖 used" in push["message"] and DRAFT in push["message"]  # triaged on demand (no deal row)
+    assert "📍 Brno · 182 km · posted" in push["message"] or "📍 Brno · 182 km ·" in push["message"]
+    assert "💬 If negotiating: ~6 000 Kč" in push["message"]
+    assert "🤖 used" in push["message"] and push["message"].endswith(
+        MESSAGE
+    )  # triaged on demand (no deal row)
     open_ad, bought = push["actions"]
     assert open_ad == {"action": "view", "label": "Open ad", "url": push["click"], "clear": False}
     assert json.loads(bought["body"]) == {"ad": 999, "vote": "bought"}

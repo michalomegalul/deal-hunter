@@ -74,7 +74,7 @@ def test_alert_message():
     title, message, tags = alerts.format_alert(deal, fp())
     assert title == "Gigabyte RTX 3080 Vision OC"
     assert message.splitlines()[0] == "6 500 Kč vs ~10 000 Kč fair (−35%), n=20, high confidence"
-    assert "🤖 Clean card with receipt." in message and "📍 Brno 602 00" in message
+    assert "🤖 Clean card with receipt." in message and "📍 Brno · 182 km" in message
     assert tags == ["video_game", "moneybag"]
     assert alerts.format_alert({**deal, "category": "office_laptop", "discount": 0.25}, None)[2] == [
         "computer"

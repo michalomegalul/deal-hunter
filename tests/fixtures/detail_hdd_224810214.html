@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<title>HDD SEAGATE 3,5&quot; - 8TB - Vyškov | Bazoš.cz</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="Inzerát č. 224810214: HDD SEAGATE 3,5&quot; - 8TB, Cena: 1 800 Kč, Lokalita: Vyškov. Popis: Disk má 2 přemapované soubory viz výpis Crystal disk info."><meta property="og:image" content="https://www.bazos.cz/img/1/214/224810214.jpg?t=1791446114"><meta property="og:title" content="HDD SEAGATE 3,5&quot; - 8TB - Vyškov">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bazos.cz">
+<meta property="og:description" content="Inzerát č. 224810214: HDD SEAGATE 3,5&quot; - 8TB, Cena: 1 800 Kč, Lokalita: Vyškov. Popis: Disk má 2 přemapované soubory viz výpis Crystal disk info.">
+<link rel="canonical" href="https://pc.bazos.cz/inzerat/224810214/hdd-seagate-35-8tb.php"><meta property="fb:admins" content="1055875657">
+<meta name="ROBOTS" content="max-image-preview:large">
+<link rel="preload" as="image" href="https://www.bazos.cz/img/1/214/224810214.jpg?t=1791446114"><link rel="stylesheet" href="https://www.bazos.cz/bazos67s.css" type="text/css"><link rel="preload" as="image" href="https://www.bazos.cz/obrazky/bazos.svg">
+<link rel="stylesheet" href="https://www.bazos.cz/bazosprint.css" type="text/css" media="print">
+<link rel="icon" href="https://www.bazos.cz/favicon.svg" type="image/svg+xml">
+<link rel="icon" HREF="https://www.bazos.cz/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="https://www.bazos.cz/apple-touch-icon.png">
+<script async="async" src="https://www.google.com/adsense/search/ads.js"></script>
+<script type="text/javascript" charset="utf-8">
+(function(g,o){g[o]=g[o]||function(){(g[o]['q']=g[o]['q']||[]).push(
+  arguments)},g[o]['t']=1*new Date})(window,'_googCsa');
+</script><script>
+var xhr = new XMLHttpRequest();
+var naseptavac_value = '';
+function naseptavac(value) {
+  if (value=='')  {
+  	naseptavac_value = '';
+  	document.getElementById('vysledek').innerHTML='';
+  	}
+else {
+	if (naseptavac_value == value) {
+		return false;
+	}
+	naseptavac_value = value;
+	setTimeout(function () {
+		if (naseptavac_value != value) {
+			return false;
+		}
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4 && naseptavac_value == value){
+				document.getElementById('vysledek').innerHTML = this.responseText;
+			}
+ 		 };
+		xhr.open("POST", '/suggest.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('rubnas=PC&catnas=5&qnas='+encodeURIComponent(naseptavac_value));
+	}, 250);
+}
+}
+
+var naseptavacpsc_value = '';
+function naseptavacpsc(value) {
+  if (value=='')  {
+  	naseptavacpsc_value = '';
+  	document.getElementById('vysledekpsc').innerHTML='<table cellpadding=\"3\" cellspacing=\"0\" class=\"tablenaspsc\"><tr><td class=\"act\" onclick=\"getLocation();\"><b>Inzeráty v okolí</b></td></tr></table>';
+  	}
+else {
+	if (naseptavacpsc_value == value) {
+		return false;
+	}
+	naseptavacpsc_value = value;
+	setTimeout(function () {
+		if (naseptavacpsc_value != value) {
+			return false;
+		}
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4 && naseptavacpsc_value == value){
+				document.getElementById('vysledekpsc').innerHTML = this.responseText;
+			}
+ 		 };
+		xhr.open("POST", '/suggestpsc.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('qnaspsc='+encodeURIComponent(naseptavacpsc_value));
+	}, 250);
+}
+}
+
+function getLocation() {
+if (navigator.geolocation) {navigator.geolocation.getCurrentPosition(showPosition);}
+else {document.getElementById('hlokalita').value = '';}
+}
+function showPosition(position) {
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4){
+				document.getElementById('hlokalita').value = this.responseText;
+				document.forms['formt'].submit();
+			}
+ 		 };
+		xhr.open("POST", '/zip.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('latitude='+encodeURIComponent(position.coords.latitude)+'&longitude='+encodeURIComponent(position.coords.longitude));
+}
+
+function favouriteadd(value,params,obradresa) {
+xhr.onreadystatechange = function() {
+  if (this.readyState == 4 && this.status == 200){
+				document.getElementById('favour').innerHTML = this.responseText;
+				document.getElementById('obrfavour').src = obradresa;
+			}
+  };
+xhr.open("POST", value);
+xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhr.send(params);
+}
+
+function odeslatrequest(value,params,overvalue) {
+xhr.onreadystatechange = function() {
+  if (this.readyState == 4){
+				document.getElementById(overvalue).innerHTML = this.responseText;
+			}
+  };
+xhr.open("POST", value);
+xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhr.send(params);
+}
+function odeslatakci(postaction,value1,value2,value3) {
+document.getElementById('postaction').value = postaction;
+document.getElementById("postv1").value = value1;
+document.getElementById("postv2").value = value2;
+document.getElementById("postv3").value = value3;
+document.formaction.submit();
+}
+</script>
+<script src="https://www.bazos.cz/flickity2.js"></script></head>
+
+<body>
+
+
+<div class="sirka">
+<div class="listalogor">
+<div class="listalogol"><a href="https://www.bazos.cz/" title="Bazos.cz - Inzerce, bazar"><img src="https://www.bazos.cz/obrazky/bazos.svg" width="199" height="34" alt="Bazos.cz - Inzerce, inzeráty"></a></div>
+<div class="listalogom"><b>... bazar pro každého</b></div>
+<div class="listalogop"><a href="https://www.bazos.cz/oblibene.php"><b>Oblíbené inzeráty</b></a> <a href="https://www.bazos.cz/moje-inzeraty.php"><b>Moje inzeráty</b></a> <a href="/pridat-inzerat.php"><b><span class=pridati>Přidat inzerát</span></b></a></div>
+</div>
+<form name="formt" id="formt" method=get action=/>
+<div class="listah">
+<div class="rubriky">
+<b>
+Co: <span class=vysokoli><span id="vysledek"></span><input type="search" onkeyup="naseptavac(this.value);" id=hledat name=hledat size="17" maxlength="256" value="" autocomplete="off" title="Co? Vyhledávaný výraz"></span>
+
+<select name="rubriky" onchange='this.form.submit();' title="Vyber rubriku">
+<option value="www">Všechny rubriky</option>
+<option value="auto">Auto</option><option value="deti">Děti</option><option value="dum">Dům a zahrada</option><option value="elektro">Elektro</option><option value="foto">Foto</option><option value="hudba">Hudba</option><option value="knihy">Knihy</option><option value="mobil">Mobily</option><option value="motorky">Motorky</option><option value="nabytek">Nábytek</option><option value="obleceni">Oblečení</option><option value="pc" selected>PC</option><option value="prace">Práce</option><option value="reality">Reality</option><option value="sluzby">Služby</option><option value="sport">Sport</option><option value="stroje">Stroje</option><option value="vstupenky">Vstupenky</option><option value="zvirata">Zvířata</option><option value="ostatni">Ostatní</option></select>
+
+Lokalita: <span class=vysokolipsc><span id="vysledekpsc"></span><input type="search" name="hlokalita" id="hlokalita" onkeyup="naseptavacpsc(this.value);" onclick="naseptavacpsc(this.value);" value="" size="4" maxlength="25" autocomplete="off" title="Kde? PSČ (místo)" style="-webkit-appearance: none;"></span>
+Okolí: <input name="humkreis" title="Okolí v km" value="25" size="3" style="width: 25px;"> km
+Cena od: <input name=cenaod title="Cena od Kč" maxlength="12" size="5" value=""> - do: <input name=cenado title="Cena do Kč" maxlength="12" size="5" value=""> Kč <input type="submit" name="Submit" value="Hledat">
+<input type="hidden" name="order" id="order"><input type="hidden" name="crp" id="crp"><input type="hidden" id="kitx" name="kitx" value="ano"></b>
+</div>
+</div>
+</form>
+<div class="drobky"><a href="https://www.bazos.cz/" title="Inzerce Bazoš">Hlavní stránka</a>  > <a href="https://pc.bazos.cz/">PC</a> > <a href="https://pc.bazos.cz/hdd/">Hard disky, SSD</a> > <b>Inzerát č. 224810214</b></div>
+<br>
+
+
+<div class="flexmain"><div class="menuleft"><div class="nadpismenu">Kategorie</div>
+<div class="barvalmenu">
+<div class="barvaleva">
+<a href="/cd/" >DVD, Blu-ray mechaniky</a>
+<a href="https://foto.bazos.cz/">Fotoaparáty</a>
+<a href="/gps/" >GPS navigace</a>
+<a href="/graficka/" >Grafické karty</a>
+<a href="/hdd/"  id=zvyraznenikat>Hard disky, SSD</a>
+<a href="/playstation/" >Herní konzole</a>
+<a href="/volanty/" >Herní zařízení</a>
+<a href="/hry/" >Hry</a>
+<a href="/chladic/" >Chladiče</a>
+<a href="/klavesnice/" >Klávesnice</a>
+<a href="/kopirka/" >Kopírovací stroje</a>
+<a href="/monitor/" >LCD monitory</a>
+<a href="https://mobil.bazos.cz/">Mobilní telefony</a>
+<a href="/modem/" >Modemy</a>
+<a href="/mys/" >Myši</a>
+<a href="/notebook/" >Notebooky</a>
+<a href="/pamet/" >Paměti</a>
+<a href="/pc/" >PC, Počítače</a>
+<a href="/procesor/" >Procesory</a>
+<a href="/sit/" >Síťové prvky</a>
+<a href="/scaner/" >Scanery</a>
+<a href="/case/" >Skříně, zdroje</a>
+<a href="/software/" >Software</a>
+<a href="/spotrebni/" >Spotřební materiál</a>
+<a href="/tablet/" >Tablety, E-čtečky</a>
+<a href="/tiskarna/" >Tiskárny</a>
+<a href="/wifi/" >Wireless, WiFi</a>
+<a href="/motherboard/" >Základní desky</a>
+<a href="/ups/" >Záložní zdroje</a>
+<a href="/sound/" >Zvukové karty</a>
+<a href="/ostatni/" >Ostatní</a>
+</div></div>
+
+</div><div class="maincontent">
+
+
+<div class="listainzerat inzeratyflex">
+<div class="inzeratydetnadpis"><H1 class=nadpisdetail>HDD SEAGATE 3,5&quot; - 8TB</H1><span class=velikost10> - [8.10. 2026]</span></div>
+<div class="inzeratydetdel"><span onclick="odeslatakci('edit','224810214');return false;" class="paction">Smazat/ Upravit/ Topovat</span></div>
+</div><br><div class="fliobal"><div class="carousel"><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/1/214/224810214.jpg?t=1791446114" src="https://www.bazos.cz/img/1/214/224810214.jpg?t=1791446114" width="425" height="600" alt="HDD SEAGATE 3,5&quot; - 8TB"></div><div class="carousel-cell"><img class="carousel-cell-image" data-flickity-lazyload="https://www.bazos.cz/img/2/214/224810214.jpg?t=1791446114" alt="HDD SEAGATE 3,5&quot; - 8TB - 2"></div></div><div class="flinavigace" id="nahledy1"><img onmouseover="flkty.select(0, false, true );" src="https://www.bazos.cz/img/1t/214/224810214.jpg?t=1791446114" alt="HDD SEAGATE 3,5&quot; - 8TB - 1" class="obrazekflithumb"><br><img onmouseover="flkty.select(1, false, true );" src="https://www.bazos.cz/img/2t/214/224810214.jpg?t=1791446114" alt="HDD SEAGATE 3,5&quot; - 8TB - 2" class="obrazekflithumb"><br></div></div><script>var flkty = new Flickity( '.carousel', {fullscreen: true,lazyLoad: 1,wrapAround: true,adaptiveHeight: true});</script>
+<div class=popisdetail>Disk má 2 přemapované soubory viz výpis Crystal disk info.</div><br>
+<table width="100%" cellpadding="5" cellspacing="0">
+<tr><td width="35%" valign=top class=listadvlevo>
+<table width="*" cellpadding="0" cellspacing="1">
+<tr><td height="22px" width="25%">Jméno:<br><br></td><td colspan=2><b><span onclick="odeslatakci('rating','2608373','4665362','Petr+Hradecky');return false;" class="paction">Petr Hradecky</span></b><br><br></td></tr>
+<tr id="overlaytel"><td height="22px" width="25%">Telefon:<br><br></td><td colspan=2><span class=teldetail onclick="odeslatrequest('/ad-phone.php','idi=224810214&idphone=4665362','overlaytel');"><span style="white-space: nowrap;">776... zobraz číslo</span></span><br><br></td></tr>
+<tr><td height="22px" width="25%">Lokalita:</td><td width="9%"><img src="https://www.bazos.cz/obrazky/map.svg" alt="Mapa" height="17"></td><td><a href="https://www.google.com/maps/place/49.148928,16.882210/@49.148928,16.882210,12z/data=!4m2!3m1!1s0x0:0x0" title="Přibližná lokalita" rel="nofollow">684 01</a> <a href="https://pc.bazos.cz/inzeraty/slavkov-u-brna/68401/">Vyškov</a></td></tr>
+<tr><td height="22px" width="25%"><br>Vidělo:</td><td colspan=2><br>108 lidí</td></tr>
+<tr><td height="22px" width="25%"><br>Cena:</td><td colspan=2><br><b><span translate="no">  1 800 Kč</span></b></td></tr>
+</table>
+</td>
+
+<td width="*" valign=top class=listadvpravo>
+
+<table cellpadding="0" cellspacing="1">
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/user.svg" alt="Uživatel" height="17"></td><td><form name="formaction" method="post" style="display: inline;"><input type="hidden" id="postaction" name="postaction" value=""><input type="hidden" id="postv1" name="postv1" value=""><input type="hidden" id="postv2" name="postv2" value=""><input type="hidden" id="postv3" name="postv3" value=""></form>
+<span onclick="odeslatakci('rating','2608373','4665362','Petr+Hradecky');return false;" class="paction">Všechny inzeráty a hodnocení uživatele</span></td></tr>
+<tr><td height="22px"><img id="obrfavour" src="https://www.bazos.cz/obrazky/favourite.svg" alt="Oblíbené" height="18"></td><td><span id="favour"><a href="https://www.bazos.cz/oblibene.php" rel="nofollow">Přidat do oblíbených</a></span></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/spam.svg" alt="Spam" height="17"></td><td><span onclick="odeslatakci('spam','224810214');return false;" class="paction">Označit špatný inzerát</span></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/miscat.svg" alt="Chybná kategorie" height="17"></td><td><span onclick="odeslatakci('category','224810214');return false;" class="paction">Označit chybnou kategorii inzerátu</span></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/print.svg" alt="Tisk" height="17"></td><td><a href="#" onclick="window.print()">Vytisknout inzerát</a></td></tr>
+<tr><td height="22px"><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fpc.bazos.cz%2Finzerat%2F224810214%2Fhdd-seagate-35-8tb.php" target="_blank" rel="nofollow"><img src="https://www.bazos.cz/obrazky/facebook.svg" alt="Facebook" height="22"></a></td><td><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fpc.bazos.cz%2Finzerat%2F224810214%2Fhdd-seagate-35-8tb.php" target="_blank" rel="nofollow">Sdílejte na Facebooku</a></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/mail.svg" alt="Mail" height="17"></td><td><span onclick="odeslatakci('recommend','224810214');return false;" class="paction">Doporučit kamarádovi</span></td></tr>
+<tr><td height="22px"><img src="https://www.bazos.cz/obrazky/similar.svg" alt="Podobné" height="17"></td><td><a href="https://pc.bazos.cz/inzeraty/hdd-seagate/">Vyhledat podobné inzeráty</a></td></tr>
+</table>
+
+</td></tr>
+</table>
+<br>
+
+<script>
+function nahledy() {
+  var na1 = document.getElementById("nahledy1");
+  var na2 = document.getElementById("nahledy2");
+  var na3 = document.getElementById("nahledy3");
+  var na4 = document.getElementById("nahledy4");
+  if (na1.style.display === "none") {
+    na1.style.display = "block";
+    na2.style.display = "block";
+    na3.style.display = "none";
+    na4.style.display = "none";
+  } else {
+    na1.style.display = "none";
+    na2.style.display = "none";
+    na3.style.display = "block";
+    na4.style.display = "block";
+  }
+}
+</script>
+
+
+<div class="kontaktniformular"><div class="oranzovy" id="overlaymail"><b>Kontaktovat inzerenta emailem</b><br><br>
+Kontaktovat emailem může pouze ověřený uživatel.<br>
+<br>
+Vaše telefonní číslo <span class="ztop">*</span><br>
+<input type="text" name="teloverit2" id="teloverit2" maxlength="30" autocomplete="off" onkeydown="if (event.keyCode == 13) odeslatrequest('/ad-mail.php','idi=224810214&teloverit='+encodeURIComponent(document.getElementById('teloverit2').value),'overlaymail');">
+<br><br>
+<button type="button" id="mailbutton" onclick="odeslatrequest('/ad-mail.php','idi=224810214&teloverit='+encodeURIComponent(document.getElementById('teloverit2').value),'overlaymail');">Odeslat</button>
+</div></div>
+
+
+<br>
+
+<div class="podobne">
+<br><br>
+<div class="listainzerat">Podobné inzeráty</div><div id="container_one"></div>
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224828699/hdd-sata-seagate-2tb.php"><img src="https://www.bazos.cz/img/1t/699/224828699.jpg?t=1791476768" class="obrazek" alt="Seagate 2TB HDD SATA" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224828699/hdd-sata-seagate-2tb.php">Seagate 2TB HDD SATA</a></span><span class=velikost10> - [8.10. 2026]</span><br>
+<div class=popis>Prodávám plně funkční disky HDD Seagate 2TB. Smart je na foto.
+
+Nemám problém poslat zasilkovnou.</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 000 Kč</span></b></div>
+<div class="inzeratylok">Praha 1<br>110 00</div>
+<div class="inzeratyview">85 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224828699');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224828699');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9510104','5003261','Anton');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224828699');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224813460/seagate-barracuda-compute-2tb-hdd-sata.php"><img src="https://www.bazos.cz/img/1t/460/224813460.jpg" class="obrazek" alt="Seagate Barracuda Compute 2TB HDD SATA" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224813460/seagate-barracuda-compute-2tb-hdd-sata.php">Seagate Barracuda Compute 2TB HDD SATA</a></span><span class=velikost10> - [8.10. 2026]</span><br>
+<div class=popis>Prodávám plně funkční HDD Seagate 2TB ST2000DM006. Smart je na foto. 
+
+Nemám problém poslat zasilkovnou.</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 100 Kč</span></b></div>
+<div class="inzeratylok">Praha 1<br>110 00</div>
+<div class="inzeratyview">91 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224813460');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224813460');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9510104','5003261','Anton');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224813460');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224813211/seagate-barracuda-pro-4tb-hdd-sata.php"><img src="https://www.bazos.cz/img/1t/211/224813211.jpg" class="obrazek" alt="Seagate Barracuda Pro 4TB HDD SATA" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224813211/seagate-barracuda-pro-4tb-hdd-sata.php">Seagate Barracuda Pro 4TB HDD SATA</a></span><span class=velikost10> - [8.10. 2026]</span><br>
+<div class=popis>Prodávám použitý, ale funkční HDD Seagate 4TB ST4000DM006. Smart je na foto. 
+
+Nemám problém poslat zasilkovnou.</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 200 Kč</span></b></div>
+<div class="inzeratylok">Praha 1<br>110 00</div>
+<div class="inzeratyview">136 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224813211');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224813211');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9510104','5003261','Anton');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224813211');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224796906/synology-nas-na-dily-2-funkcni-hdd-2-tb-seagate-green.php"><img src="https://www.bazos.cz/img/1t/906/224796906.jpg" class="obrazek" alt="Synology NAS na díly + 2× funkční HDD 2 TB Seagate Green" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224796906/synology-nas-na-dily-2-funkcni-hdd-2-tb-seagate-green.php">Synology NAS na díly + 2× funkční HDD 2 TB Seagate Green</a></span><span class=velikost10> - [8.10. 2026]</span><br>
+<div class=popis>Prodám bílý 2bay Synology NAS na náhradní díly (nefunkční — koupili jsme ho jako funkční) + dva funkční disky Seagate Barracuda Green 2 TB ST2000DL003. SMART obou disků 100 %, bez vadných sektorů, hodiny cca 62 000. Zdroj je u toho.
+
+Osobní předání ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 390 Kč</span></b></div>
+<div class="inzeratylok">Hradec Králové<br>500 03</div>
+<div class="inzeratyview">95 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224796906');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224796906');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5717502','7218236','Tom%C3%A1%C5%A1');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224796906');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224708250/hdd-seagate-constellation-3-tb-enterprise-class.php"><img src="https://www.bazos.cz/img/1t/250/224708250.jpg" class="obrazek" alt="HDD Seagate Constellation 3 TB - enterprise class" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224708250/hdd-seagate-constellation-3-tb-enterprise-class.php">HDD Seagate Constellation 3 TB - enterprise class</a></span><span class=velikost10> - [5.10. 2026]</span><br>
+<div class=popis>HDD Seagate Constellation ES.2 3TB - enterprise class, stavěno na provoz 24/7
+
+Model: Seagate ST33000650NS
+Kapacita: 3 TB
+Technologie zápisu: CMR
+Formát: 3,5"
+Počet otáček: 7200/min.
+
+Disk je používaný v serverovém prostředí, ale vzhledem ke  ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 200 Kč</span></b></div>
+<div class="inzeratylok">Frýdek - Místek<br>738 01</div>
+<div class="inzeratyview">86 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224708250');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224708250');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9421161','6434407','Pavel');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224708250');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224663867/seagate-2tb-hdd-externi-disk-7.php"><img src="https://www.bazos.cz/img/1t/867/224663867.jpg" class="obrazek" alt="Seagate 2TB HDD - externí disk 7" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224663867/seagate-2tb-hdd-externi-disk-7.php">Seagate 2TB HDD - externí disk 7</a></span><span class=velikost10> - [5.10. 2026]</span><br>
+<div class=popis>Prodám externí HDD Iomega 2 TB. Stav - používaný, ale plně funční - viz foto. Poštovné a balné - 90 Kč. Platba předem na účet, následně bude věc odeslána přes službu Zásilkovna. Nezasílám na dobírku a pouze po ČR. Při koupi více věcí z mé nabídky jed ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 000 Kč</span></b></div>
+<div class="inzeratylok">Brno venkov<br>664 61</div>
+<div class="inzeratyview">82 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224663867');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224663867');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','7014515','4772261','Ale%C5%A1+Pazourek');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224663867');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224654768/st1000lm035-interni-25-pevny-disk-seagate-mobile-hdd-1-t.php"><img src="https://www.bazos.cz/img/1t/768/224654768.jpg?t=1791132939" class="obrazek" alt="ST1000LM035, interní 2,5&quot; pevný disk Seagate Mobile HDD 1 T" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224654768/st1000lm035-interni-25-pevny-disk-seagate-mobile-hdd-1-t.php">ST1000LM035, interní 2,5&quot; pevný disk Seagate Mobile HDD 1 T</a></span><span class=velikost10> - [4.10. 2026]</span><br>
+<div class=popis>Prodám dva úplně nové disky, ještě zatavené v originálním obalu.
+Jedná se o disky Mobile HDD 1 TB/ 128MB cache v tenkém 7mm provedeni.
+
+Parametry:
+Model: ST1000LM035
+Technologie pevného disku: Magnetický
+Kapacita: 1000GB
+Rychlost otáčení ploten:  ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 299 Kč</span></b></div>
+<div class="inzeratylok">Kutná Hora<br>284 01</div>
+<div class="inzeratyview">75 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224654768');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224654768');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5351632','78727','Mirek+Louma');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224654768');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224632973/ext-disk-verbatim-s-sifrovanim-500-gb-hdd.php"><img src="https://www.bazos.cz/img/1t/973/224632973.jpg" class="obrazek" alt="Ext. disk Verbatim s  šifrováním 500 GB HDD" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224632973/ext-disk-verbatim-s-sifrovanim-500-gb-hdd.php">Ext. disk Verbatim s  šifrováním 500 GB HDD</a></span><span class=velikost10> - [4.10. 2026]</span><br>
+<div class=popis>Prodám málo používany externí disk Verbatim s hw šifrováním (klávesnice). Jeden je 500 GB HDD Seagate a druhý bez disku. Oba bez USB kabelu. 500 GB za 1000, bez HDD za 500. Pošlu i přes Zasilkovnu.</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 000 Kč</span></b></div>
+<div class="inzeratylok">Praha 10<br>101 00</div>
+<div class="inzeratyview">74 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224632973');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224632973');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9390945','7535747','M%C3%ADra+Kos%C3%ADk');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224632973');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224568438/seagate-35-hdd-2tb-st2000dm001-28.php"><img src="https://www.bazos.cz/img/1t/438/224568438.jpg?t=1791530143" class="obrazek" alt="Seagate 3.5&quot; HDD - 2TB - ST2000DM001 #28" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224568438/seagate-35-hdd-2tb-st2000dm001-28.php">Seagate 3.5&quot; HDD - 2TB - ST2000DM001 #28</a></span><span class=velikost10> - [2.10. 2026]</span><br>
+<div class=popis>Prodam malo pouzivany a otestovany Seagate 3.5" HDD - 2TB - ST2000DM001. Zaruka na vyzkouseni 14 dnu.
+
+
+Pri platbe predem na ucet :
+
+90,- na vydejni misto Zasilkovny
+80,- do Balikovny
+
+
+Zasilkovna na dobirku :
+
+130,- na vydejni misto
+
+
+ ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   900 Kč</span></b></div>
+<div class="inzeratylok">Plzeň<br>312 00</div>
+<div class="inzeratyview">90 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224568438');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224568438');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','6963461','263711','David');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224568438');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224568406/seagate-35-hdd-2tb-st2000dm001-29.php"><img src="https://www.bazos.cz/img/1t/406/224568406.jpg?t=1791530138" class="obrazek" alt="Seagate 3.5&quot; HDD - 2TB - ST2000DM001 #29" width="170" height="128"></a>
+<span class=nadpis><a href="/inzerat/224568406/seagate-35-hdd-2tb-st2000dm001-29.php">Seagate 3.5&quot; HDD - 2TB - ST2000DM001 #29</a></span><span class=velikost10> - [2.10. 2026]</span><br>
+<div class=popis>Prodam malo pouzivany a otestovany Seagate 3.5" HDD - 2TB - ST2000DM001. Zaruka na vyzkouseni 14 dnu.
+
+
+Pri platbe predem na ucet :
+
+90,- na vydejni misto Zasilkovny
+80,- do Balikovny
+
+
+Zasilkovna na dobirku :
+
+130,- na vydejni misto
+
+
+ ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   900 Kč</span></b></div>
+<div class="inzeratylok">Plzeň<br>312 00</div>
+<div class="inzeratyview">76 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224568406');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224568406');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','6963461','263711','David');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224568406');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div id="container_two"></div>
+<script type="text/javascript" charset="utf-8">
+var pageOptions = {
+  'pubId': 'pub-3645948300403337',
+  'query' : "hdd seagate 3.5 8tb",
+  'channel': '4133833399',
+  'linkTarget' : '_blank',
+  'personalizedAds' : false,
+  'adsafe': 'medium',
+  'ivt': false,
+'styleId' : '6171314811',  'hl': 'cs'
+};
+
+var adblock1 = {
+  'container': 'container_one',
+  'width': 'auto',
+  'number' : 1
+};
+
+var adblock2 = {
+  'container': 'container_two',
+  'width': 'auto',
+  'number' : 2
+};
+
+_googCsa('ads', pageOptions, adblock1, adblock2);
+
+</script>
+<br>
+
+</div>
+
+
+</div></div><br>
+
+&copy;2026 Bazoš -  <b>Inzerce, Bazar Hard disky, SSD</b><br>
+<a href="https://www.bazos.cz/napoveda.php">Nápověda</a>, <a href="https://www.bazos.cz/dotazy.php">Dotazy</a>, <a href="https://www.bazos.cz/hodnoceni.php">Hodnocení</a>, <a href="https://www.bazos.cz/kontakt.php">Kontakt</a>, <a href="https://www.bazos.cz/reklama.php">Reklama</a>, <a href="https://www.bazos.cz/podminky.php">Podmínky</a>, <a href="https://www.bazos.cz/ochrana-udaju.php">Ochrana údajů</a>, <a href="https://www.bazos.cz/rss.php?rub=pc&cat=5">RSS</a>, <form name="formvkm" id="formvkm" method="post" style="display: inline;"><input type="hidden" name="vkm" value="m"><input type="submit" class="vkm" value="Mobilní verze"></form><br>
+
+Inzeráty PC celkem: <b>43335</b>, za 24 hodin: <b>1786</b><br><br>
+<a href="https://www.bazos.cz/mapa-kategorie.php">Mapa kategorií</a>, <a href="https://pc.bazos.cz/mapa-search.php">Nejvyhledávanější výrazy</a>
+<br>
+Země: <a href="https://pc.bazos.cz">Česká republika</a>, <a href="https://pc.bazos.sk">Slovensko</a>, <a href="https://komputer.bazos.pl">Polsko</a>, <a href="https://pc.bazos.at">Rakousko</a>
+<br>
+<br>
+</div>
+
+<script src="https://www.bazos.cz/cookie-consent.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({"notice_banner_type":"simple","consent_type":"express","palette":"light","language":"cs","page_load_consent_levels":["strictly-necessary"],"notice_banner_reject_button_hide":false,"preferences_center_close_button_hide":false,"page_refresh_confirmation_buttons":false,"cookie_domain": "bazos.cz"});
+});
+</script>
+<a href="#" id="open_preferences_center"> </a>
+
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NZW1QTHKBB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-NZW1QTHKBB');
+</script>
+
+</body>
+</html>

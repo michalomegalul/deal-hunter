@@ -131,7 +131,7 @@ def cmd_review(args: argparse.Namespace) -> None:
         )
     print(
         f"\n{len(rows)} unmatched (not a known model, not excluded). "
-        "Add rules to gpu_catalog.yaml (GPUs) or office.py (PCs, laptops)."
+        "Add rules to gpu_catalog.yaml (GPUs), office.py (PCs, laptops) or storage_catalog.yaml (disks)."
     )
 
 
@@ -140,6 +140,20 @@ def cmd_review(args: argparse.Namespace) -> None:
 
 def _kc(n) -> str:
     return f"{n:,}".replace(",", " ") if n is not None else "-"
+
+
+def _distance(settings):
+    from deal_hunter.geo import DistanceRules
+
+    if settings.pickup_km <= 0:
+        return None
+    return DistanceRules(
+        home=settings.home,
+        pickup_km=settings.pickup_km,
+        pickup_km_by_category=settings.pickup_km_by_category,
+        shipping_czk=settings.shipping_czk,
+        travel_czk_per_km=settings.travel_czk_per_km,
+    )
 
 
 def _rules(settings):
@@ -157,6 +171,8 @@ def _rules(settings):
         quiet_bypass=settings.quiet_bypass_score,
         candidate_discount=settings.candidate_discount,
         usd_czk=settings.usd_czk,
+        distance=_distance(settings),
+        hdd_min_tb=settings.hdd_min_tb,
     )
 
 
@@ -205,10 +221,13 @@ def cmd_price(args: argparse.Namespace) -> None:
             print(f"No fair price for {query!r} yet (fewer than 4 priced ads in 60 days, or no such model).")
         for model in models:
             fp = prices[model]
+            unit = "Kč/TB" if fp.per_tb else "Kč"
             print(
-                f"{model} ({fp.category}): fair ~{_kc(fp.median)} Kč, IQR {_kc(fp.q25)}-{_kc(fp.q75)}, "
+                f"{model} ({fp.category}): fair ~{_kc(fp.median)} {unit}, IQR {_kc(fp.q25)}-{_kc(fp.q75)} {unit}, "
                 f"n={fp.n} of {fp.n_listings} ads ({fp.sold} gone fast), confidence {fp.confidence:.2f} ({fp.level})"
             )
+            if fp.category == "hdd" and not fp.per_tb:
+                print(f"  {_per_tb(fp)}")
             if fp.new_price:
                 from deal_hunter.alerts import new_text
 
@@ -217,9 +236,10 @@ def cmd_price(args: argparse.Namespace) -> None:
                     + ("  ** used >= 95 % of new: candidates dropped **" if fp.over_new else "")
                 )
             if fp.prior:
+                suffix = "/TB" if fp.per_tb else ""
                 print(
-                    f"  raw median {_kc(fp.raw_median)} shrunk toward the {fp.prior_source} prior {_kc(fp.prior)} "
-                    f"(weight {fp.prior_weight:g} samples; the gate counts n={fp.n_eff:g})"
+                    f"  raw median {_kc(fp.raw_median)}{suffix} shrunk toward the {fp.prior_source} prior "
+                    f"{_kc(fp.prior)}{suffix} (weight {fp.prior_weight:g} samples; the gate counts n={fp.n_eff:g})"
                 )
             elif fp.prior_note:
                 print(f"  {fp.prior_note}")
@@ -238,6 +258,22 @@ def cmd_price(args: argparse.Namespace) -> None:
                 print(
                     f"  {lid}  {_kc(price) if price else kind:>8}  {first:%m-%d}  {state:<10} {spec:<10} {title[:60]}"
                 )
+
+
+def _per_tb(fp) -> str:
+    """'812 Kč/TB (new 1 036 Kč/TB)' for a capacity-specific disk key ('hdd35 enterprise sas 4tb').
+
+    A pooled class (fp.per_tb) is already quoted in Kč/TB; callers skip this for those."""
+    import re
+
+    m = re.search(r"(\d+(?:\.\d+)?)(tb|gb)$", fp.model)
+    if m is None:
+        return ""
+    tb = float(m.group(1)) / (1000 if m.group(2) == "gb" else 1)
+    text = f"{_kc(round(fp.median / tb))} Kč/TB"
+    if fp.new_price and fp.new_source == "zbozi":
+        text += f" (new {_kc(round(fp.new_price / tb))} Kč/TB)"
+    return text
 
 
 def cmd_prices(args: argparse.Namespace) -> None:
@@ -268,6 +304,8 @@ def cmd_prices(args: argparse.Namespace) -> None:
             flags.append("USED>=95% NEW")
         if p.prior_note:
             flags.append(p.prior_note)
+        if p.category == "hdd":
+            flags.insert(0, f"{_kc(p.median)} Kč/TB" if p.per_tb else _per_tb(p))
         print(
             f"{p.model:<28} {p.category:<13} {p.n:>4} {_kc(p.median):>8} {iqr:>15} {p.confidence:>5.2f}  {p.level:<6} "
             f"{new:>8}  {prior:>13}  {'; '.join(flags)}"
@@ -279,6 +317,8 @@ def cmd_prices(args: argparse.Namespace) -> None:
             if args.no_prior
             else "; new = Zboží lowest offer, * = launch MSRP + VAT."
         )
+        + " hdd rows for a class (hdd35 nas/enterprise/desktop/surveillance, external) show Kč/TB, not"
+        " a total price."
     )
 
 
@@ -690,6 +730,7 @@ def _feedback_context(settings, conn, throttle_conn, bazos):
         usd_czk=settings.usd_czk,
         offer_discount=settings.offer_discount,
         auction_costs=_auction_rules(settings).costs,
+        distance=_distance(settings),
     )
 
 
@@ -753,7 +794,7 @@ def cmd_notify_test(args: argparse.Namespace) -> None:
 
 def _notify_test_ad(listing_id: int) -> None:
     """A real ad as a deal push, marked TEST; its 👍 asks for a TEST follow-up (nothing is stored as a label)."""
-    from deal_hunter import alerts
+    from deal_hunter import alerts, geo
     from deal_hunter.db import repository as repo
 
     settings = load_settings()
@@ -765,6 +806,10 @@ def _notify_test_ad(listing_id: int) -> None:
         prices = _estimates(conn)
     fp = prices.get(row["model"]) if row.get("model") else None
     price = row["price_czk"] or 0
+    if row.get("category") == "hdd":
+        from deal_hunter.storage import unit_price
+
+        price = unit_price(price, row.get("features")) or price  # one drive of a multi-drive ad
     fair = fp.for_listing(row.get("features")) if fp else price
     deal = {
         "title": row["title"],
@@ -776,8 +821,11 @@ def _notify_test_ad(listing_id: int) -> None:
         "verdict": row.get("verdict"),
         "location": row.get("location"),
         "psc": row.get("psc"),
+        "distance_km": geo.distance_km(settings.home, row.get("psc"), row.get("location"))[0],
+        "ships": geo.shipping_offer(f"{row['title']}\n{row.get('description') or ''}"),
+        "features": row.get("features"),
     }
-    title, message, tags = alerts.format_alert(deal, fp)
+    title, message, tags = alerts.format_alert(deal, fp, _rules(settings))
     msg_id = ntfy.publish(
         "TEST · " + title,
         message + "\n(TEST push of a real ad: tap 👍 to get the detailed follow-up)",
@@ -792,7 +840,7 @@ def _notify_test_ad(listing_id: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="hunt", description="Bazoš deal hunter (GPUs, ex-office PCs/laptops)"
+        prog="hunt", description="Bazoš deal hunter (GPUs, ex-office PCs/laptops, hard disks)"
     )
     sub = parser.add_subparsers(required=True)
 
@@ -818,7 +866,7 @@ def main() -> None:
     p = sub.add_parser("stats", help="what has been collected so far")
     p.set_defaults(func=cmd_stats)
 
-    p = sub.add_parser("normalize", help="map listing titles to canonical models (GPUs, office PCs/laptops)")
+    p = sub.add_parser("normalize", help="map listing titles to canonical models (GPUs, office, disks)")
     p.add_argument("--all", action="store_true", help="redo every listing, not just new/outdated ones")
     p.add_argument("-v", "--verbose", action="store_true", help="print counts per model")
     p.set_defaults(func=cmd_normalize)
@@ -837,7 +885,7 @@ def main() -> None:
     p.set_defaults(func=cmd_price)
 
     p = sub.add_parser("prices", help="fair price table: model, n, median, IQR, confidence, new price, prior")
-    p.add_argument("--category", choices=["gpu", "office", "office_pc", "office_laptop"], default=None)
+    p.add_argument("--category", choices=["gpu", "office", "office_pc", "office_laptop", "hdd"], default=None)
     p.add_argument("--min-level", choices=["low", "medium", "high"], default="low")
     p.add_argument(
         "--no-prior", action="store_true", help="raw medians, without the new-price/auction priors"

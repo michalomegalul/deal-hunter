@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<title>Hard disky, SSD bazar - PC | Bazoš.cz</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="Kategorie Hard disky, SSD bazar. Vybírejte z 1 527 inzerátů. Prodej snadno a rychle na Bazoši. Přes půl milionů uživatelů za den."><meta property="og:title" content="Hard disky, SSD bazar - PC">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bazos.cz">
+<meta property="og:description" content="Kategorie Hard disky, SSD bazar. Vybírejte z 1 527 inzerátů. Prodej snadno a rychle na Bazoši. Přes půl milionů uživatelů za den.">
+<link rel="canonical" href="https://pc.bazos.cz/hdd/"><meta property="fb:admins" content="1055875657">
+<link rel="stylesheet" href="https://www.bazos.cz/bazos67s.css" type="text/css"><link rel="preload" as="image" href="https://www.bazos.cz/obrazky/bazos.svg">
+<link rel="stylesheet" href="https://www.bazos.cz/bazosprint.css" type="text/css" media="print">
+<link rel="icon" href="https://www.bazos.cz/favicon.svg" type="image/svg+xml">
+<link rel="icon" HREF="https://www.bazos.cz/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="https://www.bazos.cz/apple-touch-icon.png">
+<script async="async" src="https://www.google.com/adsense/search/ads.js"></script>
+<script type="text/javascript" charset="utf-8">
+(function(g,o){g[o]=g[o]||function(){(g[o]['q']=g[o]['q']||[]).push(
+  arguments)},g[o]['t']=1*new Date})(window,'_googCsa');
+</script><script>
+var xhr = new XMLHttpRequest();
+var naseptavac_value = '';
+function naseptavac(value) {
+  if (value=='')  {
+  	naseptavac_value = '';
+  	document.getElementById('vysledek').innerHTML='';
+  	}
+else {
+	if (naseptavac_value == value) {
+		return false;
+	}
+	naseptavac_value = value;
+	setTimeout(function () {
+		if (naseptavac_value != value) {
+			return false;
+		}
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4 && naseptavac_value == value){
+				document.getElementById('vysledek').innerHTML = this.responseText;
+			}
+ 		 };
+		xhr.open("POST", '/suggest.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('rubnas=PC&catnas=5&qnas='+encodeURIComponent(naseptavac_value));
+	}, 250);
+}
+}
+
+var naseptavacpsc_value = '';
+function naseptavacpsc(value) {
+  if (value=='')  {
+  	naseptavacpsc_value = '';
+  	document.getElementById('vysledekpsc').innerHTML='<table cellpadding=\"3\" cellspacing=\"0\" class=\"tablenaspsc\"><tr><td class=\"act\" onclick=\"getLocation();\"><b>Inzeráty v okolí</b></td></tr></table>';
+  	}
+else {
+	if (naseptavacpsc_value == value) {
+		return false;
+	}
+	naseptavacpsc_value = value;
+	setTimeout(function () {
+		if (naseptavacpsc_value != value) {
+			return false;
+		}
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4 && naseptavacpsc_value == value){
+				document.getElementById('vysledekpsc').innerHTML = this.responseText;
+			}
+ 		 };
+		xhr.open("POST", '/suggestpsc.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('qnaspsc='+encodeURIComponent(naseptavacpsc_value));
+	}, 250);
+}
+}
+
+function getLocation() {
+if (navigator.geolocation) {navigator.geolocation.getCurrentPosition(showPosition);}
+else {document.getElementById('hlokalita').value = '';}
+}
+function showPosition(position) {
+		xhr.onreadystatechange = function() {
+ 		 if (this.readyState == 4){
+				document.getElementById('hlokalita').value = this.responseText;
+				document.forms['formt'].submit();
+			}
+ 		 };
+		xhr.open("POST", '/zip.php');
+		xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xhr.send('latitude='+encodeURIComponent(position.coords.latitude)+'&longitude='+encodeURIComponent(position.coords.longitude));
+}
+
+var agent_value = '';
+function agentclick() {
+  if (document.getElementById('agentmail').value=='')  {
+  	document.getElementById("agentmail").focus();
+    return false;
+  	}
+else {
+agent_value = document.getElementById('agentmail').value;
+xhr.onreadystatechange = function() {
+  if (this.readyState == 4){
+				document.getElementById('overlay').innerHTML = this.responseText;
+			}
+  };
+xhr.open("POST", '/agent.php');
+xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhr.send('hledat=&rubrikav=PC&hlokalita=&humkreis=&cenaod=&cenado=&cat=5&typ=&agentmail='+encodeURIComponent(agent_value));
+}
+}
+
+function odeslatrequest(value,params) {
+xhr.onreadystatechange = function() {
+  if (this.readyState == 4){
+				document.getElementById('overlay').innerHTML = this.responseText;
+			}
+  };
+xhr.open("POST", value);
+xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhr.send(params);
+}
+function overlay() {
+	el = document.getElementById("overlay");
+	el.style.display = (el.style.display == "inline") ? "none" : "inline";
+}
+function odeslatakci(postaction,value1,value2,value3) {
+document.getElementById('postaction').value = postaction;
+document.getElementById("postv1").value = value1;
+document.getElementById("postv2").value = value2;
+document.getElementById("postv3").value = value3;
+document.formaction.submit();
+}
+</script>
+</head>
+
+<body>
+
+
+<div class="sirka">
+<div class="listalogor">
+<div class="listalogol"><a href="https://www.bazos.cz/" title="Bazos.cz - Inzerce, bazar"><img src="https://www.bazos.cz/obrazky/bazos.svg" width="199" height="34" alt="Bazos.cz - Inzerce, inzeráty"></a></div>
+<div class="listalogom"><b>... bazar pro každého</b></div>
+<div class="listalogop"><a href="https://www.bazos.cz/oblibene.php"><b>Oblíbené inzeráty</b></a> <a href="https://www.bazos.cz/moje-inzeraty.php"><b>Moje inzeráty</b></a> <a href="/pridat-inzerat.php"><b><span class=pridati>Přidat inzerát</span></b></a></div>
+</div>
+<form name="formt" id="formt" method=get >
+<div class="listah">
+<div class="rubriky">
+<b>
+Co: <span class=vysokoli><span id="vysledek"></span><input type="search" onkeyup="naseptavac(this.value);" id=hledat name=hledat size="17" maxlength="256" value="" autocomplete="off" title="Co? Vyhledávaný výraz"></span>
+
+<select name="rubriky" onchange='this.form.submit();' title="Vyber rubriku">
+<option value="www">Všechny rubriky</option>
+<option value="auto">Auto</option><option value="deti">Děti</option><option value="dum">Dům a zahrada</option><option value="elektro">Elektro</option><option value="foto">Foto</option><option value="hudba">Hudba</option><option value="knihy">Knihy</option><option value="mobil">Mobily</option><option value="motorky">Motorky</option><option value="nabytek">Nábytek</option><option value="obleceni">Oblečení</option><option value="pc" selected>PC</option><option value="prace">Práce</option><option value="reality">Reality</option><option value="sluzby">Služby</option><option value="sport">Sport</option><option value="stroje">Stroje</option><option value="vstupenky">Vstupenky</option><option value="zvirata">Zvířata</option><option value="ostatni">Ostatní</option></select>
+
+Lokalita: <span class=vysokolipsc><span id="vysledekpsc"></span><input type="search" name="hlokalita" id="hlokalita" onkeyup="naseptavacpsc(this.value);" onclick="naseptavacpsc(this.value);" value="" size="4" maxlength="25" autocomplete="off" title="Kde? PSČ (místo)" style="-webkit-appearance: none;"></span>
+Okolí: <input name="humkreis" title="Okolí v km" value="25" size="3" style="width: 25px;"> km
+Cena od: <input name=cenaod title="Cena od Kč" maxlength="12" size="5" value=""> - do: <input name=cenado title="Cena do Kč" maxlength="12" size="5" value=""> Kč <input type="submit" name="Submit" value="Hledat">
+<input type="hidden" name="order" id="order"><input type="hidden" name="crp" id="crp"><input type="hidden" id="kitx" name="kitx" value="ano"></b>
+</div>
+</div>
+</form>
+<div class="drobky"><a href="https://www.bazos.cz/" title="Inzerce Bazoš">Hlavní stránka</a>  > <a href="https://pc.bazos.cz">PC</a> > <h1 class="nadpiskategorie">Hard disky, SSD</h1></div>
+<br>
+
+
+<div class="flexmain"><div class="menuleft"><div class="nadpismenu">Kategorie</div>
+<div class="barvalmenu">
+<div class="barvaleva">
+<a href="/cd/" >DVD, Blu-ray mechaniky</a>
+<a href="https://foto.bazos.cz/">Fotoaparáty</a>
+<a href="/gps/" >GPS navigace</a>
+<a href="/graficka/" >Grafické karty</a>
+<a href="/hdd/"  id=zvyraznenikat>Hard disky, SSD</a>
+<a href="/playstation/" >Herní konzole</a>
+<a href="/volanty/" >Herní zařízení</a>
+<a href="/hry/" >Hry</a>
+<a href="/chladic/" >Chladiče</a>
+<a href="/klavesnice/" >Klávesnice</a>
+<a href="/kopirka/" >Kopírovací stroje</a>
+<a href="/monitor/" >LCD monitory</a>
+<a href="https://mobil.bazos.cz/">Mobilní telefony</a>
+<a href="/modem/" >Modemy</a>
+<a href="/mys/" >Myši</a>
+<a href="/notebook/" >Notebooky</a>
+<a href="/pamet/" >Paměti</a>
+<a href="/pc/" >PC, Počítače</a>
+<a href="/procesor/" >Procesory</a>
+<a href="/sit/" >Síťové prvky</a>
+<a href="/scaner/" >Scanery</a>
+<a href="/case/" >Skříně, zdroje</a>
+<a href="/software/" >Software</a>
+<a href="/spotrebni/" >Spotřební materiál</a>
+<a href="/tablet/" >Tablety, E-čtečky</a>
+<a href="/tiskarna/" >Tiskárny</a>
+<a href="/wifi/" >Wireless, WiFi</a>
+<a href="/motherboard/" >Základní desky</a>
+<a href="/ups/" >Záložní zdroje</a>
+<a href="/sound/" >Zvukové karty</a>
+<a href="/ostatni/" >Ostatní</a>
+</div></div>
+
+</div><div class="maincontent">
+
+
+<div class="listainzerat inzeratyflex">
+<div class="inzeratynadpis"><img src="https://www.bazos.cz/obrazky/list.gif" width="18" height="16" alt="List inzerátů" class=gallerylista> <form name="formgal" id="formgal" method="post" style="display: inline;"><input type="hidden" name="gal" value="g"><input type="image" alt="Submit" src="https://www.bazos.cz/obrazky/gallery.gif" width="18" height="16" class="gallerylist inputgal"></form> Zobrazeno 1-20 inzerátů z 1 527</div>
+<div class="inzeratycena"><b><span onclick="document.getElementById('order').value=1;document.forms['formt'].submit();" class="paction">Cena</span></b></div>
+<div class="inzeratylok">Lokalita</div>
+<div class="inzeratyview"><span onclick="document.getElementById('order').value=3;document.forms['formt'].submit();" class="paction">Zobrazeno</span></div>
+</div><form name="formaction" method="post" style="display: inline;"><input type="hidden" id="postaction" name="postaction" value=""><input type="hidden" id="postv1" name="postv1" value=""><input type="hidden" id="postv2" name="postv2" value=""><input type="hidden" id="postv3" name="postv3" value=""></form><button type="button" onclick="odeslatrequest('/agent.php','teloverit=');overlay();">Nové inzeráty e-mailem</button>
+	<div id="overlay">
+     <div></div>
+</div>
+
+<div id="container_one"></div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224058356/samsung-ssd-990-pro-1tb-s-heatsinkem-novy-nerozbaleny.php"><img src="https://www.bazos.cz/img/1t/356/224058356.jpg?t=1791526287" class="obrazek" alt="Samsung SSD 990 PRO 1TB s Heatsinkem – NOVÝ, nerozbalený" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224058356/samsung-ssd-990-pro-1tb-s-heatsinkem-novy-nerozbaleny.php">Samsung SSD 990 PRO 1TB s Heatsinkem – NOVÝ, nerozbalený</a></h2><span class=velikost10> - <span title="TOP 1x Platí do 16.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Prodávám úplně nový, zapečetěný Samsung 990 PRO 1TB s heatsinkem. Koupeno jako fyzická osoba na Samsung.com, záruka platí do 09/2028, fakturu přepošlu.
+
+Specifikace:
+
+PCIe 4.0 NVMe M.2 2280
+Read/Write: až 7450/6900 MB/s
+1TB, TLC paměť, 600 TBW ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  4 200 Kč</span></b></div>
+<div class="inzeratylok">Praha 5<br>150 00</div>
+<div class="inzeratyview">249 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224058356');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224058356');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9489158','16201484','Dominik');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224058356');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224770745/cca-225-ks-sas-35-25-2tb-4tb-disk-pc-i-server.php"><img src="https://www.bazos.cz/img/1t/745/224770745.jpg?t=1791625008" class="obrazek" alt="cca 138 Ks SAS 3.5 2.5&quot; 2TB 4TB disk PC i server" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224770745/cca-225-ks-sas-35-25-2tb-4tb-disk-pc-i-server.php">cca 138 Ks SAS 3.5 2.5&quot; 2TB 4TB disk PC i server</a></h2><span class=velikost10> - <span title="TOP 1x Platí do 14.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Podmínky prodeje:
+
+- Nereaguji na SMS.
+- Pokud neumíte dobře česky, zařiďte si osobu pro domluvu v CZ.
+- Pevná cena (odběr od každého typu nad 15 ks = 15+1 ks zdarma)
+- ZÁRUKA NA OTESTOVÁNÍ FUNKČNOSTI DOMA DLE DOHODY POUZE při osobním předání 3  ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   649 Kč</span></b></div>
+<div class="inzeratylok">Praha 6<br>169 00</div>
+<div class="inzeratyview">448 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224770745');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224770745');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','0','4469091','Nepsat+SMS+728794191');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224770745');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224741447/disky-4tb-hdd-hgst-sas-19ks.php"><img src="https://www.bazos.cz/img/1t/447/224741447.jpg?t=1791382551" class="obrazek" alt="Disky 4TB HDD HGST SAS, 19ks" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224741447/disky-4tb-hdd-hgst-sas-19ks.php">Disky 4TB HDD HGST SAS, 19ks</a></h2><span class=velikost10> - <span title="TOP 1x Platí do 13.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Prodavam tuto sadu disku enterprise rady,
+
+HGST HUS724040ALS640, 4TB SAS
+
+- SAS 6Gb/s
+- Cache 64MB
+- RPM 7200
+
+disky jsou vytazene z jednoho serveru, jsou plne funkcni a maji cca stejne mnozstvi hodin najeto (+-22k hodin).
+
+Cena je uvedena  ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   550 Kč</span></b></div>
+<div class="inzeratylok">Praha 1<br>110 00</div>
+<div class="inzeratyview">485 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224741447');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224741447');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','9510104','5003261','Anton');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224741447');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224021272/seagate-barracuda-2tb-st2000dm008-35-sata.php"><img src="https://www.bazos.cz/img/1t/272/224021272.jpg?t=1791277665" class="obrazek" alt="Seagate Barracuda 2TB ST2000DM008 – 3,5 SATA" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224021272/seagate-barracuda-2tb-st2000dm008-35-sata.php">Seagate Barracuda 2TB ST2000DM008 – 3,5 SATA</a></h2><span class=velikost10> - <span title="TOP 1x Platí do 13.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Dobrý den,
+
+prodám pevný disk Seagate Barracuda 2TB (ST2000DM008) – 3,5” SATA
+
+* Kapacita: 2 TB
+* Formát: 3,5”
+* Rozhraní: SATA III (6 Gb/s)
+* Otáčky: 7200 RPM
+* Vhodný do stolního PC nebo jako úložiště dat/NAS.
+
+Disk je ve velmi dobrém stavu. 
+
+Pref ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 699 Kč</span></b></div>
+<div class="inzeratylok">Olomouc<br>779 00</div>
+<div class="inzeratyview">402 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224021272');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224021272');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','7189575','6278731','David');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224021272');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224021275/ssd-samsung-990-evo-plus-1tb-m2-nvme.php"><img src="https://www.bazos.cz/img/1t/275/224021275.jpg?t=1791277645" class="obrazek" alt="SSD Samsung 990 EVO Plus 1TB – M.2 NVMe" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224021275/ssd-samsung-990-evo-plus-1tb-m2-nvme.php">SSD Samsung 990 EVO Plus 1TB – M.2 NVMe</a></h2><span class=velikost10> - <span title="TOP 1x Platí do 13.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Dobrý den,
+
+prodám výkonné SSD Samsung 990 EVO Plus s kapacitou 1 TB.
+
+* Kapacita: 1 TB
+* Formát: M.2 2280
+* Rozhraní: NVMe (PCIe)
+* Model: Samsung 990 EVO Plus
+* Vhodné pro stolní PC i notebooky s M.2 slotem.
+
+Disk je plně funkční, ve velmi dobrém s ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  2 499 Kč</span></b></div>
+<div class="inzeratylok">Olomouc<br>779 00</div>
+<div class="inzeratyview">761 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224021275');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224021275');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','7189575','6278731','David');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224021275');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224021286/ssd-kingston-nv3-2tb-m2-nvme-pcie-40.php"><img src="https://www.bazos.cz/img/1t/286/224021286.jpg?t=1791277627" class="obrazek" alt="SSD Kingston NV3 2TB – M.2 NVMe PCIe 4.0" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224021286/ssd-kingston-nv3-2tb-m2-nvme-pcie-40.php">SSD Kingston NV3 2TB – M.2 NVMe PCIe 4.0</a></h2><span class=velikost10> - <span title="TOP 1x Platí do 13.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Dobrý den,
+
+prodám SSD Kingston NV3 2TB – M.2 NVMe PCIe 4.0
+
+* Kapacita: 2 TB
+* Formát: M.2 2280
+* Rozhraní: PCIe 4.0 NVMe
+* Model: SNV3S/2000G
+* Vhodný pro stolní PC i notebooky s M.2 slotem.
+
+Disk je plně funkční a ve velmi dobrém stavu. Ideální pr ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  3 749 Kč</span></b></div>
+<div class="inzeratylok">Olomouc<br>779 00</div>
+<div class="inzeratyview">643 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224021286');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224021286');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','7189575','6278731','David');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224021286');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224581734/ssd-500gb-samsung-870-evo.php"><img src="https://www.bazos.cz/img/1t/734/224581734.jpg?t=1791221487" class="obrazek" alt="SSD 500GB Samsung 870 EVO | zdraví 99%" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224581734/ssd-500gb-samsung-870-evo.php">SSD 500GB Samsung 870 EVO | zdraví 99%</a></h2><span class=velikost10> - <span title="TOP 1x Platí do 12.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Prodám SSD Samsung 870 EVO 500GB 2,5" – spolehlivý a rychlý disk ve velmi dobrém stavu.
+Ideální pro zrychlení systému Windows, her i běžné práce. Oproti klasickému HDD nabízí mnohonásobně rychlejší start systému, programů i her.
+
+✅ Kondice podle C ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 580 Kč</span></b></div>
+<div class="inzeratylok">Slovensko<br>987 65</div>
+<div class="inzeratyview">380 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224581734');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224581734');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','8537247','6512623','Pavel');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224581734');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/223012102/ssd-samsung-evo-870-250-gb-nepouzity.php"><img src="https://www.bazos.cz/img/1t/102/223012102.jpg?t=1791267097" class="obrazek" alt="SSD Samsung Evo 870 250 GB nepoužity" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/223012102/ssd-samsung-evo-870-250-gb-nepouzity.php">SSD Samsung Evo 870 250 GB nepoužity</a></h2><span class=velikost10> - <span title="TOP 2x Platí do 12.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Prodám zcela nový SSD disk Samsung 870 EVO 250 GB. Disk je nepoužitý, vhodný pro stolní PC i notebook.
+
+Specifikace:
+
+* Kapacita: 250 GB
+* Formát: 2,5”
+* Rozhraní: SATA III (6 Gb/s)
+* Rychlost čtení až 560 MB/s
+* Rychlost zápisu až 530 MB/s
+
+Spolehli ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 199 Kč</span></b></div>
+<div class="inzeratylok">Zlín<br>760 01</div>
+<div class="inzeratyview">471 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','223012102');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','223012102');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','6587386','4279364','Luk%C3%A1%C5%A1');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','223012102');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/223808482/ssd-samsung-870-qvo-2-tb-format-25-rozhrani-sata.php"><img src="https://www.bazos.cz/img/1t/482/223808482.jpg?t=1791178260" class="obrazek" alt="SSD Samsung 870 QVO 2 TB, formát 2,5&quot;, rozhraní SATA" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/223808482/ssd-samsung-870-qvo-2-tb-format-25-rozhrani-sata.php">SSD Samsung 870 QVO 2 TB, formát 2,5&quot;, rozhraní SATA</a></h2><span class=velikost10> - <span title="TOP 1x Platí do 12.10. 2026" class="ztop">TOP</span> - [10.10. 2026]</span><br>
+<div class=popis>Disk byl krátce používán v konzoli PS4 Pro a fungoval bez problémů. Před prodejem byl z konzole vyjmut, zkontrolován a naformátován. Je plně funkční a ve velmi dobrém stavu – viz snímek z CrystalDiskInfo.
+
+Model: Samsung 870 QVO
+Kapacita: 2 TB
+Fo ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  4 490 Kč</span></b></div>
+<div class="inzeratylok">Praha 9<br>199 00</div>
+<div class="inzeratyview">466 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','223808482');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','223808482');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','16948037','15773954','Michal');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','223808482');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224913289/ssd-adata-240-gb.php"><img src="https://www.bazos.cz/img/1t/289/224913289.jpg" class="obrazek" alt="SSD ADATA 240 GB" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224913289/ssd-adata-240-gb.php">SSD ADATA 240 GB</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>Disk 2,5 palcový v dobrém stavu - viz screen. Osobní odběr Praha 10 - Zahradní město, Balíkovnou na vlastní riziko, preferuji osobní odběr.
+
+</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   450 Kč</span></b></div>
+<div class="inzeratylok">Praha 10<br>106 00</div>
+<div class="inzeratyview">2 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224913289');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224913289');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','98818','46907','Gabriela+Jav%C5%AFrkov%C3%A1');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224913289');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224912335/synology-hat5300-12t-35-12tb.php"><img src="https://www.bazos.cz/img/1t/335/224912335.jpg" class="obrazek" alt="Synology HAT5300-12T, 3.5” - 12TB" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224912335/synology-hat5300-12t-35-12tb.php">Synology HAT5300-12T, 3.5” - 12TB</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>použitý kus,
+zaruka 12 měsíčů
+
+Popis produktu:
+
+Obecné
+Kapacita 12 TB
+Rozměr 3.5"
+Rozhraní SATA 6 Gb/s
+Velikost sektoru 512e
+
+Výkon
+Rychlost rotace 7,200 rpm
+Rychlost rozhraní 6.0 Gb/s, 3.0 Gb/s, 1.5 Gb/s
+Velikost vyrovnávací paměti 256 ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  8 000 Kč</span></b></div>
+<div class="inzeratylok">Kroměříž<br>767 01</div>
+<div class="inzeratyview">9 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224912335');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224912335');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','4597941','1446520','Martin');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224912335');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224911973/m550-25-128gb-sata.php"><img src="https://www.bazos.cz/img/1t/973/224911973.jpg" class="obrazek" alt="M550 2.5 128GB SATA" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224911973/m550-25-128gb-sata.php">M550 2.5 128GB SATA</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>Prodám tento disk M550 2.5 128GB SATA + zisilkovna.</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   250 Kč</span></b></div>
+<div class="inzeratylok">Třebíč<br>676 02</div>
+<div class="inzeratyview">13 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224911973');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224911973');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5580231','6857844','Blue');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224911973');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224911942/2tb-hdd-wd20efrx.php"><img src="https://www.bazos.cz/img/1t/942/224911942.jpg" class="obrazek" alt="2TB HDD WD20EFRX" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224911942/2tb-hdd-wd20efrx.php">2TB HDD WD20EFRX</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>Prodám 2TB HDD WD20EFRX, smart OK.</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 000 Kč</span></b></div>
+<div class="inzeratylok">Třebíč<br>676 02</div>
+<div class="inzeratyview">15 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224911942');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224911942');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5580231','6857844','Blue');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224911942');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224911897/externi-hdd-wd-elements-portable-1tb.php"><img src="https://www.bazos.cz/img/1t/897/224911897.jpg" class="obrazek" alt="Externí HDD WD Elements Portable 1TB" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224911897/externi-hdd-wd-elements-portable-1tb.php">Externí HDD WD Elements Portable 1TB</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>Prodám externí HDD WD Elements Portable 1TB
+</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   800 Kč</span></b></div>
+<div class="inzeratylok">Třebíč<br>676 02</div>
+<div class="inzeratyview">13 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224911897');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224911897');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5580231','6857844','Blue');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224911897');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224911848/wd-blue-500-gb-3d-nand-sata-ssd.php"><img src="https://www.bazos.cz/img/1t/848/224911848.jpg" class="obrazek" alt="WD blue 500 GB 3D NAND SATA SSD" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224911848/wd-blue-500-gb-3d-nand-sata-ssd.php">WD blue 500 GB 3D NAND SATA SSD</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>WD blue 500 GB 3D NAND SATA SSD, prodám funkční disk. + zásilkonva</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 000 Kč</span></b></div>
+<div class="inzeratylok">Třebíč<br>676 02</div>
+<div class="inzeratyview">17 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224911848');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224911848');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5580231','6857844','Blue');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224911848');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224911811/wd-blue-250-gb-sata-ssd.php"><img src="https://www.bazos.cz/img/1t/811/224911811.jpg" class="obrazek" alt="WD blue 250 GB SATA SSD" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224911811/wd-blue-250-gb-sata-ssd.php">WD blue 250 GB SATA SSD</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>WD blue 250 GB SATA SSD, prodám funkční disk. + zásilkonva</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">   500 Kč</span></b></div>
+<div class="inzeratylok">Třebíč<br>676 02</div>
+<div class="inzeratyview">13 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224911811');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224911811');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5580231','6857844','Blue');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224911811');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224911768/ssd-pro-pocitace-a-notebooky-samsung-ssd-860-evo-500-gb.php"><img src="https://www.bazos.cz/img/1t/768/224911768.jpg" class="obrazek" alt="SSD pro počítače a notebooky | Samsung SSD 860 EVO 500 GB" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224911768/ssd-pro-pocitace-a-notebooky-samsung-ssd-860-evo-500-gb.php">SSD pro počítače a notebooky | Samsung SSD 860 EVO 500 GB</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>Prodám plně funkční SSD Samsung 860 EVO s kapacitou 500 GB. Jedná se o kvalitní 2,5" SATA disk s pamětí Samsung V-NAND, vhodný do stolního počítače i notebooku.
+
+Dobrá volba jako náhrada pomalého klasického HDD, systémový disk pro Windows nebo rych ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  1 300 Kč</span></b></div>
+<div class="inzeratylok">Praha 4<br>140 00</div>
+<div class="inzeratyview">15 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224911768');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224911768');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','5229703','2555102','AS');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224911768');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224909670/samsung-ssd-990-pro-2tb-nvme-nerozbalene-nove.php"><img src="https://www.bazos.cz/img/1t/670/224909670.jpg" class="obrazek" alt="Samsung SSD 990 PRO 2TB NVMe (Nerozbalené / Nové)" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224909670/samsung-ssd-990-pro-2tb-nvme-nerozbalene-nove.php">Samsung SSD 990 PRO 2TB NVMe (Nerozbalené / Nové)</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>Prodám špičkový a plně profesionální SSD disk Samsung 990 PRO 2TB (M.2 2280, PCIe 4.0 x4 NVMe).
+ Stav: Zcela nový, nerozbalený, originálně zapečetěno výrobcem (viz foto). Vhodné i jako dárek.
+ Záruka: 5 let u výrobce / standardní záruka.
+ Klíčové par ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  10 000 Kč</span></b></div>
+<div class="inzeratylok">Praha 9<br>198 00</div>
+<div class="inzeratyview">16 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224909670');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224909670');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','18663748','17642107','Mat%C4%9Bj+Jankovi%C4%8D');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224909670');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224909577/wd-my-passport-portable-4tb-modry-25.php"><img src="https://www.bazos.cz/img/1t/577/224909577.jpg?t=1791651444" class="obrazek" alt="Externí HDD WD My Passport Portable 4TB modrý 2.5&quot;" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224909577/wd-my-passport-portable-4tb-modry-25.php">Externí HDD WD My Passport Portable 4TB modrý 2.5&quot;</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>Prodám zcela nový nikdy nepoužitý, nerozbalený externí pevný disk, HDD, 2.5", 4TB, USB 3.0, napájení přes USB, Western Digital
+
+Technická specifikace
+Model: My Passport
+Kapacita: 4TB
+Typ disku: 2.5"HDD
+Rozhraní: USB 3.2 Gen 1
+Provozní teplota: ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  3 500 Kč</span></b></div>
+<div class="inzeratylok">Uherské Hradiště<br>686 01</div>
+<div class="inzeratyview">22 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224909577');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224909577');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','15858488','14588269','Petr+M');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224909577');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+
+<div class="inzeraty inzeratyflex">
+<div class="inzeratynadpis"><a href="/inzerat/224909301/wd-elements-portable-4tb-cerny-25.php"><img src="https://www.bazos.cz/img/1t/301/224909301.jpg?t=1791651421" class="obrazek" alt="Externí HDD WD Elements Portable 4TB černý 2.5&quot;" width="170" height="128"></a>
+<h2 class=nadpis><a href="/inzerat/224909301/wd-elements-portable-4tb-cerny-25.php">Externí HDD WD Elements Portable 4TB černý 2.5&quot;</a></h2><span class=velikost10> - [10.10. 2026]</span><br>
+<div class=popis>Prodám zcela nový nepoužitý, nerozbalený externí pevný disk, HDD, 2.5", 4TB, USB 3.0, napájení přes USB.
+
+Extrémně rychlý přenos dat díky rozhraní USB 3.0
+Kapacita: 4 TB
+Rozhraní USB 3.0 (5Gb/s; možno připojit na stávající USB 2.0)
+
+Nevyžaduje  ...</div><br><br>
+</div>
+<div class="inzeratycena"><b><span translate="no">  3 600 Kč</span></b></div>
+<div class="inzeratylok">Uherské Hradiště<br>686 01</div>
+<div class="inzeratyview">23 x</div>
+<div class="inzeratyakce">
+<span onclick="odeslatakci('spam','224909301');return false;" class="akce paction">Označit špatný inzerát</span> <span onclick="odeslatakci('category','224909301');return false;" class="akce paction">Chybnou kategorii</span> <span onclick="odeslatakci('rating','15858488','14588269','Petr+M');return false;" class="akce paction">Ohodnotit uživatele</span> <span onclick="odeslatakci('edit','224909301');return false;" class="akce paction">Smazat/Upravit/Topovat</span>
+</div>
+</div>
+<div id="container_two"></div><script type="text/javascript" charset="utf-8">
+var pageOptions = {
+  'pubId': 'pub-3645948300403337',
+  'query' : "Hard disky, SSD",
+  "channel": "9153444560",  'linkTarget' : '_blank',
+  'personalizedAds' : false,
+  'adsafe': 'medium',
+  'ivt': false,
+'styleId' : '6171314811',  'hl': 'cs'
+};
+
+var adblock1 = {
+  'container': 'container_one',
+  'width': 'auto',
+  'maxTop' : 2
+};
+
+var adblock2 = {
+  'container': 'container_two',
+  'width': 'auto',
+  'number' : 2
+};
+
+_googCsa('ads', pageOptions, adblock2);</script>
+
+<br><div class="strankovani">Stránka: <b><span class=cisla>1</span></b> <a href="/hdd/20/">2</a> <a href="/hdd/40/">3</a> <a href="/hdd/60/">4</a> <a href="/hdd/80/">5</a> <a href="/hdd/100/">6</a> <a href="/hdd/120/">7</a> <a href="/hdd/140/">8</a> <a href="/hdd/20/"><b>Další</b></a></div><br><br><br>
+
+
+</div></div><br>
+
+&copy;2026 Bazoš -  <b>Inzerce, Bazar Hard disky, SSD</b><br>
+<a href="https://www.bazos.cz/napoveda.php">Nápověda</a>, <a href="https://www.bazos.cz/dotazy.php">Dotazy</a>, <a href="https://www.bazos.cz/hodnoceni.php">Hodnocení</a>, <a href="https://www.bazos.cz/kontakt.php">Kontakt</a>, <a href="https://www.bazos.cz/reklama.php">Reklama</a>, <a href="https://www.bazos.cz/podminky.php">Podmínky</a>, <a href="https://www.bazos.cz/ochrana-udaju.php">Ochrana údajů</a>, <a href="https://www.bazos.cz/rss.php?rub=pc&cat=5">RSS</a>, <form name="formvkm" id="formvkm" method="post" style="display: inline;"><input type="hidden" name="vkm" value="m"><input type="submit" class="vkm" value="Mobilní verze"></form><br>
+
+Inzeráty PC celkem: <b>43335</b>, za 24 hodin: <b>1786</b><br><br>
+<a href="https://www.bazos.cz/mapa-kategorie.php">Mapa kategorií</a>, <a href="https://pc.bazos.cz/mapa-search.php">Nejvyhledávanější výrazy</a>
+<br>
+Země: <a href="https://pc.bazos.cz">Česká republika</a>, <a href="https://pc.bazos.sk">Slovensko</a>, <a href="https://komputer.bazos.pl">Polsko</a>, <a href="https://pc.bazos.at">Rakousko</a>
+<br>
+<br>
+</div>
+
+<script src="https://www.bazos.cz/cookie-consent.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({"notice_banner_type":"simple","consent_type":"express","palette":"light","language":"cs","page_load_consent_levels":["strictly-necessary"],"notice_banner_reject_button_hide":false,"preferences_center_close_button_hide":false,"page_refresh_confirmation_buttons":false,"cookie_domain": "bazos.cz"});
+});
+</script>
+<a href="#" id="open_preferences_center"> </a>
+
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NZW1QTHKBB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-NZW1QTHKBB');
+</script>
+
+</body>
+</html>

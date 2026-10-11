@@ -21,10 +21,10 @@ PAGE_SIZE = 20  # ads per category page; page N lives at /<section>/<N*20>/
 class Section:
     """A Bazoš PC subcategory we watch, and how it is read and normalized."""
 
-    slug: str  # URL path: /graficka/, /pc/, /notebook/
+    slug: str  # URL path: /graficka/, /pc/, /notebook/, /hdd/
     rss_cat: int  # www.bazos.cz/rss.php?rub=pc&cat=<n>
     pages: int  # category pages read by every scrape cycle (the RSS feed carries the newest 50)
-    kind: str  # which normalizer reads its titles: gpu | office
+    kind: str  # which normalizer reads its titles: gpu | office | storage
     details: str  # 'all': fetch every new ad's page; 'in_scope': skip ads the normalizer excludes
 
 
@@ -32,6 +32,7 @@ SECTIONS = {
     "graficka": Section("graficka", 4, 2, "gpu", "all"),  # Grafické karty
     "pc": Section("pc", 12, 1, "office", "in_scope"),  # PC, Počítače
     "notebook": Section("notebook", 10, 1, "office", "in_scope"),  # Notebooky
+    "hdd": Section("hdd", 5, 1, "storage", "in_scope"),  # Hard disky, SSD
 }
 CATEGORY = "graficka"  # the original section; listings scraped before v0.3.0 all come from it
 RSS_URL = "https://www.bazos.cz/rss.php?rub=pc&cat=4"  # PC > Grafické karty
@@ -68,7 +69,7 @@ class Listing:
     description: str | None = None
     images: list[str] = field(default_factory=list)
     raw_category: str | None = None
-    section: str = CATEGORY  # the category page/feed we found it on (graficka | pc | notebook)
+    section: str = CATEGORY  # the category page/feed we found it on (graficka | pc | notebook | hdd)
 
 
 def category_url(page: int, section: str = CATEGORY) -> str:
