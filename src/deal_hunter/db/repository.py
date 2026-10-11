@@ -974,3 +974,16 @@ def new_price_rows(conn: psycopg.Connection) -> list[dict]:
         "ORDER BY url, fetched_at DESC"
     )
     return sorted(_dicts(cur), key=lambda r: (r["model"], r["min_price"] or 10**9))
+
+
+# --- web (read-only pages) -------------------------------------------------------------------------
+
+
+def price_history(conn: psycopg.Connection, listing_id: int) -> list[dict]:
+    """Price changes for one ad, oldest first: for the `/listing/<id>` page."""
+    cur = conn.execute(
+        "SELECT changed_at, old_price, new_price, old_kind, new_kind FROM price_changes "
+        "WHERE listing_id = %s ORDER BY changed_at",
+        (listing_id,),
+    )
+    return _dicts(cur)

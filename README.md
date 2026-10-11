@@ -508,6 +508,29 @@ hdd35 enterprise · new ~973 Kč/TB (Zboží, 2 keys, 3 shops)
 📍 Praha 4 · 2 km
 ```
 
+## Web UI
+
+A plain, read-only LAN website (`hunt web`, port 8080): server-rendered HTML, one small inline CSS
+block, no JS framework, no build step (stdlib `http.server`, nothing new in `pyproject.toml`). It
+only reads the database - the scraper, worker and feedback service are unaffected.
+
+- `/` - recent deals (listings that would alert or were alerted: `would_alert`, `queued`, `alerted`,
+  `capped`), title linking to the ad, price, fair price, discount %, distance, the LLM's verdict,
+  category and when it was flagged/pushed. `?category=gpu|office_pc|office_laptop|hdd|office` and
+  `?min_discount=30` filter the list.
+- `/prices` - the fair price table (model, n, median, level, new price, prior/note), the same
+  estimate `hunt prices` prints; pooled disk classes show Kč/TB.
+- `/auctions` - open nms.gov.cz lots with their valuation (max bid, profit, confidence) and end time.
+- `/listing/<id>` - one ad: the description, the LLM's triage answer (pretty JSON) and its price
+  history.
+
+Everything from an ad (title, description, seller, location, the LLM's verdict) is untrusted input
+and is HTML-escaped before it reaches the page; every query is parameterized (no SQL is built in
+`web.py` itself - it calls into `repository.py`, `pricing.py` and `auction_cycle.py`). Run it locally
+with `uv run hunt web` (defaults to `0.0.0.0:8080`); in production it is its own compose service
+(`web`), publishing host port 8090 (8080 is bot-arena's on CT 121) on the homelab's LAN only - no Cloudflare tunnel, since it was never
+meant to be reachable from outside.
+
 ## Being polite
 
 - Only URLs that [robots.txt](https://pc.bazos.cz/robots.txt) allows: the category pages
@@ -586,6 +609,7 @@ uv run hunt auctions scrape --dry-run   # running IT lots on nms.gov.cz (nothing
 uv run hunt auctions scrape --once      # lists + due detail pages, LLM extraction, valuation (no pushes)
 uv run hunt auctions list               # running lots with valuations, sold lots: final price/unit vs fair
 uv run hunt auctions value 62388        # one lot: items, mapping, valuation breakdown
+uv run hunt web                         # the read-only LAN website (deals, prices, auctions), :8080
 uv run pytest                           # DB tests need DATABASE_URL (they use <db>_test)
 ```
 
@@ -686,7 +710,10 @@ on CT 100 (`onboot=1`). If it is off, candidates simply wait.
 - [x] **Phase 5: alerts.** ntfy pushes gated per model until there is enough data, at most 5 a day,
       quiet hours, repost dedup, 👍/👎 via a write-only feedback topic, and a Sunday digest.
 - [ ] **Phase 6: UI + ROI tracking.** Deals feed, price history per model, normalizer review,
-      and a flips log (bought at, sold at, profit) to show whether it actually pays.
+      and a flips log (bought at, sold at, profit) to show whether it actually pays. The read-only
+      part shipped as the plain LAN website (`hunt web`; see "Web UI"): a deals feed with filters,
+      the fair price table, open auctions and a listing detail page with its own price history.
+      Normalizer review and the flips log are still CLI-only (`hunt review`, the `flips` table).
 - [x] **Phase 7: auctions / office clear-outs.** ÚZSVM state auctions (nms.gov.cz), IT lots via the
       list page's own JSON API, item lists from PDFs, LLM extraction with evidence checks, valuation
       with refurb costs, labour and selling pace, a max sensible bid, pushes before the end, and final
