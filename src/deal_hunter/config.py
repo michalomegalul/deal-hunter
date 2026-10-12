@@ -12,6 +12,9 @@ REPO_URL = "https://github.com/michalomegalul/deal-hunter"
 VERSION = version("deal-hunter")
 USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~1 request per 3 s)"
 AUCTION_USER_AGENT = f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, a few requests per hour)"
+SHOP_USER_AGENT = (
+    f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, a few outlet pages every 6 hours)"
+)
 NEW_PRICE_USER_AGENT = (
     f"deal-hunter/{VERSION} (+{REPO_URL}; personal price research, ~50 product pages a week)"
 )
@@ -30,8 +33,11 @@ class Settings:
     recheck_hours: float  # how often active listings are re-checked
     recheck_limit: int  # max detail pages per recheck run
     # --- more sources, same pipeline (Phase 10) ---
-    sources: tuple[str, ...]  # HUNTER_SOURCES=bazos,sbazar,aukro,fb; default keeps today's behaviour
+    sources: tuple[str, ...]  # HUNTER_SOURCES=bazos,sbazar,aukro,fb,mironet; default keeps today's behaviour
     aukro_pages: int  # category pages read per cycle, per Aukro category (60 items/page)
+    shop_pages: int  # pages read per shop outlet category (shops.py)
+    shop_hours: float  # minimum hours between passes over the shop outlets
+    shop_min_delay: float  # seconds between requests to a shop (never below 6)
     fb_cookies_file: str  # Cookie-Editor JSON export path; empty = fb source disabled entirely
     fb_queries: tuple[tuple[str, str], ...]  # [(search text, section), ...] from HUNTER_FB_QUERIES
     fb_city: str
@@ -82,10 +88,11 @@ class Settings:
     auction_min_profit: float
     # --- new prices (Zboží.cz, launch MSRPs) and follow-ups (Phase 8) ---
     usd_czk: float  # launch MSRPs to Kč (display and the sanity check only)
-    new_prices_enabled: bool  # weekly Zboží.cz product pages, inside the worker
+    new_prices_enabled: bool  # weekly Zboží.cz product pages and Datart.cz category pages, inside the worker
     new_price_days: float  # how often each product page is read
     new_price_min_delay: float  # seconds between requests to Zboží.cz (never below 6)
     new_price_per_cycle: int
+    datart_pages: int  # category pages read per Datart category in the weekly new-price step
     offer_discount: float  # the follow-up's proposed price: this much below asking (5-10 %)
     # --- distance from home and disks (Phase 9) ---
     home: tuple[float, float]  # HUNTER_HOME_PSC, else HUNTER_HOME_LAT/LON, else Prague centre
@@ -161,6 +168,9 @@ def load_settings() -> Settings:
         recheck_limit=int(os.getenv("HUNTER_RECHECK_LIMIT", "1500")),
         sources=tuple(s.strip() for s in os.getenv("HUNTER_SOURCES", "bazos").split(",") if s.strip()),
         aukro_pages=int(os.getenv("HUNTER_AUKRO_PAGES", "1")),
+        shop_pages=int(os.getenv("HUNTER_SHOP_PAGES", "2")),
+        shop_hours=float(os.getenv("HUNTER_SHOP_HOURS", "6")),
+        shop_min_delay=max(6.0, float(os.getenv("HUNTER_SHOP_MIN_DELAY", "6.5"))),
         fb_cookies_file=os.getenv("FB_COOKIES_FILE", ""),
         fb_queries=fb_queries(),
         fb_city=os.getenv("HUNTER_FB_CITY", "prague"),
@@ -211,6 +221,7 @@ def load_settings() -> Settings:
         new_price_days=float(os.getenv("HUNTER_NEW_PRICE_DAYS", "7")),
         new_price_min_delay=max(6.0, float(os.getenv("HUNTER_NEW_PRICE_MIN_DELAY", "6.5"))),
         new_price_per_cycle=int(os.getenv("HUNTER_NEW_PRICE_PER_CYCLE", "10")),
+        datart_pages=int(os.getenv("HUNTER_DATART_PAGES", "4")),
         offer_discount=min(0.10, max(0.05, float(os.getenv("HUNTER_OFFER_DISCOUNT", "0.07")))),
         home=home_point(
             os.getenv("HUNTER_HOME_PSC"), _float_or_none("HUNTER_HOME_LAT"), _float_or_none("HUNTER_HOME_LON")

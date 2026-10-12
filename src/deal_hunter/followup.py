@@ -192,9 +192,14 @@ def seller_message(listing: dict) -> str:
 def disk_summary(features: dict | None, t: dict | None, price: int | None, fp) -> str:
     """The disk line of a follow-up (storage.py): capacity, Kč/TB vs new, badges, SMART."""
     from deal_hunter import storage
+    from deal_hunter.pricing import RETAIL_SOURCES
 
     f = features or {}
-    new = fp.new_for_listing(f.get("capacity_tb")) if fp is not None and fp.new_source == "zbozi" else None
+    new = (
+        fp.new_for_listing(f.get("capacity_tb"))
+        if fp is not None and fp.new_source in RETAIL_SOURCES
+        else None
+    )
     return storage.summary_line(f, (t or {}).get("disk") or {}, storage.unit_price(price, f), new)
 
 

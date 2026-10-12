@@ -11,7 +11,13 @@ requirement.
 
 import hashlib
 
-KNOWN_SOURCES = ("bazos", "sbazar", "aukro", "fb")
+KNOWN_SOURCES = ("bazos", "sbazar", "aukro", "fb", "mironet")
+SHOP_SOURCES = ("mironet",)  # e-shops' outlet stock (shops.py): shelf prices, not used-market ones
+
+# price_kind of an item a shop sells (new, unboxed or bazar stock at a shelf price). Comparable to a
+# used ad for "is this cheap" (candidates, watchlists), but never a sample of what used goods cost:
+# repository.price_samples only reads price_kind='fixed'.
+RETAIL = "retail"
 
 # Sections (Section.kind in bazos.py) every source maps its own categories onto, so normalize.py,
 # pricing.py and alerts.py don't need to know a listing's site of origin at all.

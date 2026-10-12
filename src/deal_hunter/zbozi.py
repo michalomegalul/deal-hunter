@@ -135,6 +135,14 @@ class FetchStats:
     rejected: int = 0
     errors: int = 0
 
+    def __add__(self, other: "FetchStats") -> "FetchStats":
+        return FetchStats(
+            self.fetched + other.fetched,
+            self.priced + other.priced,
+            self.rejected + other.rejected,
+            self.errors + other.errors,
+        )
+
     def summary(self) -> str:
         return (
             f"new prices: {self.fetched} pages read, {self.priced} with offers, {self.rejected} rejected, "

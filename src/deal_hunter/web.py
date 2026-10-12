@@ -1,11 +1,12 @@
 """A small, plain, read-only LAN website: `hunt web` (port 8080, stdlib only, no JS framework).
 
-Three pages plus a detail page, all server-rendered HTML with one inline CSS block:
+Four pages plus a detail page, all server-rendered HTML with one inline CSS block:
 
 - `/`            recent deals (would-alert or alerted listings), with `?category=` and
                   `?min_discount=` filters.
 - `/prices`       the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
 - `/auctions`     open nms.gov.cz lots with their valuation (reuses `auction_cycle.value`).
+- `/flips`        the flips log (buy, sell, fees, profit, days held, totals) and the `hunt eval` tables.
 - `/listing/<id>` one ad: description, triage JSON, price history.
 
 Every value that comes from an ad (title, description, seller, location, the LLM's verdict) is
@@ -16,7 +17,7 @@ writes to the database.
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from html import escape as esc
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
@@ -48,7 +49,7 @@ CSS = """
   footer { margin-top: 2rem; color: #999; font-size: .85rem; }
 """
 
-NAV = '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/auctions">Auctions</a></nav>'
+NAV = '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/auctions">Auctions</a><a href="/flips">Flips</a></nav>'
 
 
 def page(title: str, body: str) -> str:
@@ -244,6 +245,66 @@ def render_auctions(conn) -> str:
     return f'<p class="muted">{len(lots)} open lot(s).</p>' + table
 
 
+# --- /flips : the flips log and how the alerts measure up --------------------------------------------
+
+EVAL_DAYS = 90
+
+
+def _table(headers: list[str], rows: list[str]) -> str:
+    head = "".join(f"<th>{esc(h)}</th>" for h in headers)
+    return f'<div class="tablewrap"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
+
+
+def render_flips(conn, now: datetime | None = None) -> str:
+    from deal_hunter import evaluation
+    from deal_hunter.db import repository as repo
+
+    now = now or datetime.now(UTC)
+    since = now - timedelta(days=EVAL_DAYS)
+    flips = repo.list_flips(conn)
+    deals = repo.eval_deals(conn, since)
+
+    if flips:
+        rows = []
+        for f in flips:
+            profit = evaluation.flip_profit(f)
+            cls = "" if profit is None else ' class="good"' if profit >= 0 else ' class="bad"'
+            rows.append(
+                "<tr>"
+                f'<td class="wrap"><a href="/listing/{f["listing_id"]}">{esc(f["title"] or str(f["listing_id"]))}</a>'
+                f'<br><span class="muted">{esc(f["notes"] or "")}</span></td>'
+                f"<td>{esc(f['category'] or '-')}</td>"
+                f"<td>{when(f['bought_at'])}</td>"
+                f"<td>{kc(f['buy_price'])}</td>"
+                f"<td>{when(f['sold_at'])}</td>"
+                f"<td>{kc(f['sold_price'])}</td>"
+                f"<td>{kc(f['fees'])}</td>"
+                f"<td{cls}>{kc(profit)}</td>"
+                f"<td>{evaluation.days_held(f, now)}</td>"
+                "</tr>"
+            )
+        headers = ["Ad", "Category", "Bought", "Buy", "Sold", "Sell", "Fees", "Profit", "Days held"]
+        table = _table(headers, rows)
+    else:
+        table = '<p class="empty">No flips yet (tap Bought on a 👍 follow-up, or `hunt flip add`).</p>'
+    t = evaluation.flip_totals(flips)
+    roi = pct(t["roi"])
+    totals = (
+        f'<p class="muted">{t["open"]} open, {t["sold"]} sold. Invested in open flips {kc(t["invested"])}; '
+        f"realised profit {kc(t['profit'])} on {kc(t['cost'])} spent, ROI {roi}.</p>"
+    )
+
+    recent = [f for f in flips if f["bought_at"] >= since]
+    parts = [totals, table, f"<h2>Alert evaluation, last {EVAL_DAYS} days</h2>"]
+    parts.append(f'<p class="muted">{len(deals)} deal(s) flagged. Same numbers as `hunt eval`.</p>')
+    for t in evaluation.eval_tables(deals, recent, now):
+        parts.append(f"<h3>{esc(t.title)}</h3>")
+        parts.append(
+            _table(t.headers, ["<tr>" + "".join(f"<td>{esc(c)}</td>" for c in r) + "</tr>" for r in t.rows])
+        )
+    return "".join(parts)
+
+
 # --- /listing/<id> : one ad --------------------------------------------------------------------------
 
 
@@ -345,6 +406,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._respond(200, page("Fair prices", render_prices(conn)))
                 elif path == "/auctions":
                     self._respond(200, page("Open auctions", render_auctions(conn)))
+                elif path == "/flips":
+                    self._respond(200, page("Flips", render_flips(conn)))
                 elif path.startswith("/listing/"):
                     raw_id = path.removeprefix("/listing/")
                     if not raw_id.isdigit():

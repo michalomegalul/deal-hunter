@@ -408,7 +408,9 @@ def format_watch_push(hit: dict) -> tuple[str, str]:
         lines.append(f"#{hit['tag']}")
     source = hit.get("source")
     if source and source != "bazos":
-        lines.append(f"via {source}")
+        from deal_hunter.alerts import SOURCE_LABEL
+
+        lines.append(f"via {SOURCE_LABEL.get(source, source)}")
     return title, "\n".join(lines)
 
 

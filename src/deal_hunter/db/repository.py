@@ -1,6 +1,7 @@
 """Raw-SQL access to the deal-hunter database (psycopg 3, no ORM)."""
 
 import os
+import uuid
 from dataclasses import dataclass, field
 from importlib import resources
 
@@ -9,6 +10,7 @@ from dotenv import load_dotenv
 from psycopg.types.json import Jsonb
 
 from deal_hunter.bazos import Listing
+from deal_hunter.sources import SHOP_SOURCES
 from deal_hunter.storage import unit_price
 
 
@@ -144,6 +146,18 @@ def save_listing(conn: psycopg.Connection, item: Listing, detail: bool) -> tuple
         return False, changed
 
 
+def mark_missing_gone(conn: psycopg.Connection, source: str, raw_category: str, since) -> int:
+    """Retire a source's active listings of one category that a complete pass (started at `since`) no
+    longer saw. Shop outlets have no per-item page worth fetching: an item that left the listing is gone."""
+    with conn.transaction():
+        cur = conn.execute(
+            "UPDATE listings SET gone_at = now(), gone_reason = 'not_listed' WHERE source = %s "
+            "AND raw_category = %s AND gone_at IS NULL AND last_seen < %s",
+            (source, raw_category, since),
+        )
+    return cur.rowcount
+
+
 def mark_gone(conn: psycopg.Connection, listing_id: int, reason: str) -> bool:
     """Record that an ad has disappeared. Returns False if it was already marked."""
     with conn.transaction():
@@ -158,15 +172,16 @@ def due_for_recheck(conn: psycopg.Connection, older_than_hours: float, limit: in
     """(id, url) of active ads not seen for `older_than_hours`, least recently seen first.
 
     Ads that still show up on the category pages get their last_seen refreshed by every scrape, so
-    in practice this re-checks the older ads that have scrolled off the pages we read. Ads the
+    in practice this re-checks the older ads that have scrolled off the pages we read. Shop listings
+    (sources.SHOP_SOURCES) are not Bazoš pages: their own cycle retires them (mark_missing_gone). Ads the
     normalizer excluded (wanted ads, gaming PCs, MacBooks, ...) are never priced, so whether they
     sold doesn't matter and they aren't re-checked.
     """
     return conn.execute(
         "SELECT l.id, l.url FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id "
-        "WHERE l.gone_at IS NULL AND n.excluded_reason IS NULL "
+        "WHERE l.gone_at IS NULL AND n.excluded_reason IS NULL AND l.source <> ALL(%s) "
         "AND l.last_seen < now() - make_interval(secs => %s) ORDER BY l.last_seen LIMIT %s",
-        (older_than_hours * 3600, limit),
+        (list(SHOP_SOURCES), older_than_hours * 3600, limit),
     ).fetchall()
 
 
@@ -303,7 +318,9 @@ def normalized_summary(conn: psycopg.Connection) -> list[tuple]:
 
 
 def price_samples(conn: psycopg.Connection, window_days: int) -> list:
-    """Matched ads with a numeric price, seen within the window: the input to pricing.estimate_all."""
+    """Matched ads with a numeric price, seen within the window: the input to pricing.estimate_all.
+
+    Only price_kind='fixed': a shop's 'retail' prices (sources.RETAIL) are not what used goods sell for."""
     from deal_hunter.pricing import Sample
 
     rows = conn.execute(
@@ -385,7 +402,8 @@ def active_priced(conn: psycopg.Connection, max_age_days: float) -> list[tuple]:
     rows = conn.execute(
         "SELECT l.id, n.model, n.category, l.price_czk, n.features FROM listings l "
         "JOIN normalized n ON n.listing_id = l.id WHERE l.gone_at IS NULL AND n.model IS NOT NULL "
-        "AND l.price_kind = 'fixed' AND l.price_czk > 0 AND l.first_seen > now() - make_interval(secs => %s)",
+        "AND l.price_kind IN ('fixed', 'retail') AND l.price_czk > 0 "
+        "AND l.first_seen > now() - make_interval(secs => %s)",
         (max_age_days * 86400,),
     ).fetchall()
     out = []
@@ -885,8 +903,8 @@ def save_votes(conn: psycopg.Connection, votes: list) -> list:
                 if v.kind != "listing":
                     continue
                 cur = conn.execute(
-                    "INSERT INTO flips (listing_id, bought_at, buy_price, source_id, model, title) "
-                    "SELECT %(id)s, %(at)s, l.price_czk, %(src)s, n.model, l.title FROM (SELECT 1) one "
+                    "INSERT INTO flips (listing_id, bought_at, buy_price, source_id, model, title, category) "
+                    "SELECT %(id)s, %(at)s, l.price_czk, %(src)s, n.model, l.title, n.category FROM (SELECT 1) one "
                     "LEFT JOIN listings l ON l.id = %(id)s LEFT JOIN normalized n ON n.listing_id = %(id)s "
                     "ON CONFLICT DO NOTHING",
                     {"id": int(v.item), "at": v.voted_at, "src": v.source_id},
@@ -961,42 +979,58 @@ def save_new_price(
     min_price: int | None,
     shops: int | None,
     error: str | None = None,
+    shop: str = "zbozi",
 ) -> None:
+    """One read of a product page. `shop` is who quoted it: 'zbozi' (the lowest of its `shops` offers)
+    or a single shop with its own feed ('datart', see datart.py)."""
     with conn.transaction():
         conn.execute(
-            "INSERT INTO new_prices (model, url, product, min_price, shops, error) VALUES (%s, %s, %s, %s, %s, %s)",
-            (model, url, product, min_price, shops, error),
+            "INSERT INTO new_prices (model, url, product, min_price, shops, error, shop) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (model, url, product, min_price, shops, error, shop),
         )
 
 
-def new_price_fetched_at(conn: psycopg.Connection) -> dict[str, tuple[object, object]]:
-    """{url: (last successful read, last attempt)}; the first is None if every read failed."""
+def new_price_fetched_at(conn: psycopg.Connection, shop: str = "zbozi") -> dict[str, tuple[object, object]]:
+    """{url: (last successful read, last attempt)} of one shop's pages; the first is None if every read failed."""
     rows = conn.execute(
-        "SELECT url, max(fetched_at) FILTER (WHERE error IS NULL), max(fetched_at) FROM new_prices GROUP BY url"
+        "SELECT url, max(fetched_at) FILTER (WHERE error IS NULL), max(fetched_at) FROM new_prices "
+        "WHERE shop = %s GROUP BY url",
+        (shop,),
     ).fetchall()
     return {url: (ok, tried) for url, ok, tried in rows}
 
 
-def latest_new_prices(conn: psycopg.Connection, max_age_days: float = 30) -> dict[str, tuple[int, int]]:
-    """{model: (lowest offer in Kč, shops on that product)} over each model's pages, fetched recently."""
+def latest_new_offers(conn: psycopg.Connection, max_age_days: float = 30) -> dict[str, tuple[int, int, str]]:
+    """{model: (lowest price in Kč, shops on that product, who quoted it)} over every shop's pages
+    (Zboží product pages, Datart category rows), each page's latest read within the window.
+
+    The cheapest wins; on a tie Zboží, which compares several shops, is the one shown.
+    """
     rows = conn.execute(
         """
-        SELECT DISTINCT ON (model) model, min_price, shops FROM (
-            SELECT DISTINCT ON (url) model, url, min_price, shops FROM new_prices
+        SELECT DISTINCT ON (model) model, min_price, shops, shop FROM (
+            SELECT DISTINCT ON (url) model, url, min_price, shops, shop FROM new_prices
             WHERE fetched_at > now() - make_interval(secs => %s) AND error IS NULL
             ORDER BY url, fetched_at DESC
-        ) latest WHERE min_price IS NOT NULL AND min_price > 0 ORDER BY model, min_price
+        ) latest WHERE min_price IS NOT NULL AND min_price > 0
+        ORDER BY model, min_price, (shop = 'zbozi') DESC
         """,
         (max_age_days * 86400,),
     ).fetchall()
-    return {m: (p, s or 0) for m, p, s in rows}
+    return {m: (p, s or 0, shop) for m, p, s, shop in rows}
+
+
+def latest_new_prices(conn: psycopg.Connection, max_age_days: float = 30) -> dict[str, tuple[int, int]]:
+    """{model: (lowest offer in Kč, shops on that product)}: latest_new_offers without the shop."""
+    return {m: (p, s) for m, (p, s, _) in latest_new_offers(conn, max_age_days).items()}
 
 
 def new_price_rows(conn: psycopg.Connection) -> list[dict]:
     """The latest fetch of every product page, for `hunt newprices`."""
     cur = conn.execute(
-        "SELECT DISTINCT ON (url) model, url, product, min_price, shops, fetched_at, error FROM new_prices "
-        "ORDER BY url, fetched_at DESC"
+        "SELECT DISTINCT ON (url) model, url, product, min_price, shops, shop, fetched_at, error "
+        "FROM new_prices ORDER BY url, fetched_at DESC"
     )
     return sorted(_dicts(cur), key=lambda r: (r["model"], r["min_price"] or 10**9))
 
@@ -1115,3 +1149,77 @@ def mark_watch_pushed(conn: psycopg.Connection, watch_id: int, listing_id: int) 
 
 def watch_pushes_since(conn: psycopg.Connection, since) -> int:
     return conn.execute("SELECT count(*) FROM watch_hits WHERE pushed_at >= %s", (since,)).fetchone()[0]
+
+
+# --- Phase 6: the flips log and the alert evaluation --------------------------------------------------
+
+FLIP_FIELDS = ("buy_price", "sold_at", "sold_price", "fees", "notes")
+
+
+def list_flips(conn: psycopg.Connection, status: str | None = None) -> list[dict]:
+    """Flips, newest purchase first. status: 'open' (not sold yet), 'sold' or None for all.
+
+    `category` is the flip's own, or the ad's from `normalized` when the flip has none.
+    """
+    where = {"open": "WHERE f.sold_at IS NULL", "sold": "WHERE f.sold_at IS NOT NULL"}.get(status or "", "")
+    cur = conn.execute(
+        "SELECT f.listing_id, f.bought_at, f.buy_price, f.sold_at, f.sold_price, f.fees, f.notes, f.model, "
+        f"f.title, coalesce(f.category, n.category) AS category FROM flips f "
+        f"LEFT JOIN normalized n ON n.listing_id = f.listing_id {where} "
+        "ORDER BY f.bought_at DESC, f.listing_id DESC"
+    )
+    return _dicts(cur)
+
+
+def add_flip(conn: psycopg.Connection, listing_id: int, buy_price: int, bought_at, notes: str | None) -> bool:
+    """Log a purchase made outside the 👍 flow. Title, model and category come from the ad when we have it.
+
+    False if this ad is already in the log.
+    """
+    cur = conn.execute(
+        "INSERT INTO flips (listing_id, bought_at, buy_price, source_id, model, title, category, notes) "
+        "SELECT %(id)s, %(at)s, %(price)s, %(src)s, n.model, l.title, n.category, %(notes)s FROM (SELECT 1) one "
+        "LEFT JOIN listings l ON l.id = %(id)s LEFT JOIN normalized n ON n.listing_id = %(id)s "
+        "ON CONFLICT DO NOTHING",
+        {
+            "id": listing_id,
+            "at": bought_at,
+            "price": buy_price,
+            "src": f"manual:{uuid.uuid4()}",
+            "notes": notes,
+        },
+    )
+    return cur.rowcount == 1
+
+
+def update_flip(conn: psycopg.Connection, listing_id: int, **fields) -> bool:
+    """Set some of FLIP_FIELDS on a flip. False if there is no flip for the ad."""
+    unknown = set(fields) - set(FLIP_FIELDS)
+    if unknown or not fields:
+        raise ValueError(f"update_flip needs some of {FLIP_FIELDS}, got {sorted(fields)}")
+    assignments = ", ".join(f"{name} = %({name})s" for name in fields)  # names are whitelisted above
+    cur = conn.execute(
+        f"UPDATE flips SET {assignments} WHERE listing_id = %(listing_id)s",
+        {**fields, "listing_id": listing_id},
+    )
+    return cur.rowcount == 1
+
+
+def eval_deals(conn: psycopg.Connection, since) -> list[dict]:
+    """One row per deal flagged since `since`, with how the ad ended up and what we said about it.
+
+    Votes on auction lots (lot_id) and test pushes (listing_id 0) never match a deal's listing, so
+    they are left out. has_up / has_down: the ad got at least one 👍 / 👎. bought: it is in `flips`.
+    """
+    cur = conn.execute(
+        "SELECT d.listing_id, d.category, d.state, d.score, l.first_seen, l.gone_at, l.gone_reason, "
+        "EXISTS (SELECT 1 FROM feedback f WHERE f.listing_id = d.listing_id AND f.listing_id > 0 "
+        "AND f.vote = 'up') AS has_up, "
+        "EXISTS (SELECT 1 FROM feedback f WHERE f.listing_id = d.listing_id AND f.listing_id > 0 "
+        "AND f.vote = 'down') AS has_down, "
+        "EXISTS (SELECT 1 FROM flips x WHERE x.listing_id = d.listing_id) AS bought "
+        "FROM deals d JOIN listings l ON l.id = d.listing_id WHERE d.first_flagged >= %s "
+        "ORDER BY d.listing_id",
+        (since,),
+    )
+    return _dicts(cur)

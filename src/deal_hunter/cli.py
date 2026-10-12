@@ -3,11 +3,13 @@
 import argparse
 import logging
 import time
+from datetime import UTC, datetime, timedelta
 
 from deal_hunter import scraper
 from deal_hunter.bazos import CATEGORY, SECTIONS
 from deal_hunter.config import MAX_BACKFILL_PAGES, load_settings
 from deal_hunter.db.cli import register as register_db
+from deal_hunter.pricing import RETAIL_SOURCES
 
 
 def _with_db(work):
@@ -64,6 +66,16 @@ def cmd_scrape(args: argparse.Namespace) -> None:
                 print(scraper.scrape_aukro_once(client, conn, settings.aukro_pages).summary(), flush=True)
             if "sbazar" in settings.sources:
                 print(scraper.scrape_sbazar_once(conn).summary(), flush=True)
+            if "mironet" in settings.sources:
+                with (
+                    repo.connect(autocommit=True) as throttle_conn,
+                    _shop_http(settings, throttle_conn) as shop_http,
+                ):
+                    done = scraper.scrape_shops_once(
+                        shop_http, conn, settings.shop_pages, settings.shop_hours
+                    )
+                if done.requests:  # nothing to say between passes (every HUNTER_SHOP_HOURS)
+                    print(done.summary(), flush=True)
             normalize.run(conn)  # cheap: only new listings (or all, after a catalog version bump)
             return stats
 
@@ -325,7 +337,7 @@ def _per_tb(fp) -> str:
         return ""
     tb = float(m.group(1)) / (1000 if m.group(2) == "gb" else 1)
     text = f"{_kc(round(fp.median / tb))} Kč/TB"
-    if fp.new_price and fp.new_source == "zbozi":
+    if fp.new_price and fp.new_source in RETAIL_SOURCES:
         text += f" (new {_kc(round(fp.new_price / tb))} Kč/TB)"
     return text
 
@@ -349,7 +361,7 @@ def cmd_prices(args: argparse.Namespace) -> None:
     )
     for p in rows:
         iqr = f"{_kc(p.q25)}-{_kc(p.q75)}"
-        new = (_kc(p.new_price) + ("" if p.new_source == "zbozi" else "*")) if p.new_price else "-"
+        new = (_kc(p.new_price) + ("" if p.new_source in RETAIL_SOURCES else "*")) if p.new_price else "-"
         prior = f"{p.prior_source} {_kc(p.prior)}" if p.prior else ""
         flags = []
         if p.raw_median and p.raw_median != p.median:
@@ -377,8 +389,9 @@ def cmd_prices(args: argparse.Namespace) -> None:
 
 
 def cmd_newprices(args: argparse.Namespace) -> None:
-    """The curated Zboží.cz product pages and their latest lowest offers (--fetch reads the due ones)."""
-    from deal_hunter import zbozi
+    """The curated Zboží.cz product pages and Datart.cz category rows, and their latest lowest offers
+    (--fetch reads the due ones)."""
+    from deal_hunter import datart, zbozi
     from deal_hunter.db import repository as repo
 
     settings = load_settings()
@@ -387,26 +400,47 @@ def cmd_newprices(args: argparse.Namespace) -> None:
         if args.fetch:
             with _new_price_http(settings, throttle_conn) as http:
                 days = 0 if args.all else settings.new_price_days
-                print(zbozi.fetch_due(http, conn, days, args.limit).summary())
+                fetched = zbozi.fetch_due(http, conn, days, args.limit)
+                print((fetched + datart.fetch_due(http, conn, days, settings.datart_pages)).summary())
         rows = repo.new_price_rows(conn)
-        best = repo.latest_new_prices(conn)
+        best = repo.latest_new_offers(conn)
     pages = zbozi.pages()
     print(f"{len(pages)} models, {sum(len(u) for u in pages.values())} product pages in new_price_pages.yaml")
+    print("(Datart category rows are listed only where they are the model's new price)")
     for r in rows:
-        mark = "*" if best.get(r["model"], (None,))[0] == r["min_price"] and r["min_price"] else " "
+        top = best.get(r["model"])
+        is_best = top is not None and (top[0], top[2]) == (r["min_price"], r["shop"])
+        if r["shop"] != "zbozi" and not is_best:
+            continue
         what = (
             f"{_kc(r['min_price']):>8} Kč {r['shops'] or 0:>2} shops"
             if r["min_price"]
             else (r["error"] or "no offers")[:40]
         )
         print(
-            f"{mark} {r['model']:<20} {what:<24} {r['fetched_at']:%Y-%m-%d}  {(r['product'] or r['url'])[:60]}"
+            f"{'*' if is_best else ' '} {r['model']:<20} {what:<24} {r['shop']:<6} {r['fetched_at']:%Y-%m-%d}  "
+            f"{(r['product'] or r['url'])[:60]}"
         )
-    print("\n* = the model's new price (lowest offer across its pages, fetched in the last 30 days)")
+    print("\n* = the model's new price (lowest offer across Zboží and Datart, fetched in the last 30 days)")
+
+
+def _shop_http(settings, throttle_conn=None):
+    """The polite client for the shop outlets (Mironet): >= 6 s apart, http_throttle row 4."""
+    from deal_hunter.config import SHOP_USER_AGENT, USER_AGENT
+    from deal_hunter.http import PoliteClient
+
+    throttle = (
+        scraper.DbThrottle(throttle_conn, settings.shop_min_delay, row=4)
+        if throttle_conn is not None
+        else None
+    )
+    agent = settings.user_agent if settings.user_agent != USER_AGENT else SHOP_USER_AGENT
+    return PoliteClient(agent, min_delay=settings.shop_min_delay, throttle=throttle, timeout=30)
 
 
 def _new_price_http(settings, throttle_conn=None):
-    """The polite client for Zboží.cz: >= 6 s apart, shared across processes via http_throttle row 3."""
+    """The polite client for Zboží.cz and Datart.cz: >= 6 s apart, shared across processes via
+    http_throttle row 3."""
     from deal_hunter.config import NEW_PRICE_USER_AGENT, USER_AGENT
     from deal_hunter.http import PoliteClient
 
@@ -429,7 +463,7 @@ def cmd_work(args: argparse.Namespace) -> None:
     rules = _rules(settings)
 
     def step():
-        from deal_hunter import auction_cycle, watchlist, zbozi
+        from deal_hunter import auction_cycle, datart, watchlist, zbozi
 
         llm, ntfy, cache = _llm(settings), _ntfy(settings), Path(settings.llm_cache)
         with repo.connect(autocommit=True) as conn, repo.connect(autocommit=True) as throttle_conn:
@@ -446,7 +480,7 @@ def cmd_work(args: argparse.Namespace) -> None:
                 def new_price_step(conn):
                     return zbozi.fetch_due(
                         zbozi_http, conn, settings.new_price_days, settings.new_price_per_cycle
-                    )
+                    ) + datart.fetch_due(zbozi_http, conn, settings.new_price_days, settings.datart_pages)
 
                 def watch_step(conn, now):
                     return watchlist.tick(
@@ -980,6 +1014,109 @@ def cmd_watch_listen(args: argparse.Namespace) -> None:
         print(f"{sum(e.get('event') == 'message' for e in events)} messages since {since}")
 
 
+# --- flips log and evaluation (Phase 6) ------------------------------------------------------------
+
+
+def _price(text: str) -> int:
+    """argparse type: a whole, non-negative amount in Kč."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a whole number of Kč: {text!r}") from None
+    if value < 0:
+        raise argparse.ArgumentTypeError(f"must not be negative: {value}")
+    return value
+
+
+def _day(text: str) -> datetime:
+    """argparse type: YYYY-MM-DD, as noon in Prague (so the date survives any timezone display)."""
+    from deal_hunter.alerts import PRAGUE
+
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").replace(hour=12, tzinfo=PRAGUE)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a date (YYYY-MM-DD): {text!r}") from None
+
+
+def _update_flip(listing_id: int, **fields) -> None:
+    """Apply the given fields to a flip, or exit with a message if the ad has no flip."""
+    from deal_hunter.db import repository as repo
+
+    fields = {k: v for k, v in fields.items() if v is not None}
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        if not repo.update_flip(conn, listing_id, **fields):
+            raise SystemExit(f"No flip for ad {listing_id}. See `hunt flip list`, or `hunt flip add`.")
+    print(f"Updated flip {listing_id}: " + ", ".join(f"{k}={v}" for k, v in fields.items()))
+
+
+def cmd_flip_list(args: argparse.Namespace) -> None:
+    from deal_hunter import evaluation
+    from deal_hunter.db import repository as repo
+
+    status = "open" if args.open else "sold" if args.sold else None
+    now = datetime.now(UTC)
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        flips = repo.list_flips(conn, status)
+    for f in flips:
+        profit = evaluation.flip_profit(f)
+        print(
+            f"{f['listing_id']:>12}  {_kc(f['buy_price']):>8} -> {_kc(f['sold_price']):>8}  "
+            f"fees {_kc(f['fees']):>6}  profit {_kc(profit):>8}  {evaluation.days_held(f, now):>3} d  "
+            f"{(f['title'] or '-')[:40]}"
+        )
+    totals = evaluation.flip_totals(flips)
+    roi = f"{totals['roi']:.0%}" if totals["roi"] is not None else "-"
+    print(
+        f"\n{len(flips)} flip(s): {totals['open']} open, {totals['sold']} sold. "
+        f"Invested in open flips {_kc(totals['invested'])} Kč; realised profit {_kc(totals['profit'])} Kč "
+        f"on {_kc(totals['cost'])} Kč spent, ROI {roi}"
+    )
+
+
+def cmd_flip_add(args: argparse.Namespace) -> None:
+    from deal_hunter.db import repository as repo
+
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        if not repo.add_flip(conn, args.ad, args.price, args.at or datetime.now(UTC), args.notes):
+            raise SystemExit(f"Ad {args.ad} is already in the flips log. Use `hunt flip buy-price`.")
+    print(f"Logged ad {args.ad} as bought for {_kc(args.price)} Kč")
+
+
+def cmd_flip_buy_price(args: argparse.Namespace) -> None:
+    _update_flip(args.listing_id, buy_price=args.price, notes=args.notes)
+
+
+def cmd_flip_sell(args: argparse.Namespace) -> None:
+    _update_flip(
+        args.listing_id,
+        sold_price=args.price,
+        sold_at=args.at or datetime.now(UTC),
+        fees=args.fees,
+        notes=args.notes,
+    )
+
+
+def cmd_flip_fees(args: argparse.Namespace) -> None:
+    _update_flip(args.listing_id, fees=args.price, notes=args.notes)
+
+
+def cmd_eval(args: argparse.Namespace) -> None:
+    from deal_hunter import evaluation
+    from deal_hunter.db import repository as repo
+
+    now = datetime.now(UTC)
+    since = now - timedelta(days=args.days)
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        deals = repo.eval_deals(conn, since)
+        flips = [f for f in repo.list_flips(conn) if f["bought_at"] >= since]
+    print(f"Alert evaluation, deals flagged in the last {args.days} days ({len(deals)} deals)\n")
+    print(evaluation.format_text(evaluation.eval_tables(deals, flips, now)))
+
+
 def cmd_web(args: argparse.Namespace) -> None:
     from deal_hunter import web
 
@@ -1104,6 +1241,43 @@ def main() -> None:
     w = wsub.add_parser("listen", help="handle add/list/stop/help commands from the watch ntfy topic")
     w.add_argument("--loop", action="store_true", help="service: hold the live stream open")
     w.set_defaults(func=cmd_watch_listen)
+
+    p = sub.add_parser("flip", help="the flips log: what you bought, sold and made")
+    fsub = p.add_subparsers(required=True)
+    f = fsub.add_parser("list", help="flips with buy, sell, fees, profit and days held, plus totals")
+    grp = f.add_mutually_exclusive_group()
+    grp.add_argument("--open", action="store_true", help="only flips not sold yet")
+    grp.add_argument("--sold", action="store_true", help="only sold flips")
+    f.set_defaults(func=cmd_flip_list)
+    f = fsub.add_parser("add", help="log an item bought outside the 👍 flow")
+    f.add_argument("--ad", type=int, required=True, help="listing id")
+    f.add_argument("--price", type=_price, required=True, help="buy price, Kč")
+    f.add_argument("--at", type=_day, default=None, help="purchase date YYYY-MM-DD (default now)")
+    f.add_argument("--notes")
+    f.set_defaults(func=cmd_flip_add)
+    f = fsub.add_parser("buy-price", help="set the haggled buy price")
+    f.add_argument("listing_id", type=int)
+    f.add_argument("price", type=_price, help="Kč")
+    f.add_argument("--notes")
+    f.set_defaults(func=cmd_flip_buy_price)
+    f = fsub.add_parser("sell", help="record a sale")
+    f.add_argument("listing_id", type=int)
+    f.add_argument("price", type=_price, help="sold for, Kč")
+    f.add_argument("--fees", type=_price, default=None, help="postage, cleaning, parts; Kč")
+    f.add_argument("--at", type=_day, default=None, help="sale date YYYY-MM-DD (default now)")
+    f.add_argument("--notes")
+    f.set_defaults(func=cmd_flip_sell)
+    f = fsub.add_parser("fees", help="set the fees of a flip (postage, cleaning, parts)")
+    f.add_argument("listing_id", type=int)
+    f.add_argument("price", type=_price, help="Kč")
+    f.add_argument("--notes")
+    f.set_defaults(func=cmd_flip_fees)
+
+    p = sub.add_parser(
+        "eval", help="measure the alert pipeline: states, score bands, votes, how fast ads vanish"
+    )
+    p.add_argument("--days", type=int, default=90, help="deals flagged in the last N days (default 90)")
+    p.set_defaults(func=cmd_eval)
 
     p = sub.add_parser("web", help="serve the read-only LAN website (deals, prices, auctions)")
     p.add_argument("--host", default="0.0.0.0", help="default 0.0.0.0 (LAN)")
