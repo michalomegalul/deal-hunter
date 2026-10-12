@@ -650,6 +650,16 @@ only reads the database - the scraper, worker and feedback service are unaffecte
 - `/auctions` - open nms.gov.cz lots with their valuation (max bid, profit, confidence) and end time.
 - `/flips` - the flips log (buy, sell, fees, profit, days held) with its totals, and the `hunt eval`
   tables for the last 90 days. Read-only like the rest: flips are recorded with `hunt flip`.
+- `/status` - when the background jobs last ran and what they did, from rows they already write.
+  LLM triage: last result, queue counts (pending split into due and waiting to retry, done, failed),
+  the last 15 results (condition, verdict, seconds, cached, resulting deal state and score), 24 h
+  count, average model time, cache hit rate and tokens, and the latest error. Watchlist checks: last
+  check, 24 h checked/matched/pushed, last 10 hits. Auction extractions: last run, 7-day count, last
+  5. Pipeline: latest scrape/recheck/backfill run, each section's last scrape time and the newest
+  deal. A scrape run older than 30 minutes, a recheck older than 12 hours, or a non-empty triage
+  queue with no result for over an hour is marked STALE. Not shown because it is not recorded: the
+  model's reasoning (`think` is off), which source a scrape run covered, and when the watchlist
+  filter or the worker last ran without producing a row.
 - `/listing/<id>` - one ad: the description, the LLM's triage answer (pretty JSON) and its price
   history.
 

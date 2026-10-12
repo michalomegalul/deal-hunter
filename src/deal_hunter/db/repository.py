@@ -1,5 +1,6 @@
 """Raw-SQL access to the deal-hunter database (psycopg 3, no ORM)."""
 
+import datetime as dt
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -1223,3 +1224,132 @@ def eval_deals(conn: psycopg.Connection, since) -> list[dict]:
         (since,),
     )
     return _dicts(cur)
+
+
+# --- /status page: what the background jobs did, read from the tables they already write ----------------
+
+
+def status_triage(conn: psycopg.Connection, now, recent: int = 15) -> dict:
+    """LLM triage activity: queue counts, the latest results, 24 h stats and the latest error."""
+    counts = {
+        status: n for status, n in conn.execute("SELECT status, count(*) FROM triage GROUP BY 1").fetchall()
+    }
+    pending_wait, pending_due, last_done = conn.execute(
+        "SELECT count(*) FILTER (WHERE status = 'pending' AND next_try_at > %(now)s), "
+        "count(*) FILTER (WHERE status = 'pending' AND next_try_at <= %(now)s), "
+        "max(updated_at) FILTER (WHERE status IN ('done', 'failed')) FROM triage",
+        {"now": now},
+    ).fetchone()
+    day = conn.execute(
+        "SELECT count(*), "
+        "avg((stats->>'seconds')::float) FILTER (WHERE coalesce((stats->>'cached')::boolean, false) IS NOT TRUE), "
+        "count(*) FILTER (WHERE (stats->>'cached')::boolean), "
+        "sum((stats->>'prompt_tokens')::bigint), sum((stats->>'output_tokens')::bigint) "
+        "FROM triage WHERE status IN ('done', 'failed') AND updated_at > %s",
+        (now - dt.timedelta(hours=24),),
+    ).fetchone()
+    cur = conn.execute(
+        "SELECT t.listing_id, t.updated_at, t.status, l.title, t.result->>'condition', "
+        "t.result->>'one_line_verdict', (t.stats->>'seconds')::float, (t.stats->>'cached')::boolean, "
+        "d.state, d.score FROM triage t JOIN listings l ON l.id = t.listing_id "
+        "LEFT JOIN deals d ON d.listing_id = t.listing_id WHERE t.status IN ('done', 'failed') "
+        "ORDER BY t.updated_at DESC, t.listing_id DESC LIMIT %s",
+        (recent,),
+    )
+    keys = [
+        "listing_id",
+        "at",
+        "status",
+        "title",
+        "condition",
+        "verdict",
+        "seconds",
+        "cached",
+        "state",
+        "score",
+    ]
+    last_error = conn.execute(
+        "SELECT updated_at, error FROM triage WHERE error IS NOT NULL ORDER BY updated_at DESC LIMIT 1"
+    ).fetchone()
+    return {
+        "counts": counts,
+        "pending_wait": pending_wait,
+        "pending_due": pending_due,
+        "last_done": last_done,
+        "day": {
+            "n": day[0],
+            "avg_seconds": day[1],
+            "cached": day[2],
+            "prompt_tokens": day[3],
+            "output_tokens": day[4],
+        },
+        "recent": [dict(zip(keys, r)) for r in cur.fetchall()],
+        "last_error": last_error,
+    }
+
+
+def status_watch(conn: psycopg.Connection, now, recent: int = 10) -> dict:
+    """Watchlist LLM checks (watch_hits rows: ads that passed the keyword prefilter)."""
+    since = now - dt.timedelta(hours=24)
+    last, checked, matched, pushed = conn.execute(
+        "SELECT max(created_at), count(*) FILTER (WHERE created_at > %(s)s), "
+        "count(*) FILTER (WHERE created_at > %(s)s AND matched), count(*) FILTER (WHERE pushed_at > %(s)s) "
+        "FROM watch_hits",
+        {"s": since},
+    ).fetchone()
+    cur = conn.execute(
+        "SELECT h.created_at, w.query, h.listing_id, l.title, h.matched, h.pushed_at "
+        "FROM watch_hits h JOIN watches w ON w.id = h.watch_id JOIN listings l ON l.id = h.listing_id "
+        "ORDER BY h.created_at DESC, h.listing_id DESC, h.watch_id DESC LIMIT %s",
+        (recent,),
+    )
+    keys = ["at", "query", "listing_id", "title", "matched", "pushed_at"]
+    return {
+        "last": last,
+        "checked": checked,
+        "matched": matched,
+        "pushed": pushed,
+        "recent": [dict(zip(keys, r)) for r in cur.fetchall()],
+    }
+
+
+def status_auctions(conn: psycopg.Connection, now, recent: int = 5) -> dict:
+    """LLM extractions of auction lots."""
+    last, week, pending = conn.execute(
+        "SELECT max(updated_at) FILTER (WHERE status IN ('done', 'failed')), "
+        "count(*) FILTER (WHERE status IN ('done', 'failed') AND updated_at > %s), "
+        "count(*) FILTER (WHERE status = 'pending') FROM auction_extractions",
+        (now - dt.timedelta(days=7),),
+    ).fetchone()
+    cur = conn.execute(
+        "SELECT e.updated_at, e.status, l.title, (e.stats->>'seconds')::float "
+        "FROM auction_extractions e JOIN auction_lots l ON l.source = e.source AND l.lot_id = e.lot_id "
+        "WHERE e.status IN ('done', 'failed') ORDER BY e.updated_at DESC, e.lot_id DESC LIMIT %s",
+        (recent,),
+    )
+    keys = ["at", "status", "title", "seconds"]
+    return {
+        "last": last,
+        "week": week,
+        "pending": pending,
+        "recent": [dict(zip(keys, r)) for r in cur.fetchall()],
+    }
+
+
+def status_pipeline(conn: psycopg.Connection) -> dict:
+    """Heartbeat: the latest run of each kind, each section's last scrape (kv) and the newest deal."""
+    cur = conn.execute(
+        "SELECT DISTINCT ON (kind) kind, started_at, finished_at, ok, new, jsonb_array_length(errors) "
+        "FROM scrape_runs ORDER BY kind, started_at DESC, id DESC"
+    )
+    keys = ["kind", "started_at", "finished_at", "ok", "new", "errors"]
+    runs = [dict(zip(keys, r)) for r in cur.fetchall()]
+    sections = conn.execute(
+        "SELECT substr(key, length('section_last_scraped:') + 1), value #>> '{}' FROM kv "
+        "WHERE key LIKE 'section\\_last\\_scraped:%' ORDER BY 1"
+    ).fetchall()
+    deal = conn.execute(
+        "SELECT d.listing_id, l.title, d.state, d.first_flagged FROM deals d JOIN listings l ON l.id = d.listing_id "
+        "ORDER BY d.first_flagged DESC, d.listing_id DESC LIMIT 1"
+    ).fetchone()
+    return {"runs": runs, "sections": sections, "deal": deal}
