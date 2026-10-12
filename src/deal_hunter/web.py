@@ -1,12 +1,13 @@
 """A small, plain, read-only LAN website: `hunt web` (port 8080, stdlib only, no JS framework).
 
-Four pages plus a detail page, all server-rendered HTML with one inline CSS block:
+Five pages plus a detail page, all server-rendered HTML with one inline CSS block:
 
 - `/`            recent deals (would-alert or alerted listings), with `?category=` and
                   `?min_discount=` filters.
 - `/prices`       the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
 - `/auctions`     open nms.gov.cz lots with their valuation (reuses `auction_cycle.value`).
 - `/flips`        the flips log (buy, sell, fees, profit, days held, totals) and the `hunt eval` tables.
+- `/status`       what the LLM jobs and the scraper did lately, and whether anything looks stuck.
 - `/listing/<id>` one ad: description, triage JSON, price history.
 
 Every value that comes from an ad (title, description, seller, location, the LLM's verdict) is
@@ -49,7 +50,7 @@ CSS = """
   footer { margin-top: 2rem; color: #999; font-size: .85rem; }
 """
 
-NAV = '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/auctions">Auctions</a><a href="/flips">Flips</a></nav>'
+NAV = '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/auctions">Auctions</a><a href="/flips">Flips</a><a href="/status">Status</a></nav>'
 
 
 def page(title: str, body: str) -> str:
@@ -305,6 +306,191 @@ def render_flips(conn, now: datetime | None = None) -> str:
     return "".join(parts)
 
 
+# --- /status : what ran when -------------------------------------------------------------------------
+
+SCRAPE_STALE = timedelta(minutes=30)  # the scrape loop runs every few minutes
+RECHECK_STALE = timedelta(hours=12)  # the recheck loop runs about every 6 h
+TRIAGE_STALE = timedelta(hours=1)  # a non-empty triage queue should never go this long without a result
+STALE_AFTER = {"scrape": SCRAPE_STALE, "recheck": RECHECK_STALE}  # backfill is a one-off: never stale
+
+
+def ago(dt: datetime | None, now: datetime) -> str:
+    if dt is None:
+        return "never"
+    minutes = max(0, int((now - dt).total_seconds() // 60))
+    if minutes < 60:
+        return f"{minutes} min ago"
+    if minutes < 48 * 60:
+        return f"{minutes // 60} h {minutes % 60} min ago"
+    return f"{minutes // 1440} days ago"
+
+
+def _stamp(dt: datetime | None, now: datetime) -> str:
+    return "never" if dt is None else f"{when(dt)} ({ago(dt, now)})"
+
+
+def _stale_flag(is_stale: bool) -> str:
+    return ' <strong class="bad">STALE</strong>' if is_stale else ""
+
+
+def _ad_link(listing_id: int, title: str | None) -> str:
+    return f'<a class="ad" href="/listing/{listing_id}">{esc(title or str(listing_id))}</a>'
+
+
+def _rows(headers: list[str], rows: list[str], empty: str) -> str:
+    return _table(headers, rows) if rows else f'<p class="empty">{esc(empty)}</p>'
+
+
+def _secs(x) -> str:
+    return "-" if x is None else f"{x:.1f}"
+
+
+def _yes(x) -> str:
+    return "-" if x is None else "yes" if x else "no"
+
+
+def render_status(conn, now: datetime | None = None) -> str:
+    from deal_hunter.db import repository as repo
+
+    now = now or datetime.now(UTC)
+    tri = repo.status_triage(conn, now)
+    watch = repo.status_watch(conn, now)
+    auc = repo.status_auctions(conn, now)
+    pipe = repo.status_pipeline(conn)
+    parts = []
+
+    # LLM triage
+    counts = tri["counts"]
+    day = tri["day"]
+    stuck = tri["pending_due"] > 0 and (tri["last_done"] is None or now - tri["last_done"] > TRIAGE_STALE)
+    parts.append("<h2>LLM triage</h2>")
+    parts.append(
+        f"<p>Last result: {_stamp(tri['last_done'], now)}{_stale_flag(stuck)}<br>"
+        f"Queue: {counts.get('pending', 0)} pending "
+        f"({tri['pending_due']} due, {tri['pending_wait']} waiting to retry), "
+        f"{counts.get('done', 0)} done, {counts.get('failed', 0)} failed.</p>"
+    )
+    if day["n"]:
+        cache = pct(day["cached"] / day["n"])
+        tokens = ""
+        if day["prompt_tokens"] is not None or day["output_tokens"] is not None:
+            tokens = f", tokens {day['prompt_tokens'] or 0} in / {day['output_tokens'] or 0} out"
+        parts.append(
+            f'<p class="muted">Last 24 h: {day["n"]} answered, avg {_secs(day["avg_seconds"])} s '
+            f"(model calls only), cache hit rate {cache}{tokens}.</p>"
+        )
+    else:
+        parts.append('<p class="muted">Last 24 h: nothing answered.</p>')
+    if tri["last_error"]:
+        at, err = tri["last_error"]
+        parts.append(f'<p class="bad">Latest error ({when(at)}): {esc(err[:300])}</p>')
+    rows = []
+    for r in tri["recent"]:
+        verdict = r["verdict"] or ""
+        cls = ' class="bad"' if r["status"] == "failed" else ""
+        deal = "-"
+        if r["state"] is not None:
+            score = "" if r["score"] is None else f" {r['score']:.2f}"
+            deal = f"{esc(r['state'])}{score}"
+        rows.append(
+            "<tr>"
+            f"<td>{when(r['at'])}</td>"
+            f'<td class="wrap">{_ad_link(r["listing_id"], r["title"])}</td>'
+            f"<td{cls}>{esc(r['condition'] or r['status'])}</td>"
+            f'<td class="wrap">{esc(verdict)}</td>'
+            f"<td>{_secs(r['seconds'])}</td>"
+            f"<td>{_yes(r['cached'])}</td>"
+            f"<td>{deal}</td>"
+            "</tr>"
+        )
+    parts.append(
+        _rows(
+            ["When", "Ad", "Condition", "Verdict", "Seconds", "Cached", "Deal"],
+            rows,
+            "No triage results yet.",
+        )
+    )
+
+    # Watchlists
+    parts.append("<h2>Watchlist LLM checks</h2>")
+    parts.append(
+        f"<p>Last check: {_stamp(watch['last'], now)}<br>"
+        f"Last 24 h: {watch['checked']} checked, {watch['matched']} matched, {watch['pushed']} pushed.</p>"
+    )
+    rows = [
+        "<tr>"
+        f"<td>{when(r['at'])}</td>"
+        f'<td class="wrap">{esc(r["query"])}</td>'
+        f'<td class="wrap">{_ad_link(r["listing_id"], r["title"])}</td>'
+        f"<td>{_yes(r['matched'])}</td>"
+        f"<td>{_yes(r['pushed_at'] is not None)}</td>"
+        "</tr>"
+        for r in watch["recent"]
+    ]
+    parts.append(_rows(["When", "Watch", "Ad", "Matched", "Pushed"], rows, "No watchlist checks yet."))
+
+    # Auction extractions
+    parts.append("<h2>Auction extractions</h2>")
+    parts.append(
+        f"<p>Last run: {_stamp(auc['last'], now)}<br>"
+        f"Last 7 days: {auc['week']} lots read, {auc['pending']} pending.</p>"
+    )
+    rows = [
+        "<tr>"
+        f"<td>{when(r['at'])}</td>"
+        f'<td class="wrap">{esc(r["title"])}</td>'
+        f"<td>{esc(r['status'])}</td>"
+        f"<td>{_secs(r['seconds'])}</td>"
+        "</tr>"
+        for r in auc["recent"]
+    ]
+    parts.append(_rows(["When", "Lot", "Status", "Seconds"], rows, "No auction extractions yet."))
+
+    # Pipeline heartbeat
+    parts.append("<h2>Pipeline</h2>")
+    rows = []
+    for r in pipe["runs"]:
+        limit = STALE_AFTER.get(r["kind"])
+        late = limit is not None and now - r["started_at"] > limit
+        if r["finished_at"] is None:
+            outcome = "running or interrupted"
+        elif r["ok"]:
+            outcome = '<span class="good">ok</span>'
+        else:
+            outcome = f'<span class="bad">{r["errors"]} error(s)</span>'
+        rows.append(
+            "<tr>"
+            f"<td>{esc(r['kind'])}</td>"
+            f"<td>{_stamp(r['started_at'], now)}{_stale_flag(late)}</td>"
+            f"<td>{outcome}</td>"
+            f"<td>{r['new']}</td>"
+            "</tr>"
+        )
+    parts.append(
+        '<p class="muted">scrape_runs does not record which source or section a run covered, '
+        "so the latest run is shown per kind.</p>"
+    )
+    parts.append(_rows(["Run kind", "Started", "Outcome", "New ads"], rows, "No scrape runs yet."))
+    rows = []
+    for section, iso in pipe["sections"]:
+        try:
+            at = datetime.fromisoformat(iso)
+        except (TypeError, ValueError):
+            at = None
+        rows.append(f"<tr><td>{esc(section)}</td><td>{_stamp(at, now)}</td></tr>")
+    parts.append("<h3>Sections</h3>")
+    parts.append(_rows(["Section", "Last scraped"], rows, "No section has been scraped yet."))
+    deal = pipe["deal"]
+    if deal:
+        listing_id, title, state, flagged = deal
+        parts.append(
+            f"<p>Newest deal flagged: {_ad_link(listing_id, title)} ({esc(state)}), {_stamp(flagged, now)}.</p>"
+        )
+    else:
+        parts.append('<p class="empty">No deal flagged yet.</p>')
+    return "".join(parts)
+
+
 # --- /listing/<id> : one ad --------------------------------------------------------------------------
 
 
@@ -408,6 +594,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._respond(200, page("Open auctions", render_auctions(conn)))
                 elif path == "/flips":
                     self._respond(200, page("Flips", render_flips(conn)))
+                elif path == "/status":
+                    self._respond(200, page("Status", render_status(conn)))
                 elif path.startswith("/listing/"):
                     raw_id = path.removeprefix("/listing/")
                     if not raw_id.isdigit():
