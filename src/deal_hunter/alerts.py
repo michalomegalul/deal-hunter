@@ -56,7 +56,13 @@ CATEGORY_TAG = {
     "hdd": "floppy_disk",
 }
 
-SOURCE_LABEL = {"sbazar": "Sbazar", "aukro": "Aukro", "fb": "FB Marketplace"}
+SOURCE_LABEL = {
+    "sbazar": "Sbazar",
+    "aukro": "Aukro",
+    "fb": "FB Marketplace",
+    "mironet": "Mironet (outlet, with warranty)",
+}
+RETAIL_LABEL = {"zbozi": "Zboží", "datart": "Datart"}  # who quoted a new price (pricing.RETAIL_SOURCES)
 
 
 # --- ntfy ---------------------------------------------------------------------------------------------
@@ -295,9 +301,9 @@ def new_text(fp: FairPrice | None) -> str:
     keys, 5 shops)' (a pooled disk class, fp.per_tb) / ''."""
     if fp is None or not fp.new_price:
         return ""
-    if fp.new_source == "zbozi":
+    if fp.new_source in pricing.RETAIL_SOURCES:
         amount = kc(fp.new_price) + ("/TB" if fp.per_tb else "")
-        return f"new ~{amount} (Zboží, {fp.new_detail})"
+        return f"new ~{amount} ({RETAIL_LABEL[fp.new_source]}, {fp.new_detail})"
     return f"launch {fp.new_detail.replace(' in ', ' (')}) ≈ {kc(fp.new_price)}"
 
 
@@ -335,7 +341,7 @@ def format_alert(
         disk = ((deal.get("triage_result") or {}).get("disk")) or {}
         new_czk = (
             fp.new_for_listing(features.get("capacity_tb"))
-            if fp is not None and fp.new_source == "zbozi"
+            if fp is not None and fp.new_source in pricing.RETAIL_SOURCES
             else None
         )
         lines.append(storage.summary_line(features, disk, deal["price"], new_czk))

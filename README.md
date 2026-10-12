@@ -48,8 +48,11 @@ else is built on what it collects.
   sends a detailed follow-up within seconds (photo, prices, distance, the LLM's reading, the description,
   a price to haggle with and a short Czech message to the seller); "Bought ✅" starts the flips log. See
   "👍 follow-ups".
+- **Flips log and evaluation** (Phase 6): `hunt flip` records buy price, fees and sales and shows
+  profit and ROI; `hunt eval` compares score bands, 👍 rate and how fast ads vanish; `/flips` shows both.
+  See "Flips log and evaluation".
 - **New prices** (inside the worker, weekly): the lowest current offer on Zboží.cz for ~20 GPU models
-  and ~10 popular hard disks, plus launch MSRPs in the GPU catalog. Shown in pushes, used as a sanity check and as a prior for
+  and ~10 popular hard disks and on Datart.cz's GPU and hard disk categories, plus launch MSRPs in the GPU catalog. Shown in pushes, used as a sanity check and as a prior for
   models with few ads. See "New prices".
 - **Watchlists** (Phase 10 part 1): standing "I want X" searches (DDR4 RAM, an LSI HBA, a rack case, a
   19" rack, UniFi gear, ...) managed from a phone over ntfy, matched against every new ad from any
@@ -206,8 +209,9 @@ stále k dispozici?
 - Disk follow-ups add the disk line (capacity, Kč/TB vs new, SATA/CMR badges, SMART).
 - If the ad was never triaged (a 👍 on a test push), it is triaged now.
 - **Bought ✅** POSTs `{"ad": <id>, "vote": "bought"}`; the service records it in `flips`
-  (listing, bought_at, buy_price = the asking price, sold_at/sold_price empty) for the Phase 6 ROI log.
-  Edit `buy_price` after haggling.
+  (listing, bought_at, buy_price = the asking price, category, sold_at/sold_price empty). After haggling,
+  fix the price with `hunt flip buy-price <ad> <Kč>`; when it sells, `hunt flip sell` (see "Flips log
+  and evaluation").
 - If the ad is **gone**, the follow-up says so instead.
 - One follow-up per ad (table `followups`): a second 👍 or a replayed message sends nothing. A 👍
   more than 6 hours old (a replay after a long outage) is stored as a vote but gets no follow-up.
@@ -219,6 +223,46 @@ at the next bid, the end time, inspection and pickup, or says the lot has ended.
 `hunt notify-test --ad <id>` pushes a real ad as a deal (titled "TEST · …", with its photo); its 👍
 carries `"test": true`, so the follow-up is titled "TEST · 👍 …" and nothing is stored as a label or
 flip. `hunt feedback` (without `--loop`) handles what is cached on the topic once and exits.
+
+## Flips log and evaluation
+
+The `flips` table is the record of what you bought and sold. A row starts from **Bought ✅** or from
+`hunt flip add`; the rest is filled in from the CLI. `buy_price` starts as the asking price at the time
+of the tap and is meant to be corrected after haggling.
+
+```bash
+hunt flip list [--open | --sold]                 # buy, sell, fees, profit, days held, totals
+hunt flip add --ad 224876851 --price 4000 [--at 2026-10-01] [--notes "..."]   # bought outside the 👍 flow
+hunt flip buy-price 224876851 3800               # the haggled price
+hunt flip fees 224876851 150                     # postage, cleaning, parts
+hunt flip sell 224876851 5200 [--fees 150] [--at 2026-10-12] [--notes "..."]
+```
+
+- Profit is `sold_price − buy_price − fees` (missing fees count as 0). It is empty until the flip is
+  sold and has both prices.
+- `hunt flip list` ends with the money invested in open flips (buy price plus fees), the realised
+  profit of the sold ones, and ROI = realised profit / (buy price + fees) of those same flips.
+- `hunt flip add` takes the title, model and category from the ad when we have it; the ad may be
+  unknown. A manual flip gets a `manual:<uuid>` source id.
+- An ad id that is not in the log gives a one-line error and a non-zero exit. A repeated `sell`
+  overwrites the earlier one, so a typo can be fixed.
+
+`hunt eval [--days 90]` measures the alert pipeline over the deals flagged in the last N days, as plain
+text tables, for all categories together and for each category:
+
+- deals by state (`alerted`, `would_alert`, `queued`, `capped`, `low_score`, `dropped`, other);
+- deals by score band (below 0.12, 0.12-0.2, 0.2-0.3, 0.3 and up, and unscored ones), with the
+  number of 👍 and 👎 among the alerted ads and the 👍 rate;
+- the share of ads that disappeared within 24 h and within 72 h of `first_seen`, for `alerted`,
+  `would_alert` and `low_score` ads. This is the proxy for "was it really a good deal": if `low_score`
+  ads vanish as fast as alerted ones, `HUNTER_ALERT_MIN_SCORE` is too strict. Ads younger than the
+  window that are still up are left out of that share;
+- flips bought in the period, how many sold, realised profit and ROI per category.
+
+Votes on auction lots and test pushes are not counted (test pushes are never stored as votes; a
+`listing_id` of 0 from older data is ignored too). `gone_at` is when a recheck noticed the ad was
+gone, up to a few hours after it went, and an ad also vanishes when the seller gives up, so treat the
+shares as a comparison between states, not as absolute numbers. The same tables are on the `/flips` page.
 
 ## Watchlists
 
@@ -308,13 +352,36 @@ once (from the sitemap and from the "similar products" on product pages) among c
   page is retried after a day.
 - `hunt newprices [--fetch] [--all]` shows (and reads) the pages.
 
+**Current new price: Datart.cz** (`datart.py`, since Phase 10; a second feed, complementing Zboží).
+Datart's category pages are server-rendered and list every product as schema.org JSON-LD (name,
+price with VAT, URL), so nothing is curated: the product names go through the same GPU and disk
+normalizers as Zboží's, and every product that yields a pricing key becomes a `new_prices` row with
+`shop = 'datart'` (disks as per-class, per-capacity keys such as `hdd35 nas 8tb`; 2.5" drives, SSDs
+and cards the catalog doesn't price are skipped). Datart's robots.txt (re-checked 2026-10-12)
+disallows the cart, the customer area, `/vyhledavani` (search), `/filter/` URLs (bar a few sort orders)
+and `?tab=`, `?listType=`, `?orderBY`, `?do=` and similar parameters; plain category pages and
+`?page=N` are allowed, and `datart.allowed()` accepts nothing else. Two categories
+(`/graficke-karty.html`, `/interni-pevne-disky.html`), up to `HUNTER_DATART_PAGES` (4) pages each,
+read weekly with Zboží's budget (`HUNTER_NEW_PRICE_DAYS`, ≥ 6 s apart, `http_throttle` row 3): at most
+8 requests a week. The pages are in popularity order, so a model that is no longer sold new (most
+RTX 30 cards) is usually not on them and keeps its Zboží page. A failed read is retried after a day.
+
+**A model's new price is the lowest fresh row of any shop** (`repository.latest_new_offers`: each
+page's or product's latest read within 30 days, errors ignored; Zboží wins a tie, since it compares
+several shops). The shop is kept: pushes, `hunt prices` and the web UI say `(Zboží, 3 shops)` or
+`(Datart, 1 shop)`. For a pooled disk class (Kč/TB) the shop shown is Datart only if every key of the
+class came from Datart, else Zboží. A Datart price is a single shop's shelf price, so it is rarely
+below Zboží's lowest of several; it mostly fills models Zboží has no curated page for (current cards:
+RTX 50, RX 9000) and the capacities missing from `new_price_pages.yaml`. `hunt newprices` lists a
+Datart row only where it is the model's new price.
+
 Limits: the list goes stale. Cards go out of stock or end of life (RTX 30/40 cards have few or no
 offers left), shops' cheapest SKU changes, and "lowest offer" can be a marketplace seller. The price is
 "what the cheapest of these 1-3 SKUs costs", not the cheapest card of that chip in the country. The
 page list needs a look every few months (`hunt newprices` shows pages without offers).
 
 **Sanity check.** A used fair price (or the raw median, before a prior) at **95 % or more of the new
-price** (Zboží if known, else the launch MSRP in Kč) means the estimate or the mapping is off (a
+price** (Zboží or Datart if known, else the launch MSRP in Kč) means the estimate or the mapping is off (a
 mis-normalized title, a scalper market, a new card listed as used); candidates of that model are
 dropped and `hunt prices` flags it.
 
@@ -325,8 +392,8 @@ dropped and `hunt prices` flags it.
 w    = n / (n + k)
 fair = exp(w · ln(median) + (1 − w) · ln(prior))
 
-GPUs:   prior = Zboží new price × r,  k = 5
-        r = median of (median / new) over models with ≥ 15 samples and a Zboží price
+GPUs:   prior = new price (Zboží or Datart, the lower) × r,  k = 5
+        r = median of (median / new) over models with ≥ 15 samples and a Zboží or Datart price
             (at least 3 such models; else 0.75), clipped to [0.35, 0.9]
 Disks:  the same, with r from disk keys only (else 0.6)
 Office: prior = median per-unit final price of ended state auction lots × 1.5,  k = lots (max 3)
@@ -581,6 +648,8 @@ only reads the database - the scraper, worker and feedback service are unaffecte
 - `/prices` - the fair price table (model, n, median, level, new price, prior/note), the same
   estimate `hunt prices` prints; pooled disk classes show Kč/TB.
 - `/auctions` - open nms.gov.cz lots with their valuation (max bid, profit, confidence) and end time.
+- `/flips` - the flips log (buy, sell, fees, profit, days held) with its totals, and the `hunt eval`
+  tables for the last 90 days. Read-only like the rest: flips are recorded with `hunt flip`.
 - `/listing/<id>` - one ad: the description, the LLM's triage answer (pretty JSON) and its price
   history.
 
@@ -603,6 +672,9 @@ meant to be reachable from outside.
   typically under 12 in total, every 10 minutes. `HUNTER_SECTIONS` turns sections off.
 - nms.gov.cz has its own, slower budget (≥ 6 s apart, a few dozen requests a day); see "Auctions".
 - Zboží.cz: only product pages robots.txt allows, ≥ 6 s apart, ~50 a week; see "New prices".
+- Datart.cz: two category pages (a few pages each) a week, the same budget; see "New prices".
+- Mironet.cz (only when enabled): outlet-filtered category listings, ≥ 6 s apart, own budget
+  (`http_throttle` row 4), one pass of ≤ 11 categories × ≤ 2 pages every 6 h; see "More sources".
 
 ## More sources
 
@@ -643,13 +715,52 @@ it. `HUNTER_SOURCES` turns sources on, comma-separated (default `bazos`, unchang
   against a hand-made, clearly-marked *synthetic* fixture -- Facebook's schema is unpublished and
   changes often, so this is a best-effort shape, not a captured real response.
 
+- **Mironet.cz outlet: working, opt-in** (`HUNTER_SOURCES=bazos,mironet`; `shops.py`). Mironet sells
+  unboxed returns ("rozbaleno") and used stock ("bazar") with a warranty. Its outlet landing pages
+  (`/vyprodej/?v=rozbaleno`, `?v=bazar`) only link to its normal category listings filtered on the
+  "Stav" parameter (`/graficke-karty+fc14402/?EXPT=&pn10658[]=Rozbaleno`), which are server-rendered
+  HTML: a product id, the name, a spec line, the price with VAT and an outlet badge. Mironet's
+  robots.txt (re-checked 2026-10-12) disallows `/ajax/`, `/user/`, `/order/`, `/podpora/`, `/sr2/`, a few
+  `/productdetail/` actions and any `sort=` URL; category listings, the filter and `PgID` paging are
+  not named, and `shops.allowed()` accepts nothing else (a test checks every URL the code builds
+  against a saved copy of the real robots.txt). It lists AI crawlers by name with the same rules and
+  blocks a few others outright; deal-hunter is none of them.
+  Eleven category/outlet pairs are read: unboxed graphics cards, notebooks, computers, disks and SSDs,
+  RAM, motherboards, cases, power supplies and switches, plus bazar computers and power supplies
+  (there is no bazar graphics card or disk right now, and an empty outlet is a valid answer). The
+  first four map onto the canonical sections, so an unboxed GPU, a 22 TB SAS disk or a ThinkPad gets
+  a pricing key and can become a deal candidate (a push says "via Mironet (outlet, with warranty)");
+  the rest map onto the watch-only sections (RAM, network, cases, motherboards), so watchlists can
+  match them and nothing else looks at them. A page whose products carry no badge of the expected
+  outlet (the filter was ignored) is an error, never a source of listings.
+  **Their prices are shelf prices, not used-market ones:** shop listings are stored with
+  `price_kind = 'retail'`, and `price_samples` (the input to every fair price) reads only
+  `price_kind = 'fixed'`, so an unboxed card at close to new price can't inflate a model's used fair
+  price. Candidates (`active_priced`) and watchlists do read `retail`. Read at most every
+  `HUNTER_SHOP_HOURS` (6; the same kv gate as the slow Bazoš sections), up to `HUNTER_SHOP_PAGES` (2)
+  pages per category, ≥ `HUNTER_SHOP_MIN_DELAY` (6.5, never below 6) seconds apart on their own
+  budget (`http_throttle` row 4). There is no per-item page to re-check: an item missing from a
+  completely read category is marked gone (`gone_reason = 'not_listed'`), and shop items are never
+  handed to the Bazoš rechecker. It stays off by default so a plain deploy behaves as before; turning
+  it on adds ~11 requests every 6 hours.
+- **Not used: Alza.cz, TSBohemia.cz, CZC.cz, Datart's "last pieces" and Sbazar/Heureka.** Checked
+  2026-10-12: Alza.cz and TSBohemia.cz answer every request, robots.txt included, with a Cloudflare bot
+  challenge (HTTP 403), and CZC.cz now redirects to Allegro, which does the same. This project never
+  bypasses bot protection (the rule that also ruled out Heureka and Sbazar), so there is no Alza
+  comparison; Datart and Zboží are the new-price sources. Datart's "last pieces"
+  (`/vyprodej-poslednich-kusu.html`) is allowed and parses, but it is 98 pages of new stock of every
+  kind in no useful order, so it is not read; Datart has no outlet category page we could find (its
+  bazar items have product pages only).
+
 Every source keeps the site's own id in `listings.external_id`; `listings.id` (the app's internal
 key, used by every join) is that id directly for Bazoš (unchanged, so existing rows didn't move) and
 a deterministic hash of `(source, external_id)` for everything else, so two sources reusing the same
 native id can never collide (`sources.make_id`). `(source, external_id)` has its own unique index --
 that is what actually enforces "ids unique per source". Pricing pools samples across every source
-that feeds a model (more data, same fair price); alerts always show which source a push came from
-(a "via Aukro" / "via FB Marketplace" line) unless it's Bazoš, to keep today's pushes unchanged.
+that feeds a model with used prices (more data, same fair price); alerts always show which source a push came from
+(a "via Aukro" / "via FB Marketplace" / "via Mironet (outlet, with warranty)" line) unless it's
+Bazoš, to keep today's pushes unchanged. Pricing pools samples of used goods only: a shop's prices
+are not samples (see Mironet above).
 
 ## Architecture
 
@@ -670,6 +781,8 @@ pc.bazos.cz ───────────────────► hunt sc
    nms.gov.cz ── lists, details, PDFs ──► auction step (in the worker) ──► auction_lots,
                                           auction_extractions, auction_alerts
    zbozi.cz ── product pages (weekly) ──► new-price step (in the worker) ──► new_prices
+   datart.cz ── category pages (weekly) ─┘
+   mironet.cz ── outlet listings (6 h) ──► hunt scrape (HUNTER_SOURCES) ──► listings ('retail')
 ```
 
 - `src/deal_hunter/bazos.py`: pure parsers (category page, RSS, detail page), tested against real
@@ -685,10 +798,14 @@ pc.bazos.cz ───────────────────► hunt sc
 - `nms.py`: nms.gov.cz parsers (list API, detail page, PDF item lists), tested against saved responses.
   `auctions.py`: LLM extraction and valuation. `auction_cycle.py`: the auction step of the worker.
 - `feedback.py`: the feedback service (stream, votes, follow-ups). `followup.py`: the follow-up text,
-  the offer and the message to the seller. `zbozi.py` + `new_price_pages.yaml`: new prices.
+  the offer and the message to the seller. `zbozi.py` + `new_price_pages.yaml`: new prices;
+  `datart.py`: the second new-price feed (Datart category pages).
 - `sources.py`: the global id scheme every source shares (`make_id`). `aukro.py`: the Aukro JSON API
   parser. `sbazar.py`: robots.txt-blocked, parser only (never makes a request). `facebook.py`:
-  Playwright + GraphQL capture, its own `hunt scrape-fb --loop` cadence. See "More sources".
+  Playwright + GraphQL capture, its own `hunt scrape-fb --loop` cadence. `shops.py`: Mironet's
+  unboxed/bazar outlet items (`retail` prices, never used-price samples). See "More sources".
+- `evaluation.py`: flip profit and the `hunt eval` report (pure functions over rows from
+  `repository.py`). See "Flips log and evaluation".
 - `watchlist.py`: watchlists (Phase 10 part 1) -- the keyword prefilter, the LLM check, the worker's
   scan + push step, and the `hunt watch listen --loop` command listener. See "Watchlists".
 
@@ -715,16 +832,23 @@ uv run hunt triage 224777992            # ask the LLM about some ads (prints, st
 uv run hunt notify-test                 # one test push
 uv run hunt notify-test --ad 224876851  # a real ad as a TEST deal push (photo, 👍 -> TEST follow-up)
 uv run hunt feedback [--loop]           # handle taps on deals-feedback (once / the live service)
-uv run hunt newprices [--fetch [--all]] # Zboží.cz pages and their lowest offers
+uv run hunt newprices [--fetch [--all]] # Zboží.cz pages / Datart.cz rows and their lowest offers
 uv run hunt prices --no-prior           # raw medians, without the new-price/auction priors
 uv run hunt auctions scrape --dry-run   # running IT lots on nms.gov.cz (nothing saved)
 uv run hunt auctions scrape --once      # lists + due detail pages, LLM extraction, valuation (no pushes)
 uv run hunt auctions list               # running lots with valuations, sold lots: final price/unit vs fair
 uv run hunt auctions value 62388        # one lot: items, mapping, valuation breakdown
 HUNTER_SOURCES=bazos,aukro uv run hunt scrape --once  # also read Aukro (see "More sources")
+HUNTER_SOURCES=bazos,mironet uv run hunt scrape --once # also Mironet's outlet items (at most every 6 h)
 uv sync --extra fb && uv run playwright install chromium   # only for the fb source
 FB_COOKIES_FILE=cookies.json uv run hunt scrape-fb --once  # one fb cycle (no-op if unset)
-uv run hunt web                         # the read-only LAN website (deals, prices, auctions), :8080
+uv run hunt flip list [--open|--sold]   # the flips log with profit and totals
+uv run hunt flip add --ad 224876851 --price 4000   # a purchase made outside the 👍 flow
+uv run hunt flip buy-price 224876851 3800          # the haggled buy price
+uv run hunt flip sell 224876851 5200 --fees 150    # record a sale (--at YYYY-MM-DD, --notes)
+uv run hunt flip fees 224876851 150                # postage, cleaning, parts
+uv run hunt eval [--days 90]            # states, score bands, 👍 rate, how fast ads vanish, flip profit
+uv run hunt web                         # the read-only LAN website (deals, prices, auctions, flips), :8080
 uv run hunt watch seed                  # add the default homelab watches (idempotent)
 uv run hunt watch add ddr4 16gb max 1500 km 50 #homelab  # add a watch from the CLI
 uv run hunt watch list                  # every watch and its id
@@ -834,8 +958,11 @@ candidates (and watch matches) simply wait.
 - [ ] **Phase 6: UI + ROI tracking.** Deals feed, price history per model, normalizer review,
       and a flips log (bought at, sold at, profit) to show whether it actually pays. The read-only
       part shipped as the plain LAN website (`hunt web`; see "Web UI"): a deals feed with filters,
-      the fair price table, open auctions and a listing detail page with its own price history.
-      Normalizer review and the flips log are still CLI-only (`hunt review`, the `flips` table).
+      the fair price table, open auctions, a listing detail page with its own price history, and
+      a flips page. The flips log is done: `hunt flip` records purchases, haggled prices, fees and
+      sales, `hunt eval` and `/flips` show profit, ROI and how the score bands and 👍/👎 compare.
+      Still open: normalizer review in the UI (it is CLI-only, `hunt review`), and using the
+      numbers to tune the thresholds, which is still done by hand.
 - [x] **Phase 7: auctions / office clear-outs.** ÚZSVM state auctions (nms.gov.cz), IT lots via the
       list page's own JSON API, item lists from PDFs, LLM extraction with evidence checks, valuation
       with refurb costs, labour and selling pace, a max sensible bid, pushes before the end, and final
@@ -861,6 +988,9 @@ candidates (and watch matches) simply wait.
       ready but blocked by robots.txt (`Disallow: /` for a generic bot); Facebook Marketplace via
       Playwright + the owner's cookies, its own low-and-slow cadence, disabled unless configured. Not
       deployed yet -- `HUNTER_SOURCES` still defaults to `bazos` alone. See "More sources".
+      Shops (2026-10-12): Mironet's unboxed/bazar outlet as a source (opt-in, `retail` prices kept out
+      of the used fair prices, deal candidates and watchlist matches) and Datart as a second
+      new-price feed next to Zboží. Alza, TSBohemia and CZC are Cloudflare-/Allegro-blocked and skipped.
 - [x] **Phase 10 part 1: watchlists.** Standing "I want X" searches managed from a phone over ntfy
       (`watch`/`list`/`stop`/`help`, Czech or English) or the CLI, a keyword prefilter + LLM check
       against every new listing from any source/section, pushes with their own daily cap, five

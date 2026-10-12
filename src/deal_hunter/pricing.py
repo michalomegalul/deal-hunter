@@ -50,7 +50,7 @@ PRIOR_N (5) samples:
 
     w = n / (n + PRIOR_N)          fair = exp(w * ln(median) + (1 - w) * ln(prior))
 
-- GPUs and disks: prior = current new price (Zboží.cz, fetched in the last 30 days) x the typical
+- GPUs and disks: prior = current new price (the lowest of Zboží.cz and Datart.cz, fetched in the last 30 days) x the typical
   used/new ratio of that category (disks: 0.6 until there is data, see NEW_RATIO_FALLBACK_BY_CATEGORY). The ratio is the median of median/new over models that have both a new price and at least
   `confident_n` samples (so no model's prior is built from its own shrunk value); with fewer than 3
   such models it is 0.75 (current cards hold their value; 0.6 pulled fresh models 12-16 % too low).
@@ -168,8 +168,8 @@ class FairPrice:
     prior_source: str | None = None  # 'new' | 'auction'
     prior_weight: float = 0.0  # in samples
     prior_note: str | None = None  # why a prior was not used
-    new_price: int | None = None  # Kč, lowest current new offer (Zboží) or the launch MSRP in Kč
-    new_source: str | None = None  # 'zbozi' | 'msrp'
+    new_price: int | None = None  # Kč, lowest current new offer (Zboží, Datart) or the launch MSRP in Kč
+    new_source: str | None = None  # 'zbozi' | 'datart' | 'msrp'
     new_detail: str | None = None  # '3 shops' / '$499 in 2020'
     over_new: bool = False  # the sanity flag: used fair >= 95 % of new
     per_tb: bool = False  # median/q25/q75/prior/new_price are Kč/TB, not Kč (pooled 3.5" HDD classes)
@@ -391,13 +391,15 @@ def estimate_all(samples: list[Sample]) -> dict[str, FairPrice]:
 
 # --- new prices and priors (Phase 8) ----------------------------------------------------------------
 
+RETAIL_SOURCES = ("zbozi", "datart")  # NewPrice.source values that are live shop offers (priors apply)
+
 
 @dataclass(frozen=True)
 class NewPrice:
-    """What a model costs new: the lowest current offer on Zboží.cz, else the launch MSRP."""
+    """What a model costs new: the lowest current offer (Zboží.cz or Datart.cz), else the launch MSRP."""
 
     czk: int
-    source: str  # zbozi | msrp
+    source: str  # zbozi | datart | msrp (the first two are RETAIL_SOURCES: live shop offers)
     detail: str = ""  # '3 shops' / '$499 in 2020'
 
 
@@ -406,31 +408,39 @@ def msrp_czk(usd: int, usd_czk: float) -> int:
     return round(usd * usd_czk * CZ_VAT)
 
 
-def new_prices_for(models, zbozi: dict[str, tuple[int, int]], usd_czk: float) -> dict[str, NewPrice]:
-    """{model: NewPrice} from fresh Zboží offers ({model: (Kč, shops)}), else the GPU catalog MSRP."""
+def new_prices_for(
+    models, zbozi: dict[str, tuple[int, int]], usd_czk: float, shop: dict[str, str] | None = None
+) -> dict[str, NewPrice]:
+    """{model: NewPrice} from fresh shop offers ({model: (Kč, shops)}; `shop` says who quoted each,
+    Zboží if absent), else the GPU catalog MSRP."""
     from deal_hunter.normalize import launch_msrp
 
     out = {}
     for model in models:
         if model in zbozi:
             czk, shops = zbozi[model]
-            out[model] = NewPrice(czk, "zbozi", f"{shops} shop{'s' if shops != 1 else ''}")
+            out[model] = NewPrice(
+                czk, (shop or {}).get(model, "zbozi"), f"{shops} shop{'s' if shops != 1 else ''}"
+            )
         elif (m := launch_msrp(model)) is not None:
             usd, year = m
             out[model] = NewPrice(msrp_czk(usd, usd_czk), "msrp", f"${usd} in {year}")
     return out
 
 
-def disk_new_per_tb(zbozi: dict[str, tuple[int, int]]) -> dict[str, NewPrice]:
+def disk_new_per_tb(
+    zbozi: dict[str, tuple[int, int]], shop: dict[str, str] | None = None
+) -> dict[str, NewPrice]:
     """Per-class Kč/TB new price, keyed by the pooled pricing key ('hdd35 nas').
 
-    Each Zboží key in `zbozi` prices one capacity ('hdd35 nas 8tb', 'hdd35 nas 12tb', ...);
+    Each key in `zbozi` (a Zboží page or a Datart row, see `shop`) prices one capacity ('hdd35 nas 8tb', 'hdd35 nas 12tb', ...);
     dividing by that capacity and taking the median across a class's keys gives the new Kč/TB that
     matches the pooled class's own Kč/TB median (see the module doc, "Disk pricing").
     """
     from deal_hunter import storage
 
     by_class: dict[str, list[tuple[float, int]]] = defaultdict(list)
+    quoted_by: dict[str, set[str]] = defaultdict(set)
     for key, (czk, shops) in zbozi.items():
         split = storage.split_capacity_key(key)
         if split is None:
@@ -438,12 +448,13 @@ def disk_new_per_tb(zbozi: dict[str, tuple[int, int]]) -> dict[str, NewPrice]:
         base, tb = split
         if tb and storage.pooled_key(base):
             by_class[base].append((czk / tb, shops))
+            quoted_by[base].add((shop or {}).get(key, "zbozi"))
     out = {}
     for base, rows in by_class.items():
         shops = sum(sh for _, sh in rows)
         out[base] = NewPrice(
             round(_median([v for v, _ in rows])),
-            "zbozi",
+            quoted_by[base].pop() if len(quoted_by[base]) == 1 else "zbozi",  # a mix is shown as Zboží
             f"{len(rows)} key{'s' if len(rows) != 1 else ''}, {shops} shop{'s' if shops != 1 else ''}",
         )
     return out
@@ -460,7 +471,7 @@ def used_new_ratio(
         fp.median / new[m].czk
         for m, fp in prices.items()
         if m in new
-        and new[m].source == "zbozi"
+        and new[m].source in RETAIL_SOURCES
         and fp.n >= confident_n
         and fp.prior is None
         and (category is None or fp.category == category)
@@ -509,7 +520,7 @@ def apply_priors(
         prior = weight = None
         source = None
         units = auction_units.get(model) or []
-        if np_ is not None and np_.source == "zbozi":
+        if np_ is not None and np_.source in RETAIL_SOURCES:
             prior, weight, source = np_.czk * ratio, PRIOR_N, "new"
         elif units:
             anchor = _median(units)
@@ -585,13 +596,15 @@ def run(
 
 
 def with_priors(conn, prices: dict[str, FairPrice], confident_n: int = CONFIDENT_N, usd_czk: float = 23.5):
-    """New prices (Zboží, MSRP) and auction anchors from the database, applied to `prices`."""
+    """New prices (Zboží, Datart, MSRP) and auction anchors from the database, applied to `prices`."""
     from deal_hunter import auctions
     from deal_hunter.db import repository as repo
 
-    zbozi_raw = repo.latest_new_prices(conn)
-    new = new_prices_for(prices, zbozi_raw, usd_czk)
-    new.update(disk_new_per_tb(zbozi_raw))
+    offers = repo.latest_new_offers(conn)
+    zbozi_raw = {m: (czk, shops) for m, (czk, shops, _) in offers.items()}
+    shop = {m: who for m, (_, _, who) in offers.items()}
+    new = new_prices_for(prices, zbozi_raw, usd_czk, shop)
+    new.update(disk_new_per_tb(zbozi_raw, shop))
     lots = []
     for final, result in repo.sold_lot_extractions(conn):
         for item in result.get("items") or []:  # map again: normalizer improvements apply

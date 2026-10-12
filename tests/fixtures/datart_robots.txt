@@ -1,0 +1,31 @@
+User-Agent: *
+
+Disallow: /kosik/
+Disallow: /kosik$
+Disallow: /TSPD/
+Disallow: /rezervace/
+Disallow: /rezervace$
+Disallow: /ai-asistent/
+Disallow: /zakaznik
+Disallow: /zakaznik$
+Disallow: /uzivatel
+Disallow: /uzivatel$
+Disallow: /zakaznicka-sekce/
+Disallow: /zakaznicka-sekce$
+Disallow: /vyhledavani
+Disallow: /*?tab=
+Disallow: /*?listType=
+Disallow: /*?mobile=
+Disallow: /*?desktop=
+Disallow: /*?uiShowFilter=
+Disallow: /*?orderBY
+Disallow: /ajax/calc_popup.ajax?price=
+Disallow: /*/filter/
+Disallow: /*?do=
+Allow: /*/filter/o:3
+Allow: /*/filter/o:4
+Allow: /*/filter/o:10
+Allow: /*/filter/o:9
+Allow: /*/filter/o:8
+
+Sitemap: https://www.datart.cz/sitemap/sitemapindex.xml

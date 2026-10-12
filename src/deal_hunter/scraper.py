@@ -254,6 +254,62 @@ def scrape_aukro_once(
     return _run(conn, "scrape_aukro", body)
 
 
+def scrape_shops_once(
+    client: PoliteClient,
+    conn: psycopg.Connection,
+    pages: int = 2,
+    every_hours: float = 6.0,
+    categories: tuple | None = None,
+) -> repo.RunStats:
+    """One pass over the shop outlet categories (shops.py), at most every `every_hours` (the same kv
+    gate the slow Bazoš watch sections use; 0 = always). Up to `pages` pages per category.
+
+    A category read to its last page without errors is complete: its listings not seen in this pass
+    have left the outlet and are marked gone (there is no per-item page to re-check). A page that has
+    products but none of the expected outlet is an error, never "everything is gone".
+    """
+    from deal_hunter import shops
+
+    key = f"shop:{shops.SOURCE}"
+    if every_hours > 0 and not repo.section_due(conn, key, every_hours * 60):
+        return repo.RunStats("scrape_shops")  # not due: no run row, no requests
+    categories = categories if categories is not None else shops.CATEGORIES
+
+    def body(stats):
+        start = client.requests
+        since = conn.execute("SELECT now()").fetchone()[0]  # the database's clock, as last_seen uses
+        for cat in categories:
+            label, complete = f"{cat.condition} {cat.path}", False
+            for page in range(1, pages + 1):
+                url = shops.category_url(cat, page)
+                if not shops.allowed(url):  # a programming error, never a runtime condition
+                    raise ValueError(f"shops: {url} is not an allowed URL")
+                try:
+                    resp = client.get(url)
+                except Exception as exc:  # noqa: BLE001
+                    stats.errors.append(f"{label} page {page}: {exc}")
+                    break
+                if resp.status != 200:
+                    stats.errors.append(f"{label} page {page}: HTTP {resp.status}")
+                    break
+                items = shops.parse_page(resp.text, cat)
+                if not items and shops.has_products(resp.text):
+                    stats.errors.append(
+                        f"{label} page {page}: products, but none of the {cat.condition} outlet"
+                    )
+                    break
+                ingest_listings(conn, items, stats)
+                if not shops.has_next_page(resp.text, page):
+                    complete = True
+                    break
+            if complete:
+                stats.gone += repo.mark_missing_gone(conn, shops.SOURCE, shops.raw_category(cat), since)
+        repo.mark_section_scraped(conn, key)
+        stats.requests = client.requests - start
+
+    return _run(conn, "scrape_shops", body)
+
+
 def scrape_sbazar_once(conn: psycopg.Connection) -> repo.RunStats:
     """sbazar.cz disallows us via robots.txt (sbazar.py): log it once per call, touch nothing else."""
     from deal_hunter import sbazar
