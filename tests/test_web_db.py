@@ -1,6 +1,7 @@
 """The web pages against a real (throwaway) database: filters, escaping, and the detail page."""
 
 import os
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -240,3 +241,146 @@ def test_status_watch_and_auction_activity(conn):
 
 def test_status_page_is_in_nav_and_served_content_type(conn):
     assert 'href="/status"' in web.page("x", "")
+
+
+# --- /status : Sources -------------------------------------------------------------------------------
+
+
+def _settings(**changes):
+    from deal_hunter.config import load_settings
+
+    base = {
+        "sources": ("bazos",),
+        "fb_cookies_file": "",
+        "new_prices_enabled": True,
+        "auctions_enabled": True,
+        "loop_minutes": 10.0,
+        "shop_hours": 6.0,
+        "fb_cycle_max_minutes": 30.0,
+        "new_price_days": 7.0,
+        "auction_list_hours": 2.5,
+    }
+    return replace(load_settings(), **{**base, **changes})
+
+
+def _src_listing(conn, lid, source, first_min=0, seen_min=0, gone=False):
+    conn.execute(
+        "INSERT INTO listings (id, source, url, title, external_id, first_seen, last_seen, gone_at) "
+        "VALUES (%s, %s, %s, 'ad', %s, %s, %s, %s)",
+        (
+            lid,
+            source,
+            f"https://example.com/{lid}",
+            str(lid),
+            NOW - timedelta(minutes=first_min),
+            NOW - timedelta(minutes=seen_min),
+            NOW if gone else None,
+        ),
+    )
+
+
+def _new_price(conn, shop, minutes_ago, error=None):
+    conn.execute(
+        "INSERT INTO new_prices (model, url, min_price, shop, fetched_at, error) VALUES ('m', %s, 100, %s, %s, %s)",
+        (f"https://example.com/{shop}/{minutes_ago}", shop, NOW - timedelta(minutes=minutes_ago), error),
+    )
+
+
+def _lot(conn, lot_id, status, seen_min):
+    conn.execute(
+        "INSERT INTO auction_lots (source, lot_id, url, title, status, last_seen) "
+        "VALUES ('nms', %s, 'https://nms.gov.cz/x', 't', %s, %s)",
+        (lot_id, status, NOW - timedelta(minutes=seen_min)),
+    )
+
+
+def _states(conn, settings):
+    src = repo.status_sources(conn, NOW)
+    return {s["name"]: s["state"] for s in web._site_rows(settings, src, NOW)}
+
+
+def test_status_sources_empty_database_enabled_sites_never_ran(conn):
+    html = web.render_status(conn, NOW, _settings())
+    assert "<h2>Sources</h2>" in html
+    assert "4 of 8 sites enabled · 0 working · 0 stale · 4 never ran" in html
+    states = _states(conn, _settings())
+    assert states["Bazoš"] == states["Zboží.cz"] == states["Datart"] == states["nms.gov.cz"] == "never ran"
+    assert states["Aukro"] == states["Mironet"] == states["Facebook Marketplace"] == "off"
+    assert states["Sbazar"] == "blocked"
+    assert "blocked (robots.txt)" in html and "STALE" not in html
+
+
+def test_status_sources_every_state_and_summary(conn):
+    _src_listing(conn, 1, "bazos", first_min=5, seen_min=2)
+    _src_listing(conn, 2, "bazos", first_min=3000, seen_min=2)
+    _src_listing(conn, 3, "bazos", first_min=3000, seen_min=2000, gone=True)
+    _src_listing(conn, 4, "aukro", first_min=500, seen_min=90)  # 3 loops = 30 min: stale
+    _src_listing(conn, 5, "sbazar", seen_min=1)  # blocked whatever the data says
+    _src_listing(conn, 6, "fb", seen_min=500)  # fb not configured: off, data still shown
+    _new_price(conn, "zbozi", 60)
+    _new_price(conn, "zbozi", 90, error="<b>HTTP 503</b>")
+    _lot(conn, "1", "active", 30)
+    _lot(conn, "2", "ended", 30)
+    settings = _settings(sources=("bazos", "aukro", "mironet"))
+    states = _states(conn, settings)
+    assert states == {
+        "Bazoš": "OK",
+        "Aukro": "STALE",
+        "Mironet": "never ran",
+        "Facebook Marketplace": "off",
+        "Sbazar": "blocked",
+        "Zboží.cz": "OK",
+        "Datart": "never ran",
+        "nms.gov.cz": "OK",
+    }
+    html = web.render_status(conn, NOW, settings)
+    assert "6 of 8 sites enabled · 3 working · 1 stale · 2 never ran" in html
+    assert "1 new in 24 h, 2 active" in html  # ad 2 is older than a day, ad 3 is gone
+    assert "1 pages ok, 1 failed in the last pass" in html
+    assert "1 open lots" in html
+    assert 'class="muted"' in html  # the disabled rows are greyed
+    assert html.count("STALE") == 1
+
+
+def test_status_sources_stale_thresholds_both_sides(conn):
+    settings = _settings(sources=("bazos", "mironet"), fb_cookies_file="/run/cookies.json")
+    _src_listing(conn, 1, "bazos", seen_min=30)  # exactly 3 x 10 min: not yet stale
+    _src_listing(conn, 2, "mironet", seen_min=12 * 60)  # 2 x 6 h
+    _src_listing(conn, 3, "fb", seen_min=120)  # 4 x 30 min
+    _new_price(conn, "zbozi", 9 * 1440)  # 7 days + 2 days grace
+    _new_price(conn, "datart", 9 * 1440 + 1)
+    _lot(conn, "1", "active", 300)  # 2 x 2.5 h
+    states = _states(conn, settings)
+    assert states["Bazoš"] == states["Mironet"] == states["Facebook Marketplace"] == "OK"
+    assert states["Zboží.cz"] == "OK" and states["Datart"] == "STALE" and states["nms.gov.cz"] == "OK"
+    conn.execute("UPDATE listings SET last_seen = last_seen - interval '1 minute'")
+    conn.execute("UPDATE auction_lots SET last_seen = last_seen - interval '1 minute'")
+    states = _states(conn, settings)
+    assert states["Bazoš"] == states["Mironet"] == states["Facebook Marketplace"] == "STALE"
+    assert states["nms.gov.cz"] == "STALE"
+
+
+def test_status_sources_all_failed_price_reads_are_stale_and_show_error(conn):
+    _new_price(conn, "zbozi", 10, error="<i>boom</i>")
+    assert _states(conn, _settings())["Zboží.cz"] == "STALE"
+    html = web.render_status(conn, NOW, _settings())
+    assert "last read failed: &lt;i&gt;boom&lt;/i&gt;" in html and "<i>boom</i>" not in html
+
+
+def test_status_sources_enabled_follows_config_both_ways(conn, monkeypatch):
+    for key in ("HUNTER_SOURCES", "FB_COOKIES_FILE", "HUNTER_NEW_PRICES", "HUNTER_AUCTIONS"):
+        monkeypatch.delenv(key, raising=False)
+    off = web.render_status(conn, NOW)  # settings come from the environment, as in the web service
+    assert "4 of 8 sites enabled" in off
+    monkeypatch.setenv("HUNTER_SOURCES", "bazos,aukro,mironet,sbazar")
+    monkeypatch.setenv("FB_COOKIES_FILE", "/run/secrets/fb.json")
+    monkeypatch.setenv("HUNTER_NEW_PRICES", "false")
+    monkeypatch.setenv("HUNTER_AUCTIONS", "false")
+    on = web.render_status(conn, NOW)
+    assert "4 of 8 sites enabled" in on  # bazos, aukro, mironet, fb; sbazar listed but blocked
+    assert "blocked (robots.txt)" in on
+    from deal_hunter.config import load_settings
+
+    states = _states(conn, load_settings())
+    assert states["Sbazar"] == "blocked" and states["Zboží.cz"] == states["nms.gov.cz"] == "off"
+    assert states["Facebook Marketplace"] == states["Aukro"] == "never ran"
