@@ -1353,3 +1353,42 @@ def status_pipeline(conn: psycopg.Connection) -> dict:
         "ORDER BY d.first_flagged DESC, d.listing_id DESC LIMIT 1"
     ).fetchone()
     return {"runs": runs, "sections": sections, "deal": deal}
+
+
+def status_sources(conn: psycopg.Connection, now, window: dt.timedelta = dt.timedelta(days=1)) -> dict:
+    """Per-site activity for /status: what each listing source, new-price feed and the auction site wrote.
+
+    `window` is the "recent" span: new ads per listing source, and how far back from a shop's newest
+    read its pages count as one pass.
+    """
+    listings = {
+        source: {"last_seen": last_seen, "last_new": last_new, "new_recent": new_recent, "active": active}
+        for source, last_seen, last_new, new_recent, active in conn.execute(
+            "SELECT source, max(last_seen), max(first_seen), count(*) FILTER (WHERE first_seen > %s), "
+            "count(*) FILTER (WHERE gone_at IS NULL) FROM listings GROUP BY source",
+            (now - window,),
+        ).fetchall()
+    }
+    prices = {}
+    for shop, last_ok, last_try, ok, failed in conn.execute(
+        "SELECT shop, max(fetched_at) FILTER (WHERE error IS NULL), max(fetched_at), "
+        "count(*) FILTER (WHERE error IS NULL AND fetched_at > m.newest - %(w)s), "
+        "count(*) FILTER (WHERE error IS NOT NULL AND fetched_at > m.newest - %(w)s) "
+        "FROM new_prices n JOIN (SELECT shop AS s, max(fetched_at) AS newest FROM new_prices GROUP BY shop) m "
+        "ON m.s = n.shop GROUP BY shop",
+        {"w": window},
+    ).fetchall():
+        prices[shop] = {"last_ok": last_ok, "last_try": last_try, "ok": ok, "failed": failed, "error": None}
+    for shop, error in conn.execute(
+        "SELECT DISTINCT ON (shop) shop, error FROM new_prices ORDER BY shop, fetched_at DESC, id DESC"
+    ).fetchall():
+        prices[shop]["error"] = error
+    last_seen, open_lots, total = conn.execute(
+        "SELECT max(last_seen), count(*) FILTER (WHERE status IN ('active', 'prepared')), count(*) "
+        "FROM auction_lots WHERE source = 'nms'"
+    ).fetchone()
+    return {
+        "listings": listings,
+        "prices": prices,
+        "nms": {"last_seen": last_seen, "open": open_lots, "total": total},
+    }
