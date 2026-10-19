@@ -521,7 +521,7 @@ def ships(deal: dict, t: triage.Triage) -> bool:
 
 
 def pickup_check(deal: dict, rules: Rules) -> str | None:
-    """Why an otherwise good deal is out of reach (None = fine). See README "Distance".
+    """Why an otherwise good deal is out of reach (None = fine). See docs/alerts.md ("Distance from home").
 
     Within the pickup radius: fine. Outside it, or with an unknown distance: only if the ad ships and
     the deal still scores after paying for shipping.

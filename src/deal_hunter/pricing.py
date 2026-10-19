@@ -1,7 +1,6 @@
 """Fair price v1: a robust, weighted median of asking prices per canonical model.
 
-The full rules and their reasons are in the README ("Fair price", "New prices and priors",
-"Hard disks"). In short, per pricing key:
+The full rules and their reasons are in docs/pricing.md and docs/disks.md. In short, per pricing key:
 
 - samples are `fixed`-price ads from the last 60 days; reposts collapse to one, ads gone within 72 h
   weigh double, outliers (<10 % or >300 % of a first-pass median) go;
@@ -220,7 +219,7 @@ def reference_spec(samples: list[Sample]) -> dict:
 
 
 def estimate_adjustment(samples: list[Sample]) -> Adjustment:
-    """Pooled RAM/SSD slopes for one category, from within-model differences (README, "Fair price")."""
+    """Pooled RAM/SSD slopes for one category, from within-model differences (docs/pricing.md)."""
     by_model: dict[str, list[Sample]] = defaultdict(list)
     for s in samples:
         if all(s.features.get(k) for k in SPEC_KEYS):
@@ -257,7 +256,7 @@ def fair_price(
 
     `per_tb`: each sample's price is divided by its own capacity_tb first, so the result (median,
     q25, q75) is a Kč/TB figure for a pooled 3.5" HDD class, not a Kč figure for one capacity (see
-    README, "Hard disks"). A sample without capacity_tb can't be put in Kč/TB and is
+    docs/disks.md). A sample without capacity_tb can't be put in Kč/TB and is
     dropped.
     """
     if not samples:
@@ -369,7 +368,7 @@ def disk_new_per_tb(
 
     Each key in `zbozi` (a Zboží page or a Datart row, see `shop`) prices one capacity ('hdd35 nas 8tb', 'hdd35 nas 12tb', ...);
     dividing by that capacity and taking the median across a class's keys gives the new Kč/TB that
-    matches the pooled class's own Kč/TB median (README, "Hard disks").
+    matches the pooled class's own Kč/TB median (docs/disks.md).
     """
     from deal_hunter import storage
 
@@ -442,7 +441,7 @@ def apply_priors(
 
     `auction_units`: {model: [per-unit final prices of ended auction lots]}. Returns the GPU used/new ratio
     (each category gets its own, see used_new_ratio).
-    See the README ("New prices and priors") for the rules.
+    See docs/pricing.md ("New prices and priors") for the rules.
     """
     new, auction_units = new or {}, auction_units or {}
     ratios = {c: used_new_ratio(prices, new, confident_n, c) for c in {fp.category for fp in prices.values()}}

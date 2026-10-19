@@ -521,7 +521,7 @@ HARD_SCAM = {"shipping_only", "deposit_or_prepay"}
 
 
 def penalty(t: Triage, features: dict | None = None) -> tuple[float, str | None]:
-    """(multiplier, reason to drop). See README "Deal score" for the table; `features` are the
+    """(multiplier, reason to drop). See docs/scoring.md for the table; `features` are the
     normalizer's (disks: interface, SMR)."""
     if t.is_wanted_ad:
         return 0.0, "wanted ad"

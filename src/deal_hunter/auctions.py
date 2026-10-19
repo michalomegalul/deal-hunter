@@ -11,7 +11,7 @@ units on Bazoš pay?".
    parts and fees are only kept when the text talks about them (the scam-signal idea from triage).
 2. Mapping: each group's model goes through the office and GPU normalizers to a pricing key
    ('latitude 5511', 'optiplex 3050 sff', 'rtx 3070').
-3. Valuation (see README "Auctions"): per unit, the Bazoš fair price at the unit's spec, times a
+3. Valuation (see docs/auctions.md): per unit, the Bazoš fair price at the unit's spec, times a
    resale factor, minus refurbishment parts and labour; minus per-lot costs; and a max bid at which
    the expected profit is still the target margin of the resale revenue.
 """
@@ -338,13 +338,13 @@ def extract(client, lot: dict, cache_dir: Path | None) -> Outcome:
 
 # --- valuation --------------------------------------------------------------------------------------
 
-# Parts to make one unit sellable (Kč). README "Auctions" has the same table; keep them in sync.
+# Parts to make one unit sellable (Kč). docs/auctions.md has the same table; keep them in sync.
 REFURB_COSTS = {
     "storage": 500,  # a new 256 GB SATA/NVMe SSD
     "battery": 600,  # an aftermarket laptop battery
     "charger": 250,  # a generic 65 W adapter
     "ram": 300,  # one 8 GB DDR4 module
-    "os": 0,  # Windows: reactivates from the BIOS key / refurb licence (see README for the catch)
+    "os": 0,  # Windows: reactivates from the BIOS key / refurb licence (see docs/auctions.md for the catch)
     "other": 200,
 }
 SSD_ADDED_GB = 256  # a unit sold without storage gets this SSD, and is priced at this spec
@@ -436,7 +436,7 @@ def value_lot(
     bids: int,
     costs: Costs,
 ) -> Valuation:
-    """What the lot is worth to a reseller at its current price (see README "Auctions")."""
+    """What the lot is worth to a reseller at its current price (see docs/auctions.md)."""
     lines, units, priced_units, revenue, parts, unit_hours = [], 0, 0, 0.0, 0.0, 0.0
     weights: dict[str, float] = {}
     for item in x.items:
@@ -523,7 +523,7 @@ HUGE_PROFIT = 3.0  # ... and the profit at the next bid is >= 3x the minimum
 
 
 def qualifies(v: Valuation, costs: Costs) -> tuple[bool, list[str]]:
-    """(worth a push, why not). Low confidence needs a huge margin (README "Auctions")."""
+    """(worth a push, why not). Low confidence needs a huge margin (docs/auctions.md)."""
     if v.next_bid is None or v.profit is None or v.max_bid is None:
         return False, ["no price"]
     reasons = []

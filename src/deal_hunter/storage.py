@@ -19,7 +19,7 @@ description, when we have it) and records what matters for that and for pricing:
 
 The pricing key is class, pooled across capacities for 3.5" HDDs with a known class: 'hdd35 nas',
 'hdd35 enterprise', 'hdd35 desktop', 'hdd35 surveillance', 'external' (desktop externals, also 3.5").
-pricing.py prices these in Kč/TB (README, "Hard disks"), not Kč, since a single capacity
+pricing.py prices these in Kč/TB (docs/disks.md), not Kč, since a single capacity
 rarely gets the 4 ads a fair price needs. SAS drives keep their own capacity-specific key ('hdd35
 enterprise sas 4tb': a market of their own, and now rarer since the interface call got stricter), as
 does a 3.5" drive with no known line ('hdd35 8tb'), 2.5" ('hdd25 1tb', 'external25 2tb') and SSDs
