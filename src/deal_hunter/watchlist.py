@@ -243,8 +243,6 @@ def seed(conn) -> int:
 
 # --- the LLM check -----------------------------------------------------------------------------------
 
-WATCH_PROMPT_VERSION = 1
-
 WATCH_SYSTEM_PROMPT = """You check whether a second-hand ad from a Czech classifieds site matches what a \
 buyer is looking for. The ad is in Czech; read it carefully.
 

@@ -76,7 +76,6 @@ def test_datart_feed_is_stored_per_product_and_read_weekly(conn):
     offers = repo.latest_new_offers(conn)
     assert offers["rtx 5080"] == (43990, 1, "datart")
     assert offers["hdd35 nas 8tb"] == (9499, 1, "datart")  # the cheaper of two 8 TB NAS disks
-    assert repo.latest_new_prices(conn)["hdd35 nas 8tb"] == (9499, 1)
     rows = repo.new_price_rows(conn)
     assert {r["shop"] for r in rows} == {"datart"} and len(rows) == 7
     # fresh for a week; then due again

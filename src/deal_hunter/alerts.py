@@ -231,11 +231,6 @@ def parse_vote(e: dict) -> Vote | None:
         return None
 
 
-def parse_votes(events: list[dict]) -> list[Vote]:
-    """Votes from feedback topic messages; junk is skipped."""
-    return [v for v in map(parse_vote, events) if v is not None]
-
-
 # --- the gate and the alert rules ------------------------------------------------------------------------
 
 

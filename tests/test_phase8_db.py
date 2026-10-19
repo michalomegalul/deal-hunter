@@ -73,7 +73,6 @@ def test_votes_feedback_lots_and_flips(conn):
         "SELECT listing_id, buy_price, model, sold_at FROM flips ORDER BY listing_id"
     ).fetchall()
     assert flips == [(999, 6500, "rtx 3080 10gb", None), (4242, None, None, None)]
-    assert repo.save_feedback(conn, [(5, "up", "old-api", NOW)]) == 1  # the old tuple interface still works
 
 
 def test_thumbs_up_sends_one_detailed_followup(conn):
@@ -271,7 +270,7 @@ def test_new_prices_are_fetched_weekly_and_checked(conn, monkeypatch):
     )
     stats = zbozi.fetch_due(zbozi_client(site), conn, 7, 50)
     assert (stats.fetched, stats.priced, stats.rejected, stats.errors) == (3, 1, 1, 1)
-    assert repo.latest_new_prices(conn) == {"rtx 3060 12gb": (10490, 1)}
+    assert repo.latest_new_offers(conn) == {"rtx 3060 12gb": (10490, 1, "zbozi")}
     rows = {r["url"]: r for r in repo.new_price_rows(conn)}
     assert "normalizes to 'rtx 3060 12gb'" in rows[wrong]["error"] and rows[none]["min_price"] is None
     # nothing is due a day later; a failure is retried after 24 h; everything after a week

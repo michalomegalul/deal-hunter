@@ -321,7 +321,7 @@ def normalized_summary(conn: psycopg.Connection) -> list[tuple]:
 def price_samples(conn: psycopg.Connection, window_days: int) -> list:
     """Matched ads with a numeric price, seen within the window: the input to pricing.estimate_all.
 
-    Only price_kind='fixed': a shop's 'retail' prices (sources.RETAIL) are not what used goods sell for."""
+    Only price_kind='fixed': a shop's 'retail' prices are not what used goods sell for."""
     from deal_hunter.pricing import Sample
 
     rows = conn.execute(
@@ -923,13 +923,6 @@ def save_votes(conn: psycopg.Connection, votes: list) -> list:
     return fresh
 
 
-def save_feedback(conn: psycopg.Connection, rows: list[tuple[int, str, str, object]]) -> int:
-    """Insert (listing_id, vote, ntfy message id, voted_at) rows; already-seen ids are skipped."""
-    from deal_hunter.alerts import Vote
-
-    return len(save_votes(conn, [Vote("listing", str(lid), vote, src, at) for lid, vote, src, at in rows]))
-
-
 def followup_sent(conn: psycopg.Connection, kind: str, item_id: str) -> bool:
     row = conn.execute("SELECT 1 FROM followups WHERE kind = %s AND item_id = %s", (kind, item_id)).fetchone()
     return row is not None
@@ -1020,11 +1013,6 @@ def latest_new_offers(conn: psycopg.Connection, max_age_days: float = 30) -> dic
         (max_age_days * 86400,),
     ).fetchall()
     return {m: (p, s or 0, shop) for m, p, s, shop in rows}
-
-
-def latest_new_prices(conn: psycopg.Connection, max_age_days: float = 30) -> dict[str, tuple[int, int]]:
-    """{model: (lowest offer in Kč, shops on that product)}: latest_new_offers without the shop."""
-    return {m: (p, s) for m, (p, s, _) in latest_new_offers(conn, max_age_days).items()}
 
 
 def new_price_rows(conn: psycopg.Connection) -> list[dict]:

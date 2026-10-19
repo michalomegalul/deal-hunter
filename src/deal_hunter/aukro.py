@@ -117,8 +117,3 @@ def parse_response(data: dict, section: str) -> list[Listing]:
         if listing is not None:
             out.append(listing)
     return out
-
-
-def total_pages(data: dict) -> int:
-    page = data.get("page") or {}
-    return int(page.get("totalPages") or 1)

@@ -64,8 +64,6 @@ def cmd_scrape(args: argparse.Namespace) -> None:
                 stats = repo.RunStats("scrape")
             if "aukro" in settings.sources:
                 print(scraper.scrape_aukro_once(client, conn, settings.aukro_pages).summary(), flush=True)
-            if "sbazar" in settings.sources:
-                print(scraper.scrape_sbazar_once(conn).summary(), flush=True)
             if "mironet" in settings.sources:
                 with (
                     repo.connect(autocommit=True) as throttle_conn,

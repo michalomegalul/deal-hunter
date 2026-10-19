@@ -76,7 +76,6 @@ class Catalog:
     ext_portable: re.Pattern
     ext_any: re.Pattern
     seagate_sas: frozenset[str]  # certain only; see storage_catalog.yaml
-    seagate_sas_uncertain: frozenset[str]
     seagate_sata: frozenset[str]
     smr_models: frozenset[str]
     cmr_models: frozenset[str]
@@ -104,7 +103,6 @@ def load_catalog() -> Catalog:
         ext_portable=re.compile(raw["externals"]["portable"]),
         ext_any=re.compile(raw["externals"]["any"]),
         seagate_sas=frozenset(raw["seagate_sas"]["certain"]),
-        seagate_sas_uncertain=frozenset(raw["seagate_sas"].get("uncertain") or ()),
         seagate_sata=frozenset(raw["seagate_sata"]),
         smr_models=frozenset(raw["smr_models"]),
         cmr_models=frozenset(raw["cmr_models"]),
