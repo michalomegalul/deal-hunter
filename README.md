@@ -651,6 +651,16 @@ only reads the database - the scraper, worker and feedback service are unaffecte
 - `/flips` - the flips log (buy, sell, fees, profit, days held) with its totals, and the `hunt eval`
   tables for the last 90 days. Read-only like the rest: flips are recorded with `hunt flip`.
 - `/status` - when the background jobs last ran and what they did, from rows they already write.
+  Sources comes first: one line ("4 of 8 sites enabled · 3 working · 1 stale") and a table with a
+  row per site (Bazoš, Aukro, Mironet, Facebook Marketplace, Sbazar, Zboží.cz, Datart, nms.gov.cz):
+  enabled, last data, volume and state. Enabled comes from the web service's own environment
+  (`HUNTER_SOURCES`, `FB_COOKIES_FILE` set, `HUNTER_NEW_PRICES`, `HUNTER_AUCTIONS`; the web, worker
+  and scraper services share `.env` in `deploy/compose.yml`); Sbazar is always "blocked
+  (robots.txt)". Last data is the newest `last_seen` (listing sources, nms lots) or the newest
+  successful `new_prices` read. State is OK, STALE (no data for 3 scrape loops for Bazoš and Aukro,
+  2 x `HUNTER_SHOP_HOURS` for Mironet, 4 x the longest Facebook cycle, `HUNTER_NEW_PRICE_DAYS` + 2
+  days for Zboží and Datart, 2 x `HUNTER_AUCTION_LIST_HOURS` for nms), never ran (enabled, no rows)
+  or off (disabled sites keep their last data, greyed).
   LLM triage: last result, queue counts (pending split into due and waiting to retry, done, failed),
   the last 15 results (condition, verdict, seconds, cached, resulting deal state and score), 24 h
   count, average model time, cache hit rate and tokens, and the latest error. Watchlist checks: last

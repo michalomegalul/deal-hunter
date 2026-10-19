@@ -308,6 +308,9 @@ def render_flips(conn, now: datetime | None = None) -> str:
 
 # --- /status : what ran when -------------------------------------------------------------------------
 
+STALE_LOOPS = 3  # a listing source on the main loop is stale after this many missed cycles
+NEW_PRICE_GRACE = timedelta(days=2)  # weekly new-price step: stale after HUNTER_NEW_PRICE_DAYS + this
+
 
 def ago(dt: datetime | None, now: datetime) -> str:
     if dt is None:
@@ -344,16 +347,132 @@ def _yes(x) -> str:
     return "-" if x is None else "yes" if x else "no"
 
 
-def render_status(conn, now: datetime | None = None) -> str:
+def _site_rows(settings, src: dict, now: datetime) -> list[dict]:
+    """One dict per site the app knows: name, kind, enabled, last data, volume and state.
+
+    Enabled is read from the same settings the worker and scraper load (all three services share
+    .env in deploy/compose.yml): HUNTER_SOURCES, FB_COOKIES_FILE, HUNTER_NEW_PRICES, HUNTER_AUCTIONS.
+    """
+    loop = timedelta(minutes=settings.loop_minutes)
+    fb_cycle = timedelta(minutes=settings.fb_cycle_max_minutes)
+    price_cycle = timedelta(days=settings.new_price_days)
+    sites = []
+
+    def listing_site(name, source, on, limit, blocked=False):
+        d = src["listings"].get(source)
+        sites.append(
+            {
+                "name": name,
+                "kind": "listings",
+                "enabled": "blocked (robots.txt)" if blocked else "yes" if on else "no",
+                "on": on and not blocked,
+                "blocked": blocked,
+                "last": d["last_seen"] if d else None,
+                "limit": limit,
+                "volume": f"{d['new_recent']} new in 24 h, {d['active']} active" if d else "-",
+                "note": "",
+            }
+        )
+
+    listing_site("Bazoš", "bazos", "bazos" in settings.sources, STALE_LOOPS * loop)
+    listing_site("Aukro", "aukro", "aukro" in settings.sources, STALE_LOOPS * loop)
+    listing_site(
+        "Mironet", "mironet", "mironet" in settings.sources, 2 * timedelta(hours=settings.shop_hours)
+    )
+    listing_site("Facebook Marketplace", "fb", bool(settings.fb_cookies_file), 4 * fb_cycle)
+    listing_site("Sbazar", "sbazar", "sbazar" in settings.sources, loop, blocked=True)
+    for name, shop in (("Zboží.cz", "zbozi"), ("Datart", "datart")):
+        d = src["prices"].get(shop)
+        sites.append(
+            {
+                "name": name,
+                "kind": "new prices",
+                "enabled": "yes" if settings.new_prices_enabled else "no",
+                "on": settings.new_prices_enabled,
+                "blocked": False,
+                "last": d["last_ok"] if d else None,
+                "limit": price_cycle + NEW_PRICE_GRACE,
+                "volume": f"{d['ok']} pages ok, {d['failed']} failed in the last pass" if d else "-",
+                "note": f"last read failed: {d['error'][:200]}" if d and d["error"] else "",
+                "seen": d is not None,
+            }
+        )
+    nms = src["nms"]
+    sites.append(
+        {
+            "name": "nms.gov.cz",
+            "kind": "auctions",
+            "enabled": "yes" if settings.auctions_enabled else "no",
+            "on": settings.auctions_enabled,
+            "blocked": False,
+            "last": nms["last_seen"],
+            "limit": 2 * timedelta(hours=settings.auction_list_hours),
+            "volume": f"{nms['open']} open lots",
+            "note": "",
+        }
+    )
+    for s in sites:
+        has_data = s["last"] is not None or s.get("seen", False)
+        if s["blocked"]:
+            s["state"] = "blocked"
+        elif not s["on"]:
+            s["state"] = "off"
+        elif not has_data:
+            s["state"] = "never ran"
+        elif s["last"] is None or now - s["last"] > s["limit"]:
+            s["state"] = "STALE"
+        else:
+            s["state"] = "OK"
+    return sites
+
+
+def _render_sources(sites: list[dict], now: datetime) -> str:
+    enabled = [s for s in sites if s["on"]]
+    counts = {k: sum(1 for s in enabled if s["state"] == k) for k in ("OK", "STALE", "never ran")}
+    summary = (
+        f"{len(enabled)} of {len(sites)} sites enabled · {counts['OK']} working · {counts['STALE']} stale"
+    )
+    if counts["never ran"]:
+        summary += f" · {counts['never ran']} never ran"
+    rows = []
+    for s in sites:
+        state = s["state"]
+        if state == "STALE":
+            cell = _stale_flag(True).strip()
+        elif state == "OK":
+            cell = '<span class="good">OK</span>'
+        else:
+            cell = esc(state)
+        note = f'<br><span class="bad">{esc(s["note"])}</span>' if s["note"] else ""
+        cls = "" if s["on"] else ' class="muted"'
+        rows.append(
+            f"<tr{cls}>"
+            f"<td>{esc(s['name'])}</td>"
+            f"<td>{esc(s['kind'])}</td>"
+            f"<td>{esc(s['enabled'])}</td>"
+            f"<td>{_stamp(s['last'], now)}</td>"
+            f'<td class="wrap">{esc(s["volume"])}{note}</td>'
+            f"<td>{cell}</td>"
+            "</tr>"
+        )
+    return f"<h2>Sources</h2><p>{esc(summary)}</p>" + _table(
+        ["Site", "Kind", "Enabled", "Last data", "Volume", "State"], rows
+    )
+
+
+def render_status(conn, now: datetime | None = None, settings=None) -> str:
     from deal_hunter import health
+    from deal_hunter.config import load_settings
     from deal_hunter.db import repository as repo
 
     now = now or datetime.now(UTC)
+    settings = settings or load_settings()
+    sites = _site_rows(settings, repo.status_sources(conn, now), now)
     tri = repo.status_triage(conn, now)
     watch = repo.status_watch(conn, now)
     auc = repo.status_auctions(conn, now)
     pipe = repo.status_pipeline(conn)
-    parts = []
+    parts = [_render_sources(sites, now)]
 
     # LLM triage
     counts = tri["counts"]
