@@ -1,0 +1,6 @@
+[Unit]
+Description=Deal Hunter: push a failure of %i to the phone
+
+[Service]
+Type=oneshot
+ExecStart=/opt/deal-hunter/notify.sh "%i failed" "journalctl -u %i on CT 121"

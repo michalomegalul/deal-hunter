@@ -112,11 +112,11 @@ def test_execute_commands(conn):
 def test_scan_without_llm_prefilters_but_records_nothing(conn):
     repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
     ram_listing(conn)
-    stats = watchlist.scan_and_match(conn, None, None, hours=48)
+    stats = watchlist.scan_and_match(conn, None, None, hours=48.0)
     assert stats.scanned == 1 and stats.prefiltered == 1 and stats.llm_checked == 0
     assert repo.pending_watch_matches(conn) == []
     # nothing was recorded, so a second scan sees the same listing again (bounded by `hours`, not stuck)
-    stats2 = watchlist.scan_and_match(conn, None, None, hours=48)
+    stats2 = watchlist.scan_and_match(conn, None, None, hours=48.0)
     assert stats2.scanned == 1
 
 
@@ -124,26 +124,26 @@ def test_scan_matches_and_dedups_the_llm_call(conn):
     repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
     ram_listing(conn)
     llm = FakeLLM(json.dumps(GOOD_ANSWER))
-    stats = watchlist.scan_and_match(conn, llm, None, hours=48)
+    stats = watchlist.scan_and_match(conn, llm, None, hours=48.0)
     assert stats.prefiltered == 1 and stats.llm_checked == 1 and stats.matched == 1
     pending = repo.pending_watch_matches(conn)
     assert len(pending) == 1 and pending[0]["result"]["brand"] == "Kingston"
     # already recorded: the next scan doesn't touch the LLM again (an empty FakeLLM would raise if called)
-    stats2 = watchlist.scan_and_match(conn, FakeLLM(), None, hours=48)
+    stats2 = watchlist.scan_and_match(conn, FakeLLM(), None, hours=48.0)
     assert stats2.scanned == 0 and stats2.llm_checked == 0
 
 
 def test_scan_prefilter_miss_never_calls_the_llm(conn):
     repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
     ram_listing(conn, listing_id=502, title="RTX 3060 12GB grafická karta")
-    stats = watchlist.scan_and_match(conn, FakeLLM(), None, hours=48)
+    stats = watchlist.scan_and_match(conn, FakeLLM(), None, hours=48.0)
     assert stats.scanned == 1 and stats.prefiltered == 0 and stats.llm_checked == 0
 
 
 def test_push_matches_sends_and_marks_pushed(conn):
     repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"], tag="homelab")
     ram_listing(conn)
-    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48)
+    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48.0)
     site = FakeNtfy()
     now = datetime(2026, 10, 11, 14, 0, tzinfo=PRAGUE)  # well outside the default 23-7 quiet hours
     pushed = watchlist.push_matches(conn, make_ntfy(site), now, 23, 7, max_per_day=10)
@@ -157,7 +157,7 @@ def test_push_matches_sends_and_marks_pushed(conn):
 def test_push_matches_respects_quiet_hours(conn):
     repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
     ram_listing(conn)
-    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48)
+    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48.0)
     site = FakeNtfy()
     now = datetime(2026, 10, 11, 2, 0, tzinfo=PRAGUE)  # inside 23-7 quiet hours
     assert watchlist.push_matches(conn, make_ntfy(site), now, 23, 7, max_per_day=10) == 0
@@ -172,7 +172,7 @@ def test_push_matches_respects_the_daily_cap(conn):
     # is treated as unsupported (clean_watch_answer), same anti-hallucination check as triage.py
     other = {**GOOD_ANSWER, "evidence": "Corsair DDR4 2x16GB 3200MHz"}
     llm = FakeLLM(json.dumps(GOOD_ANSWER), json.dumps(other))
-    watchlist.scan_and_match(conn, llm, None, hours=48)
+    watchlist.scan_and_match(conn, llm, None, hours=48.0)
     assert len(repo.pending_watch_matches(conn)) == 2
     site = FakeNtfy()
     now = datetime(2026, 10, 11, 14, 0, tzinfo=PRAGUE)
@@ -186,7 +186,7 @@ def test_tick_scans_and_pushes_in_one_step(conn):
     site = FakeNtfy()
     now = datetime(2026, 10, 11, 14, 0, tzinfo=PRAGUE)
     summary = watchlist.tick(
-        conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, make_ntfy(site), now, 48, 23, 7, 10
+        conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, make_ntfy(site), now, 48.0, 23, 7, 10
     )
     assert "1 matched, 1 pushed" in summary
     assert len(site.posts) == 1

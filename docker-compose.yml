@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: hunter  # dev only
       POSTGRES_DB: hunter
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

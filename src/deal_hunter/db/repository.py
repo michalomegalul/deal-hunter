@@ -1107,10 +1107,10 @@ def listings_for_watch(conn: psycopg.Connection, watch_id: int, hours: float, li
     cur = conn.execute(
         "SELECT l.id, l.title, l.description, l.price_czk, l.location, l.psc, l.source, l.url, "
         "l.images, l.section, l.distance_km FROM listings l "
-        "WHERE l.first_seen > now() - make_interval(hours => %s) AND l.gone_at IS NULL "
+        "WHERE l.first_seen > now() - make_interval(secs => %s) AND l.gone_at IS NULL "
         "AND NOT EXISTS (SELECT 1 FROM watch_hits h WHERE h.watch_id = %s AND h.listing_id = l.id) "
         "ORDER BY l.first_seen LIMIT %s",
-        (hours, watch_id, limit),
+        (hours * 3600, watch_id, limit),
     )
     return _dicts(cur)
 

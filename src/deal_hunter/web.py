@@ -308,11 +308,6 @@ def render_flips(conn, now: datetime | None = None) -> str:
 
 # --- /status : what ran when -------------------------------------------------------------------------
 
-SCRAPE_STALE = timedelta(minutes=30)  # the scrape loop runs every few minutes
-RECHECK_STALE = timedelta(hours=12)  # the recheck loop runs about every 6 h
-TRIAGE_STALE = timedelta(hours=1)  # a non-empty triage queue should never go this long without a result
-STALE_AFTER = {"scrape": SCRAPE_STALE, "recheck": RECHECK_STALE}  # backfill is a one-off: never stale
-
 
 def ago(dt: datetime | None, now: datetime) -> str:
     if dt is None:
@@ -350,6 +345,7 @@ def _yes(x) -> str:
 
 
 def render_status(conn, now: datetime | None = None) -> str:
+    from deal_hunter import health
     from deal_hunter.db import repository as repo
 
     now = now or datetime.now(UTC)
@@ -362,7 +358,9 @@ def render_status(conn, now: datetime | None = None) -> str:
     # LLM triage
     counts = tri["counts"]
     day = tri["day"]
-    stuck = tri["pending_due"] > 0 and (tri["last_done"] is None or now - tri["last_done"] > TRIAGE_STALE)
+    stuck = tri["pending_due"] > 0 and (
+        tri["last_done"] is None or now - tri["last_done"] > health.TRIAGE_STALE
+    )
     parts.append("<h2>LLM triage</h2>")
     parts.append(
         f"<p>Last result: {_stamp(tri['last_done'], now)}{_stale_flag(stuck)}<br>"
@@ -450,7 +448,7 @@ def render_status(conn, now: datetime | None = None) -> str:
     parts.append("<h2>Pipeline</h2>")
     rows = []
     for r in pipe["runs"]:
-        limit = STALE_AFTER.get(r["kind"])
+        limit = health.STALE_AFTER.get(r["kind"])
         late = limit is not None and now - r["started_at"] > limit
         if r["finished_at"] is None:
             outcome = "running or interrupted"

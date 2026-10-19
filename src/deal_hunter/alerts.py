@@ -707,19 +707,21 @@ def work_once(
     new_price_step=None,
     watch_step=None,
 ) -> CycleStats:
-    """One worker cycle. `auction_step(conn, prices, quiet, now)` is the auction part (auction_cycle.tick);
-    `new_price_step(conn)` reads the Zboží.cz product pages that are due (zbozi.fetch_due); `watch_step(conn,
-    now)` is watchlists.py's `tick` (keyword/LLM match of new listings against standing watches, Phase 10)."""
+    """One worker cycle. The optional steps are auction_cycle.tick, the Zboží/Datart new-price reads and
+    watchlist.tick; each one failing is logged and recorded in the heartbeat, never fatal."""
+    from deal_hunter import health
     from deal_hunter.db import repository as repo
 
     now = now or datetime.now(UTC)
     stats = CycleStats()
+    failed: list[str] = []
     if new_price_step is not None:
         try:
             fetched = new_price_step(conn)
             stats.new_prices = fetched.summary() if fetched.fetched or fetched.errors else ""
         except Exception:  # a price comparison site being odd must not stop anything else
             log.exception("new price step failed")
+            failed.append("new_prices")
             stats.new_prices = "new prices: failed (see log)"
     geo.update_distances(conn, rules.distance.home if rules.distance else geo.PRAGUE_CENTRE)
     prices = pricing.run(conn, rules.min_samples, rules.usd_czk)
@@ -737,13 +739,16 @@ def work_once(
             stats.auctions = auction_step(conn, prices, in_quiet_hours(now, rules), now).summary()
         except Exception:  # the auction site being odd must not stop Bazoš deals
             log.exception("auction step failed")
+            failed.append("auctions")
             stats.auctions = "auctions: failed (see log)"
     if watch_step is not None:
         try:
             stats.watches = watch_step(conn, now)
         except Exception:  # watchlists being odd must not stop anything else
             log.exception("watch step failed")
+            failed.append("watches")
             stats.watches = "watches: failed (see log)"
+    health.record_heartbeat(conn, now, failed)
     return stats
 
 

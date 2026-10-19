@@ -7,7 +7,8 @@ REPO=michalomegalul/deal-hunter
 DIR=/opt/deal-hunter
 cd "$DIR"
 
-latest=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | jq -r .tag_name)
+# GitHub being unreachable is not a failed deploy (that would page every 5 minutes); just try later.
+latest=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | jq -r .tag_name) || exit 0
 current=$(cat .deployed 2>/dev/null || true)
 if [[ -z "$latest" || "$latest" == "null" || "$latest" == "$current" ]]; then
   exit 0
@@ -29,12 +30,30 @@ docker compose --profile cli pull --quiet
 # One-off `docker compose run --rm hunter ...` without HUNTER_VERSION uses :latest; point it here.
 docker tag "ghcr.io/$REPO:$latest" "ghcr.io/$REPO:latest"
 docker compose up -d --wait db
+./backup.sh "pre-$latest"
 docker compose run --rm hunter db migrate
 docker compose up -d --remove-orphans      # (re)start every service on the new image
 echo "$latest" > .deployed
-# Update this script from the release for next time. `mv` swaps the file, so the
-# copy bash is running right now is not affected.
-curl -fsSL "https://raw.githubusercontent.com/$REPO/$latest/deploy/deploy.sh" -o deploy.sh.new \
-  && chmod +x deploy.sh.new && mv deploy.sh.new deploy.sh
+# Host scripts and systemd units ship with the release too. `mv` swaps each file, so the copy of
+# this script bash is running right now is not affected.
+raw="https://raw.githubusercontent.com/$REPO/$latest/deploy"
+for f in deploy.sh backup.sh notify.sh; do
+  curl -fsSL "$raw/$f" -o "$f.new" && chmod +x "$f.new" && mv "$f.new" "$f"
+done
+units_changed=0
+for u in hunter-deploy.service hunter-deploy.timer hunter-backup.service hunter-backup.timer \
+         hunter-watchdog.service hunter-watchdog.timer hunter-notify-failure@.service; do
+  curl -fsSL "$raw/$u" -o "$u.new"
+  if ! cmp -s "$u.new" "/etc/systemd/system/$u"; then
+    mv "$u.new" "/etc/systemd/system/$u"
+    units_changed=1
+  else
+    rm "$u.new"
+  fi
+done
+if (( units_changed )); then
+  systemctl daemon-reload
+  systemctl enable --now hunter-deploy.timer hunter-backup.timer hunter-watchdog.timer
+fi
 docker image prune -f >/dev/null
 echo "Deployed $latest"
