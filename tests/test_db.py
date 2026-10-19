@@ -171,6 +171,44 @@ def test_recheck_marks_removed_ads_gone(conn):
     assert rows == {11: "http_410", 12: None}
 
 
+def _deal(conn, listing_id):
+    conn.execute(
+        "INSERT INTO deals (listing_id, model, category, price, fair, discount, confidence, state) "
+        "VALUES (%s, 'rtx 3080 10gb', 'gpu', 1000, 2000, 0.5, 0.6, 'alerted')",
+        (listing_id,),
+    )
+
+
+def test_fast_recheck_only_young_candidates_off_the_pages(conn):
+    for i in (21, 22, 23, 24, 25):
+        repo.save_listing(conn, ad(i), detail=True)
+    for i in (21, 22, 23, 25):
+        _deal(conn, i)  # 24 is no deal: the 6-hourly rechecker's business
+    conn.execute("UPDATE listings SET last_seen = now() - interval '1 hour'")
+    conn.execute("UPDATE listings SET last_seen = now() WHERE id = 22")  # still on the pages
+    conn.execute("UPDATE listings SET first_seen = now() - interval '4 days' WHERE id = 23")  # too old
+    conn.execute("UPDATE deals SET rechecked_at = now() - interval '30 minutes' WHERE listing_id = 25")
+
+    stats = scraper.fast_recheck(fake_client(FakeBazos(gone_ids={21})), conn)
+    assert (stats.seen, stats.gone) == (1, 1)
+    assert conn.execute("SELECT gone_reason FROM listings WHERE id = 21").fetchone() == ("http_410",)
+    assert conn.execute("SELECT rechecked_at IS NOT NULL FROM deals WHERE listing_id = 21").fetchone() == (
+        True,
+    )
+    assert scraper.fast_recheck(fake_client(FakeBazos()), conn) is None  # nothing else is due
+
+
+def test_fast_recheck_waits_between_reads_of_a_live_ad(conn):
+    repo.save_listing(conn, ad(31), detail=True)
+    _deal(conn, 31)
+    conn.execute("UPDATE listings SET last_seen = now() - interval '1 hour'")
+    assert scraper.fast_recheck(fake_client(FakeBazos()), conn).updated == 1
+    conn.execute("UPDATE listings SET last_seen = now() - interval '1 hour'")
+    assert scraper.fast_recheck(fake_client(FakeBazos()), conn) is None  # read < 2 h ago
+    conn.execute("UPDATE deals SET rechecked_at = now() - interval '3 hours'")
+    assert scraper.fast_recheck(fake_client(FakeBazos()), conn).seen == 1
+
+
 def test_redirects(conn):
     def handler(request):
         url = str(request.url)

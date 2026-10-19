@@ -13,9 +13,14 @@ CT 100, about 6-10 s per ad. The prompt is in English and the ad is Czech. The c
 schema as Ollama's `format`, `temperature 0`, `think: false`, and caches answers on disk by
 sha256(model + prompt) in the worker's data volume (`triage.py`, the pattern from bot-arena). The
 answer gives condition (new / like_new / used / worn / broken), for_parts, defects,
-mining_suspected, warranty_or_receipt, urgent_sale, scam_signals, is_bundle, is_wanted_ad, ships (the
+mining_suspected, warranty_or_receipt, urgent_sale, scam_signals, is_bundle, price_mismatch, is_wanted_ad, ships (the
 ad offers to send the item; see [Distance from home](alerts.md#distance-from-home)), specs (RAM/SSD/CPU) and a one-line verdict. Hard
-disks get extra questions about the drive's health (see [Hard disks](disks.md)). `PROMPT_VERSION` 3.
+disks get extra questions about the drive's health (see [Hard disks](disks.md)). `PROMPT_VERSION` 4.
+
+**Price for another item.** Sellers often list several variants with their own prices ("3GB za 1 500,
+6GB za 2 500") while the price field holds the cheapest one, which makes the dearer model look like a
+huge discount. The LLM answers `price_mismatch` with a quote; it only counts if the quote is really in
+the ad and shows at least two prices, and then the deal is dropped.
 
 Small models like to tick boxes, so a **scam signal only counts with evidence**. The model has to
 quote the ad, and the quote must really appear in it. A "shipping only" quote that actually offers
@@ -35,6 +40,7 @@ score = discount × confidence × penalty          discount = 1 − price / fair
 |---------------------------------------------------|---------|
 | wanted ad, for parts / broken                     | drop    |
 | scam: shipping only, deposit / prepayment         | drop    |
+| the price is for another item in the ad (quoted)  | drop    |
 | scam: too good, copied text, other (soft)         | × 0.6   |
 | bundle (the fair price is for the item alone)     | × 0.5   |
 | worn                                              | × 0.7   |

@@ -17,6 +17,11 @@ Back to the [README](../README.md).
   five watch-only sections (RAM, two network sections, cases, motherboards) are read at most every
   45 min, an RSS feed and one category page each plus a detail page per new ad. `HUNTER_SECTIONS`
   turns sections off.
+- **Fast recheck** (`scraper.fast_recheck`, inside the scrape cycle): a Bazoš deal candidate younger than
+  72 h that the last scrapes didn't list (not seen for 30 min) gets its ad page read again, at most every
+  2 hours per ad and 5 per cycle (`deals.rechecked_at`). Candidates are a handful a day, so this costs a
+  few requests a day, and their `gone_at` (the "probably sold" signal for pricing and `hunt eval`) is
+  within ~2 hours instead of up to ~12.
 - nms.gov.cz has its own, slower budget (≥ 6 s apart, a few dozen requests a day); see [Auctions](auctions.md).
 - Zboží.cz: only product pages robots.txt allows, ≥ 6 s apart, ~50 a week; see [New prices](pricing.md#new-prices-and-priors).
 - Datart.cz: two category pages (a few pages each) a week, the same budget; see [New prices](pricing.md#new-prices-and-priors).

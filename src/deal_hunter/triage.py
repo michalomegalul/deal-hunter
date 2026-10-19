@@ -22,7 +22,7 @@ import httpx
 from deal_hunter.text import fold
 
 # Bump when the prompt or schema changes: candidates are triaged again.
-PROMPT_VERSION = 3  # v3: `ships` for everything, the SMART/disk questions for hard disks
+PROMPT_VERSION = 4  # v4: price_mismatch (the asking price belongs to another item in the ad)
 
 CONDITIONS = ("new", "like_new", "used", "worn", "broken")
 SCAM_SIGNALS = ("shipping_only", "deposit_or_prepay", "too_good", "copied_text", "other")
@@ -54,6 +54,10 @@ a shop invoice are normal and never a signal.
 the number in the ad", links to outside payment sites.
 - is_bundle: the ad sells more than one main item (a whole PC with the card, several cards, a laptop \
 together with a monitor...). A charger, dock or box that comes with the item does not count.
+- price_mismatch: {"mismatch", "quote"}. mismatch is true only when the ad lists several items or \
+variants with their own prices and the asking price above belongs to a different (usually cheaper) one \
+than the Item, e.g. "GTX 1060 3GB za 1500, 6GB za 2500" for a 6GB card. "quote" must be the exact words \
+from the ad with those prices. Otherwise false and an empty quote: one item at one price is the normal case.
 - is_wanted_ad: the author wants to BUY (koupím, sháním, hledám), not sell.
 - ships: the seller offers to send the item (Zásilkovna, Balíkovna, PPL, poštou, dobírka, "pošlu", \
 "zašlu"). False when the ad says pickup only, or says nothing about sending it.
@@ -82,6 +86,11 @@ RESPONSE_SCHEMA = {
             },
         },
         "is_bundle": {"type": "boolean"},
+        "price_mismatch": {
+            "type": "object",
+            "properties": {"mismatch": {"type": "boolean"}, "quote": {"type": "string"}},
+            "required": ["mismatch", "quote"],
+        },
         "is_wanted_ad": {"type": "boolean"},
         "ships": {"type": "boolean"},
         "specs": {
@@ -104,6 +113,7 @@ RESPONSE_SCHEMA = {
         "urgent_sale",
         "scam_signals",
         "is_bundle",
+        "price_mismatch",
         "is_wanted_ad",
         "ships",
         "specs",
@@ -265,6 +275,7 @@ class Triage:
     scam_signals: list[str] = field(default_factory=list)
     scam_quotes: dict = field(default_factory=dict)  # signal -> the ad's own words that show it
     is_bundle: bool = False
+    price_mismatch: str = ""  # the ad's own words showing the asking price is another item's; "" = none
     is_wanted_ad: bool = False
     ships: bool = False  # the LLM's reading; alerts.score_deals asks a regex first (geo.shipping_offer)
     specs: dict = field(default_factory=dict)
@@ -404,6 +415,7 @@ def clean(data: dict, source: str = "") -> tuple[Triage, list[str]]:
         t.scam_signals.append(signal)
         t.scam_quotes.setdefault(signal, quote[:200])
     t.scam_signals = sorted(set(t.scam_signals))
+    t.price_mismatch = check_price_mismatch(data.get("price_mismatch"), source, notes)
     specs = data.get("specs") if isinstance(data.get("specs"), dict) else {}
     t.specs = {
         "ram_gb": _int(specs.get("ram_gb")),
@@ -414,6 +426,24 @@ def clean(data: dict, source: str = "") -> tuple[Triage, list[str]]:
     if isinstance(data.get("disk"), dict):
         t.disk = clean_disk(data["disk"], source, notes)
     return t, notes
+
+
+PRICE_IN_QUOTE = re.compile(r"\d{1,3}(?:[ .\u00a0]\d{3})+|\d{3,}")
+
+
+def check_price_mismatch(raw, source: str, notes: list[str]) -> str:
+    """The quote, if the model's 'price is for another item' claim holds up: it must be in the ad and show
+    at least two prices. Otherwise ""."""
+    if not isinstance(raw, dict) or not _bool(raw.get("mismatch", False)):
+        return ""
+    quote = " ".join(str(raw.get("quote") or "").split())
+    if source and (len(_plain(quote)) < 4 or _plain(quote) not in _plain(source)):
+        notes.append(f"ignored price_mismatch: quote {quote[:60]!r} is not in the ad")
+        return ""
+    if len(PRICE_IN_QUOTE.findall(quote)) < 2:
+        notes.append(f"ignored price_mismatch: quote {quote[:60]!r} doesn't show two prices")
+        return ""
+    return quote[:200]
 
 
 # What the ad has to talk about for a disk answer to count (small models fill in plausible numbers).
@@ -530,6 +560,8 @@ def penalty(t: Triage, features: dict | None = None) -> tuple[float, str | None]
     hard = HARD_SCAM & set(t.scam_signals)
     if hard:
         return 0.0, "scam signals: " + ", ".join(sorted(hard))
+    if t.price_mismatch:
+        return 0.0, f"the price is for another item in the ad: {t.price_mismatch!r}"
     factor = 1.0
     soft = set(t.scam_signals) - HARD_SCAM
     if soft:

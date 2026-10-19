@@ -132,6 +132,33 @@ def test_shipping_only_with_real_evidence():
     assert t.scam_signals == ["shipping_only"]
 
 
+MULTI = "Prodám GTX 1060. Verze 3GB za 1 500 Kč, verze 6GB za 2500 Kč. Osobní odběr Brno."
+
+
+@pytest.mark.parametrize(
+    "quote, kept",
+    [
+        ("Verze 3GB za 1 500 Kč, verze 6GB za 2500 Kč", True),
+        ("Verze 3GB za 1 500 Kč", False),  # one price shows nothing
+        ("3GB za 1000, 6GB za 2000", False),  # not in the ad
+        ("", False),
+    ],
+)
+def test_price_mismatch_needs_evidence(quote, kept):
+    t, notes = clean({"condition": "used", "price_mismatch": {"mismatch": True, "quote": quote}}, MULTI)
+    assert bool(t.price_mismatch) == kept and bool(notes) != kept
+    assert clean({"price_mismatch": {"mismatch": False, "quote": quote}}, MULTI)[0].price_mismatch == ""
+
+
+def test_price_mismatch_drops_the_deal():
+    t, _ = clean(
+        {"price_mismatch": {"mismatch": True, "quote": "Verze 3GB za 1 500 Kč, verze 6GB za 2500 Kč"}}, MULTI
+    )
+    factor, reason = penalty(t)
+    assert factor == 0 and reason.startswith("the price is for another item in the ad")
+    assert penalty(clean({}, MULTI)[0]) == (1.0, None)
+
+
 def test_placeholder_defects_are_dropped():
     assert clean({"defects": ["none"]})[0].defects == []
     assert clean({"defects": ["null", "No defects."]})[0].defects == []

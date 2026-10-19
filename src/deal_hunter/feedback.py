@@ -109,8 +109,9 @@ def listing_followup(ctx: Context, listing_id: int, source_id: str, now: datetim
     if row.get("distance_km") is None:
         home = ctx.distance.home if ctx.distance else geo.PRAGUE_CENTRE
         row["distance_km"] = geo.distance_km(home, row.get("psc"), row.get("location"))[0]
+    seller_message = followup.seller_message(row)
     title, message = followup.format_listing(
-        row, fp, fair, result, followup.seller_message(row), offer, now, test, place_line(row, ctx.distance)
+        row, fp, fair, result, seller_message, offer, now, test, place_line(row, ctx.distance)
     )
     actions = [{"action": "view", "label": "Open ad", "url": row["url"], "clear": False}]
     if ctx.ntfy.feedback_token:
@@ -118,6 +119,9 @@ def listing_followup(ctx: Context, listing_id: int, source_id: str, now: datetim
         actions.append(ctx.ntfy.feedback_action("Bought ✅", bought))
     ntfy_id = ctx.ntfy.publish(title, message, 4, ["eyes"], row["url"], actions, attach=first_image(row))
     repo.record_followup(conn, "listing", _key(listing_id, test), source_id, "sent", ntfy_id)
+    # Only the text, so a long-press copies exactly what to send; tapping it then opens the ad.
+    copy_title = ("TEST · " if test else "") + "✉️ Message for the seller"
+    ctx.ntfy.publish(copy_title, seller_message, 3, ["envelope"], row["url"])
     return f"follow-up for ad {listing_id} sent"
 
 

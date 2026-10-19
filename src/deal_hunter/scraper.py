@@ -332,27 +332,51 @@ def recheck(client: PoliteClient, conn: psycopg.Connection, older_than_hours: fl
     """Re-fetch active ads we haven't seen lately: refresh price/views, or mark them gone."""
 
     def body(stats):
-        start = client.requests
         due = repo.due_for_recheck(conn, older_than_hours, limit)
         log.info("recheck: %d ads due", len(due))
-        for listing_id, url in due:
-            stats.seen += 1
-            try:
-                listing, gone, page = fetch_ad(client, url)
-            except Exception as exc:  # noqa: BLE001
-                stats.errors.append(f"{url}: {exc}")
-                continue
-            if listing is not None:
-                _, changed = repo.save_listing(conn, listing, detail=True)
-                stats.updated += 1
-                stats.price_changes += changed
-            elif gone is not None:
-                stats.gone += repo.mark_gone(conn, listing_id, gone)
-            else:
-                stats.errors.append(f"{url}: HTTP {page.status}")
-        stats.requests = client.requests - start
+        _recheck_ads(client, conn, due, stats)
 
     return _run(conn, "recheck", body)
+
+
+FAST_RECHECK_MAX_AGE_H = 72  # the "probably sold" window pricing and `hunt eval` care about
+FAST_RECHECK_EVERY_H = 2
+FAST_RECHECK_LIMIT = 5
+
+
+def fast_recheck(client: PoliteClient, conn: psycopg.Connection) -> repo.RunStats | None:
+    """Re-read young deal candidates that dropped off the category pages. None when nothing is due."""
+    due = repo.due_for_fast_recheck(conn, FAST_RECHECK_MAX_AGE_H, FAST_RECHECK_EVERY_H, FAST_RECHECK_LIMIT)
+    if not due:
+        return None
+
+    def body(stats):
+        _recheck_ads(client, conn, due, stats)
+        for listing_id, _ in due:
+            repo.mark_fast_rechecked(conn, listing_id)
+
+    return _run(conn, "recheck_fast", body)
+
+
+def _recheck_ads(client: PoliteClient, conn: psycopg.Connection, due, stats) -> None:
+    """Re-read each ad's page: refresh price/views, or mark it gone."""
+    start = client.requests
+    for listing_id, url in due:
+        stats.seen += 1
+        try:
+            listing, gone, page = fetch_ad(client, url)
+        except Exception as exc:  # noqa: BLE001
+            stats.errors.append(f"{url}: {exc}")
+            continue
+        if listing is not None:
+            _, changed = repo.save_listing(conn, listing, detail=True)
+            stats.updated += 1
+            stats.price_changes += changed
+        elif gone is not None:
+            stats.gone += repo.mark_gone(conn, listing_id, gone)
+        else:
+            stats.errors.append(f"{url}: HTTP {page.status}")
+    stats.requests = client.requests - start
 
 
 def dry_run(client: PoliteClient, pages: int, sections: dict[str, int] | None = None) -> list[Listing]:
