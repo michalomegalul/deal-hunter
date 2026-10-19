@@ -33,8 +33,8 @@ only reads the database - the scraper, worker and feedback service are unaffecte
   5. Pipeline: latest scrape/recheck/backfill run, each section's last scrape time and the newest
   deal. A scrape run (Bazoš `scrape` or `scrape_aukro`) older than 30 minutes, a recheck older than
   12 hours, or a non-empty triage queue with no result for over an hour is marked STALE. These limits
-  live in `health.py` and are the same ones `hunt watchdog` pushes about (see the README,
-  "Operations"). Not shown because it is not recorded: the model's reasoning (`think` is off) and
+  live in `health.py` and are the same ones `hunt watchdog` pushes about (see
+  [Operations](operations.md#operations)). Not shown because it is not recorded: the model's reasoning (`think` is off) and
   when the watchlist filter last ran without producing a row. (The worker's heartbeat is recorded,
   for the watchdog, but not shown here.)
 - `/listing/<id>` - one ad: the description, the LLM's triage answer (pretty JSON) and its price
