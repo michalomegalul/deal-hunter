@@ -41,7 +41,7 @@ def test_stale_scrape_pushes_once_then_recovers(conn):
     site = FakeNtfy()
 
     assert set(health.run(conn, make_ntfy(site), NOW)) == {"run:scrape"}
-    assert len(site.posts) == 1 and "scrape: last run 120 min ago" in site.posts[0]["message"]
+    assert len(site.posts) == 1 and "scrape: last run 2 h ago" in site.posts[0]["message"]
 
     health.run(conn, make_ntfy(site), NOW + timedelta(minutes=10))
     assert len(site.posts) == 1  # still open: no repeat until the daily reminder
