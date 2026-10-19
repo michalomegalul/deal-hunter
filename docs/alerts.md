@@ -62,7 +62,14 @@ For a 👍 on a **Bazoš ad** it re-reads the ad page once (the shared Bazoš bu
 Dobrý den, zajímám se o grafickou kartu Gigabyte RTX 3060 12GB. Mohl byste mi prosím sdělit, zda je
 stále k dispozici?
                                                     [Open ad]  [Bought ✅]
+
+✉️ Message for the seller                     (a second, separate push: only the text)
+Dobrý den, zajímám se o grafickou kartu Gigabyte RTX 3060 12GB. Mohl byste mi prosím sdělit, zda je
+stále k dispozici?
 ```
+
+- The message also arrives **as its own push** with nothing else in it, so a long-press in the ntfy app
+  copies exactly the text to paste into Bazoš; tapping that push opens the ad.
 
 - The **message** is a fixed template, not an LLM draft (it has to sound like a person and
   must never say anything the ad doesn't): "Dobrý den, zajímám se o {noun} {item}. Mohl byste mi prosím

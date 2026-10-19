@@ -82,7 +82,7 @@ def test_thumbs_up_sends_one_detailed_followup(conn):
     ctx = context(conn, site, llm=llm)
     result = feedback.handle(ctx, vote_event(1, {"ad": 999, "vote": "up"}))
     assert "follow-up for ad 999 sent" in result
-    push = site.posts[-1]
+    push, copy = site.posts[-2:]
     assert push["title"] == "👍 Gigabyte RTX 3080 10GB Vision" and push["priority"] == 4
     assert push["attach"] == "https://www.bazos.cz/img/1/999/999.jpg"
     assert "💰 6 500 Kč · fair ~" in push["message"] and "Prodám, účtenka." in push["message"]
@@ -94,9 +94,11 @@ def test_thumbs_up_sends_one_detailed_followup(conn):
     open_ad, bought = push["actions"]
     assert open_ad == {"action": "view", "label": "Open ad", "url": push["click"], "clear": False}
     assert json.loads(bought["body"]) == {"ad": 999, "vote": "bought"}
+    assert copy["title"] == "✉️ Message for the seller" and copy["message"] == MESSAGE
+    assert copy["click"] == push["click"]
     # a second 👍 (or a replay) doesn't send it again
     assert "follow-up already sent" in feedback.handle(ctx, vote_event(2, {"ad": 999, "vote": "up"}))
-    assert len(site.posts) == 1
+    assert len(site.posts) == 2
     assert conn.execute("SELECT status FROM followups WHERE item_id = '999'").fetchone() == ("sent",)
 
 
@@ -118,12 +120,13 @@ def test_test_votes_are_marked_and_not_stored(conn):
     ctx = context(conn, site)
     result = feedback.handle(ctx, vote_event(1, {"ad": 999, "vote": "up", "test": True}))
     assert result.startswith("TEST listing 999: up")
-    assert site.posts[-1]["title"].startswith("TEST · 👍")
-    assert json.loads(site.posts[-1]["actions"][1]["body"])["test"] is True
+    assert site.posts[-2]["title"].startswith("TEST · 👍")
+    assert json.loads(site.posts[-2]["actions"][1]["body"])["test"] is True
+    assert site.posts[-1]["title"] == "TEST · ✉️ Message for the seller"
     assert conn.execute("SELECT count(*) FROM feedback").fetchone() == (0,)
     # the real 👍 still gets its own follow-up
     feedback.handle(ctx, vote_event(2, {"ad": 999, "vote": "up"}))
-    assert len(site.posts) == 2 and not site.posts[-1]["title"].startswith("TEST")
+    assert len(site.posts) == 4 and not site.posts[-2]["title"].startswith("TEST")
 
 
 def test_gone_ad_says_so(conn):
