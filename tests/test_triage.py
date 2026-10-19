@@ -227,7 +227,7 @@ def test_ships_needs_a_word_about_sending_in_the_ad():
     assert "ships" in triage.RESPONSE_SCHEMA["required"] and "- ships:" in triage.SYSTEM_PROMPT
 
 
-# --- hard disks (Phase 9) -----------------------------------------------------------------------------
+# --- hard disks -------------------------------------------------------------------------------------
 
 DISK_AD = (
     "3× Toshiba MG09 18TB enterprise HDD\n"

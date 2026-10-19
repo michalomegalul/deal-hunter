@@ -1,4 +1,4 @@
-"""Phase 10 part 1 (watchlists) against a real (throwaway) database: watch CRUD, the scan + push
+"""Watchlists against a real (throwaway) database: watch CRUD, the scan + push
 cycle, LLM-check dedup, the command listener, and the new scrape sections' cadence gate."""
 
 import json

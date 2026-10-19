@@ -1,4 +1,4 @@
-"""Phase 8 against a real (throwaway) database: votes, the feedback stream, follow-ups, flips, new prices."""
+"""Against a real (throwaway) database: votes, the feedback stream, follow-ups, flips, new prices."""
 
 import json
 import os

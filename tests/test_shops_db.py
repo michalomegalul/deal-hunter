@@ -24,8 +24,8 @@ from deal_hunter.db import repository as repo
 from deal_hunter.geo import DistanceRules
 from deal_hunter.http import PoliteClient
 from tests.conftest import fixture_text
-from tests.test_phase10_db import FakeNtfy, make_ntfy
 from tests.test_triage import FakeLLM
+from tests.test_watchlist_db import FakeNtfy, make_ntfy
 
 GRAFICKA, _, _, _, HDD = (shops.CATEGORIES[i] for i in range(5))
 GPU, DISK = datart.CATEGORIES

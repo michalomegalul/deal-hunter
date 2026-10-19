@@ -162,7 +162,7 @@ def test_office_fair_price_per_spec():
     assert t480.for_listing({}) == t480.median  # spec unknown: no adjustment
 
 
-# --- Phase 8: new prices, priors, the sanity flag ----------------------------------------------------
+# --- new prices, priors, the sanity flag -------------------------------------------------------------
 
 
 def thin(model="rtx 3060 12gb", prices=(5000, 5200, 5400, 5600, 5800), category="gpu"):
@@ -282,7 +282,7 @@ def test_auction_units_are_a_lower_anchor_for_office():
     assert fp.median == 1450 and fp.raw_median == 800 and "floor" in fp.prior_note
 
 
-# --- Phase 9 review fix: disks pooled per class in Kč/TB ----------------------------------------------
+# --- disks pooled per class in Kč/TB -----------------------------------------------------------------
 
 
 def test_fair_price_per_tb_pools_capacities():

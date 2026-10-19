@@ -1,5 +1,5 @@
-"""Watchlists (Phase 10 part 1): keyword prefilter, command parsing, and the LLM check -- all
-without a database (see test_phase10_db.py for the DB-backed parts: insert/list/stop, scan +
+"""Watchlists: keyword prefilter, command parsing, and the LLM check -- all
+without a database (see test_watchlist_db.py for the DB-backed parts: insert/list/stop, scan +
 push, scrape cadence)."""
 
 import json
