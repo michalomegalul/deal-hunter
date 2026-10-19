@@ -9,8 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       db:
-        # Docker Hub rate-limits shared runner IPs; the same official image from the ECR mirror does not.
-        image: public.ecr.aws/docker/library/postgres:17
+        # Docker Hub and the ECR mirror rate-limit shared runner IPs; Google's Docker Hub mirror does not.
+        image: mirror.gcr.io/library/postgres:17
         env:
           POSTGRES_USER: hunter
           POSTGRES_PASSWORD: hunter
