@@ -1,0 +1,8 @@
+[Unit]
+Description=Deal Hunter: daily pg_dump of the database
+After=docker.service
+OnFailure=hunter-notify-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/deal-hunter/backup.sh daily

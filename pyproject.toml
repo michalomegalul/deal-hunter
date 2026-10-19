@@ -1,6 +1,6 @@
 [project]
 name = "deal-hunter"
-version = "0.7.0"
+version = "0.11.0"
 description = "Watches Bazoš.cz GPU, ex-office PC/laptop and hard disk listings and state IT auctions, learns fair prices and flags the genuinely good deals."
 readme = "README.md"
 authors = [

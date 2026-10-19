@@ -1,0 +1,9 @@
+[Unit]
+Description=Deal Hunter: push an alert if a background job is stale or failing
+After=docker.service
+OnFailure=hunter-notify-failure@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/deal-hunter
+ExecStart=/usr/bin/docker compose run --rm -T hunter watchdog

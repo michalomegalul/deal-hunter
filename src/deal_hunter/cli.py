@@ -1123,6 +1123,16 @@ def cmd_web(args: argparse.Namespace) -> None:
     web.serve(args.host, args.port)
 
 
+def cmd_watchdog(args: argparse.Namespace) -> None:
+    from deal_hunter import health
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    with repo.connect(autocommit=True) as conn:
+        found = health.run(conn, _ntfy(settings), sources=settings.sources)
+    print("\n".join(found.values()) if found else "watchdog: all good", flush=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="hunt", description="Bazoš deal hunter (GPUs, ex-office PCs/laptops, hard disks)"
@@ -1283,6 +1293,11 @@ def main() -> None:
     p.add_argument("--host", default="0.0.0.0", help="default 0.0.0.0 (LAN)")
     p.add_argument("--port", type=int, default=8080)
     p.set_defaults(func=cmd_web)
+
+    p = sub.add_parser(
+        "watchdog", help="push an alert if a background job is stale or failing (run from a timer)"
+    )
+    p.set_defaults(func=cmd_watchdog)
 
     p = sub.add_parser("notify-test", help="send one test push to the deals topic")
     p.add_argument(
