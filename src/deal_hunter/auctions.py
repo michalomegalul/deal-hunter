@@ -11,20 +11,20 @@ units on Bazoš pay?".
    parts and fees are only kept when the text talks about them (the scam-signal idea from triage).
 2. Mapping: each group's model goes through the office and GPU normalizers to a pricing key
    ('latitude 5511', 'optiplex 3050 sff', 'rtx 3070').
-3. Valuation (see README "Auctions"): per unit, the Bazoš fair price at the unit's spec, times a
+3. Valuation (see docs/auctions.md): per unit, the Bazoš fair price at the unit's spec, times a
    resale factor, minus refurbishment parts and labour; minus per-lot costs; and a max bid at which
    the expected profit is still the target margin of the resale revenue.
 """
 
 import json
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from deal_hunter import normalize, office, triage
 from deal_hunter.pricing import LEVEL_RANK, FairPrice
+from deal_hunter.text import fold, kc
 
 PROMPT_VERSION = 1  # bump when the prompt or schema changes: lots are extracted again
 
@@ -167,13 +167,8 @@ class Extraction:
         return cls(items=items, **data)
 
 
-def _ascii(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text.lower())
-    return "".join(c for c in text if not unicodedata.combining(c))
-
-
 def _plain(text: str) -> str:
-    return " ".join(re.sub(r"[^\w]+", " ", _ascii(text)).split())
+    return " ".join(re.sub(r"[^\w]+", " ", fold(text)).split())
 
 
 FORM_SUFFIX = re.compile(r"(?<=\d)(dt|sff|mt|usff|t)\b", re.IGNORECASE)
@@ -222,7 +217,7 @@ def quantity_supported(q: int, ascii_source: str) -> bool:
 
 def stated_units(text: str) -> int | None:
     """The unit count the title or description states ('Soubor 22 ks', '19ks notebooků')."""
-    m = UNITS_RE.search(_ascii(text))
+    m = UNITS_RE.search(fold(text))
     if not m:
         return None
     n = int(m.group(1) or m.group(2))
@@ -237,7 +232,7 @@ def clean(data: dict, source: str, title: str = "") -> tuple[Extraction, list[st
     """Coerce the model's answer into an Extraction, checking every claim against the text."""
     notes: list[str] = []
     x = Extraction()
-    plain_source, ascii_source = _plain(source), _ascii(source)
+    plain_source, ascii_source = _plain(source), fold(source)
     raw_items = data.get("items") or []
     if not isinstance(raw_items, list):
         raw_items = [raw_items]
@@ -299,12 +294,7 @@ def clean(data: dict, source: str, title: str = "") -> tuple[Extraction, list[st
         pct = fees.get("percent")
         czk = _int(fees.get("czk"))
         pct = float(pct) if isinstance(pct, int | float) and 0 < pct <= 30 else 0.0
-        if (
-            (pct or czk)
-            and _plain(quote)
-            and _plain(quote) in plain_source
-            and FEE_WORDS.search(_ascii(quote))
-        ):
+        if (pct or czk) and _plain(quote) and _plain(quote) in plain_source and FEE_WORDS.search(fold(quote)):
             x.fee_percent, x.fee_czk, x.fee_quote = pct, czk or 0, quote[:200]
         elif pct or czk:
             notes.append(f"ignored fee {pct or czk}: quote {quote[:60]!r} is not a stated fee in the text")
@@ -348,13 +338,13 @@ def extract(client, lot: dict, cache_dir: Path | None) -> Outcome:
 
 # --- valuation --------------------------------------------------------------------------------------
 
-# Parts to make one unit sellable (Kč). README "Auctions" has the same table; keep them in sync.
+# Parts to make one unit sellable (Kč). docs/auctions.md has the same table; keep them in sync.
 REFURB_COSTS = {
     "storage": 500,  # a new 256 GB SATA/NVMe SSD
     "battery": 600,  # an aftermarket laptop battery
     "charger": 250,  # a generic 65 W adapter
     "ram": 300,  # one 8 GB DDR4 module
-    "os": 0,  # Windows: reactivates from the BIOS key / refurb licence (see README for the catch)
+    "os": 0,  # Windows: reactivates from the BIOS key / refurb licence (see docs/auctions.md for the catch)
     "other": 200,
 }
 SSD_ADDED_GB = 256  # a unit sold without storage gets this SSD, and is priced at this spec
@@ -446,7 +436,7 @@ def value_lot(
     bids: int,
     costs: Costs,
 ) -> Valuation:
-    """What the lot is worth to a reseller at its current price (see README "Auctions")."""
+    """What the lot is worth to a reseller at its current price (see docs/auctions.md)."""
     lines, units, priced_units, revenue, parts, unit_hours = [], 0, 0, 0.0, 0.0, 0.0
     weights: dict[str, float] = {}
     for item in x.items:
@@ -533,7 +523,7 @@ HUGE_PROFIT = 3.0  # ... and the profit at the next bid is >= 3x the minimum
 
 
 def qualifies(v: Valuation, costs: Costs) -> tuple[bool, list[str]]:
-    """(worth a push, why not). Low confidence needs a huge margin (README "Auctions")."""
+    """(worth a push, why not). Low confidence needs a huge margin (docs/auctions.md)."""
     if v.next_bid is None or v.profit is None or v.max_bid is None:
         return False, ["no price"]
     reasons = []
@@ -549,10 +539,6 @@ def qualifies(v: Valuation, costs: Costs) -> tuple[bool, list[str]]:
 
 
 # --- presentation -----------------------------------------------------------------------------------
-
-
-def kc(n) -> str:
-    return f"{round(n):,} Kč".replace(",", " ") if n is not None else "-"
 
 
 def summary(x: Extraction, title: str) -> str:

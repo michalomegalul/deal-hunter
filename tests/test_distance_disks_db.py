@@ -1,4 +1,4 @@
-"""Phase 9 against a real (throwaway) database: distances, the pickup rule in the worker, disks."""
+"""Against a real (throwaway) database: distances, the pickup rule in the worker, disks."""
 
 import json
 import os

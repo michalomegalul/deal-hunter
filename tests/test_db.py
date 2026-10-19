@@ -161,12 +161,6 @@ def test_scrape_aukro_once_ingests_items(conn):
     assert {r[1] for r in rows} == {"auction", "fixed"}
 
 
-def test_scrape_sbazar_once_refuses(conn):
-    stats = scraper.scrape_sbazar_once(conn)
-    assert stats.errors and "robots.txt" in stats.errors[0]
-    assert conn.execute("SELECT count(*) FROM listings").fetchone()[0] == 0
-
-
 def test_recheck_marks_removed_ads_gone(conn):
     repo.save_listing(conn, ad(11), detail=True)
     repo.save_listing(conn, ad(12), detail=True)

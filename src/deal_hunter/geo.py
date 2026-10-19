@@ -16,11 +16,12 @@ import csv
 import io
 import math
 import re
-import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cache
 from importlib import resources
+
+from deal_hunter.text import fold
 
 TABLE = "cz_postcodes.csv"
 PRAGUE_CENTRE = (50.0755, 14.4378)
@@ -37,9 +38,7 @@ def haversine_km(a: tuple[float, float], b: tuple[float, float]) -> float:
 
 def plain(text: str) -> str:
     """'Ústí nad Labem' -> 'usti nad labem'."""
-    t = unicodedata.normalize("NFKD", (text or "").lower())
-    t = "".join(c for c in t if not unicodedata.combining(c))
-    return " ".join(re.sub(r"[^a-z0-9]+", " ", t).split())
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", fold(text)).split())
 
 
 def norm_psc(psc: str | None) -> str | None:

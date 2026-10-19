@@ -35,6 +35,7 @@ import httpx
 from deal_hunter import geo, pricing, triage
 from deal_hunter.geo import DistanceRules
 from deal_hunter.pricing import LEVEL_RANK, FairPrice
+from deal_hunter.text import kc
 
 log = logging.getLogger(__name__)
 
@@ -231,11 +232,6 @@ def parse_vote(e: dict) -> Vote | None:
         return None
 
 
-def parse_votes(events: list[dict]) -> list[Vote]:
-    """Votes from feedback topic messages; junk is skipped."""
-    return [v for v in map(parse_vote, events) if v is not None]
-
-
 # --- the gate and the alert rules ------------------------------------------------------------------------
 
 
@@ -277,11 +273,16 @@ def gate(fp: FairPrice | None, data_since: dict, rules: Rules, now: datetime) ->
     return (not missing), ", ".join(missing)
 
 
-def in_quiet_hours(now: datetime, rules: Rules) -> bool:
+def is_quiet(now: datetime, start: int, end: int) -> bool:
+    """Whether `now` falls in the quiet hours start-end (Prague hours, may wrap past midnight)."""
     hour = now.astimezone(PRAGUE).hour
-    if rules.quiet_start > rules.quiet_end:
-        return hour >= rules.quiet_start or hour < rules.quiet_end
-    return rules.quiet_start <= hour < rules.quiet_end
+    if start > end:
+        return hour >= start or hour < end
+    return start <= hour < end
+
+
+def in_quiet_hours(now: datetime, rules: Rules) -> bool:
+    return is_quiet(now, rules.quiet_start, rules.quiet_end)
 
 
 def priority(discount: float) -> int:
@@ -290,10 +291,6 @@ def priority(discount: float) -> int:
     if discount >= 0.33:
         return 4
     return 3
-
-
-def kc(n: float) -> str:
-    return f"{round(n):,} Kč".replace(",", " ")
 
 
 def new_text(fp: FairPrice | None) -> str:
@@ -524,7 +521,7 @@ def ships(deal: dict, t: triage.Triage) -> bool:
 
 
 def pickup_check(deal: dict, rules: Rules) -> str | None:
-    """Why an otherwise good deal is out of reach (None = fine). See README "Distance".
+    """Why an otherwise good deal is out of reach (None = fine). See docs/alerts.md ("Distance from home").
 
     Within the pickup radius: fine. Outside it, or with an unknown distance: only if the ad ships and
     the deal still scores after paying for shipping.

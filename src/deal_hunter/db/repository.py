@@ -321,7 +321,7 @@ def normalized_summary(conn: psycopg.Connection) -> list[tuple]:
 def price_samples(conn: psycopg.Connection, window_days: int) -> list:
     """Matched ads with a numeric price, seen within the window: the input to pricing.estimate_all.
 
-    Only price_kind='fixed': a shop's 'retail' prices (sources.RETAIL) are not what used goods sell for."""
+    Only price_kind='fixed': a shop's 'retail' prices are not what used goods sell for."""
     from deal_hunter.pricing import Sample
 
     rows = conn.execute(
@@ -597,7 +597,7 @@ def week_summary(conn: psycopg.Connection) -> dict:
     return out
 
 
-# --- auction lots (Phase 7) -----------------------------------------------------------------------
+# --- auction lots --------------------------------------------------------------------------------
 
 
 def _dicts(cur) -> list[dict]:
@@ -889,7 +889,7 @@ def sold_lot_extractions(conn: psycopg.Connection) -> list[tuple[int, dict]]:
     return [(r[0], r[1]) for r in rows]
 
 
-# --- Phase 8: votes, follow-ups, flips, new prices ---------------------------------------------------
+# --- votes, follow-ups, new prices -------------------------------------------------------------------
 
 
 def save_votes(conn: psycopg.Connection, votes: list) -> list:
@@ -921,13 +921,6 @@ def save_votes(conn: psycopg.Connection, votes: list) -> list:
             if cur.rowcount:
                 fresh.append(v)
     return fresh
-
-
-def save_feedback(conn: psycopg.Connection, rows: list[tuple[int, str, str, object]]) -> int:
-    """Insert (listing_id, vote, ntfy message id, voted_at) rows; already-seen ids are skipped."""
-    from deal_hunter.alerts import Vote
-
-    return len(save_votes(conn, [Vote("listing", str(lid), vote, src, at) for lid, vote, src, at in rows]))
 
 
 def followup_sent(conn: psycopg.Connection, kind: str, item_id: str) -> bool:
@@ -1022,11 +1015,6 @@ def latest_new_offers(conn: psycopg.Connection, max_age_days: float = 30) -> dic
     return {m: (p, s or 0, shop) for m, p, s, shop in rows}
 
 
-def latest_new_prices(conn: psycopg.Connection, max_age_days: float = 30) -> dict[str, tuple[int, int]]:
-    """{model: (lowest offer in Kč, shops on that product)}: latest_new_offers without the shop."""
-    return {m: (p, s) for m, (p, s, _) in latest_new_offers(conn, max_age_days).items()}
-
-
 def new_price_rows(conn: psycopg.Connection) -> list[dict]:
     """The latest fetch of every product page, for `hunt newprices`."""
     cur = conn.execute(
@@ -1049,7 +1037,7 @@ def price_history(conn: psycopg.Connection, listing_id: int) -> list[dict]:
     return _dicts(cur)
 
 
-# --- watchlists (Phase 10 part 1) ------------------------------------------------------------------
+# --- watchlists -----------------------------------------------------------------------------------
 
 
 def insert_watch(
@@ -1152,7 +1140,7 @@ def watch_pushes_since(conn: psycopg.Connection, since) -> int:
     return conn.execute("SELECT count(*) FROM watch_hits WHERE pushed_at >= %s", (since,)).fetchone()[0]
 
 
-# --- Phase 6: the flips log and the alert evaluation --------------------------------------------------
+# --- the flips log and the alert evaluation -----------------------------------------------------------
 
 FLIP_FIELDS = ("buy_price", "sold_at", "sold_price", "fees", "notes")
 

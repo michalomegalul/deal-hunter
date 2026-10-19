@@ -19,7 +19,7 @@ description, when we have it) and records what matters for that and for pricing:
 
 The pricing key is class, pooled across capacities for 3.5" HDDs with a known class: 'hdd35 nas',
 'hdd35 enterprise', 'hdd35 desktop', 'hdd35 surveillance', 'external' (desktop externals, also 3.5").
-pricing.py prices these in Kč/TB (see its module doc, "Disk pricing"), not Kč, since a single capacity
+pricing.py prices these in Kč/TB (docs/disks.md), not Kč, since a single capacity
 rarely gets the 4 ads a fair price needs. SAS drives keep their own capacity-specific key ('hdd35
 enterprise sas 4tb': a market of their own, and now rarer since the interface call got stricter), as
 does a 3.5" drive with no known line ('hdd35 8tb'), 2.5" ('hdd25 1tb', 'external25 2tb') and SSDs
@@ -35,12 +35,13 @@ costs a data point, so anything unclear stays unmatched and shows up in `hunt re
 """
 
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from functools import cache
 from importlib import resources
 
 import yaml
+
+from deal_hunter.text import fold
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,6 @@ class Catalog:
     ext_portable: re.Pattern
     ext_any: re.Pattern
     seagate_sas: frozenset[str]  # certain only; see storage_catalog.yaml
-    seagate_sas_uncertain: frozenset[str]
     seagate_sata: frozenset[str]
     smr_models: frozenset[str]
     cmr_models: frozenset[str]
@@ -104,7 +104,6 @@ def load_catalog() -> Catalog:
         ext_portable=re.compile(raw["externals"]["portable"]),
         ext_any=re.compile(raw["externals"]["any"]),
         seagate_sas=frozenset(raw["seagate_sas"]["certain"]),
-        seagate_sas_uncertain=frozenset(raw["seagate_sas"].get("uncertain") or ()),
         seagate_sata=frozenset(raw["seagate_sata"]),
         smr_models=frozenset(raw["smr_models"]),
         cmr_models=frozenset(raw["cmr_models"]),
@@ -123,8 +122,7 @@ def prepare(text: str) -> str:
 
     '3,5" SATA HDD 2 TB' -> '3.5 sata hdd 2 tb'; 'M.2 NVMe' -> 'm2 nvme'; '4×' -> '4 x'.
     """
-    t = unicodedata.normalize("NFKD", (text or "").lower().replace("×", " x "))
-    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = fold((text or "").replace("×", " x "))
     t = re.sub(r"(?<=\d),(?=\d)", ".", t)
     t = re.sub(r"\bm\.2\b", "m2", t)
     t = re.sub(r"\b(\d{1,2})x(?=[a-z])", r"\1 x ", t)  # '3xSSD' -> '3 x ssd'
@@ -681,7 +679,7 @@ def wants_detail(r) -> bool:
     return kind not in ("ssd", "ssd_sata", "ssd_nvme", "hdd_25")
 
 
-# --- server fit (Phase 9) ------------------------------------------------------------------------------
+# --- server fit ---------------------------------------------------------------------------------------
 
 
 def server_fit(features: dict, min_tb: float) -> str | None:

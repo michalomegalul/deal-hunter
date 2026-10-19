@@ -1,4 +1,4 @@
-"""Watchlists (Phase 10 part 1): standing "I want X" searches, managed from a phone over ntfy.
+"""Watchlists: standing "I want X" searches, managed from a phone over ntfy.
 
 Two independent pieces:
 
@@ -26,18 +26,18 @@ import json
 import logging
 import re
 import time
-import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 
 import httpx
 
+from deal_hunter import listener
+from deal_hunter.text import fold, kc
 from deal_hunter.triage import LLMUnavailable, chat_cached, parse_answer
 
 log = logging.getLogger(__name__)
 
 LAST_ID_KEY = "watch_last_id"
-BACKOFF_START, BACKOFF_MAX = 2.0, 120.0
 
 
 @dataclass
@@ -53,8 +53,7 @@ class Context:
 
 def normalize_text(text: str | None) -> str:
     """Lower case, no accents, 'x'/'gb'/'tb' spacing collapsed so '2 x 16 GB' ~ '2x16gb'."""
-    t = unicodedata.normalize("NFKD", (text or "").lower()).replace("×", "x")
-    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = fold(text).replace("×", "x")
     t = re.sub(r"[^a-z0-9x+]+", " ", t)
     t = re.sub(r"(\d+)\s*x\s*(\d+)", r"\1x\2", t)
     t = re.sub(r"(\d+)\s*(gb|tb|u)\b", r"\1\2", t)
@@ -105,11 +104,6 @@ HELP_TEXT = (
 )
 
 
-def _ascii(text: str) -> str:
-    t = unicodedata.normalize("NFKD", text.lower())
-    return "".join(c for c in t if not unicodedata.combining(c))
-
-
 @dataclass
 class Command:
     kind: str  # add | list | stop | help | unknown
@@ -145,7 +139,7 @@ def parse_command(text: str) -> Command:
     if not text:
         return Command("unknown", error="empty message")
     first, _, rest = text.partition(" ")
-    word = _ascii(first).rstrip(".,!")
+    word = fold(first).rstrip(".,!")
     if word in HELP_WORDS:
         return Command("help")
     if word in LIST_WORDS:
@@ -242,8 +236,6 @@ def seed(conn) -> int:
 
 
 # --- the LLM check -----------------------------------------------------------------------------------
-
-WATCH_PROMPT_VERSION = 1
 
 WATCH_SYSTEM_PROMPT = """You check whether a second-hand ad from a Czech classifieds site matches what a \
 buyer is looking for. The ad is in Czech; read it carefully.
@@ -387,16 +379,12 @@ def scan_and_match(conn, llm, cache_dir, hours: float, limit: int = 300) -> Scan
     return stats
 
 
-def _kc(n: int | None) -> str:
-    return f"{n:,} Kč".replace(",", " ") if n else "-"
-
-
 def format_watch_push(hit: dict) -> tuple[str, str]:
     """(title, message) for one watch-hit push."""
     title = f"👀 {hit['query']}"[:90]
     lines = [hit["title"][:200]]
     price = hit["price_czk"]
-    lines.append(_kc(price))
+    lines.append(kc(price or None))
     km = hit.get("distance_km")
     where = " ".join(x for x in (hit.get("location"), hit.get("psc")) if x)
     if where or km is not None:
@@ -414,23 +402,14 @@ def format_watch_push(hit: dict) -> tuple[str, str]:
     return title, "\n".join(lines)
 
 
-def _in_quiet_hours(now: datetime, quiet_start: int, quiet_end: int) -> bool:
-    from deal_hunter.alerts import PRAGUE
-
-    hour = now.astimezone(PRAGUE).hour
-    if quiet_start > quiet_end:
-        return hour >= quiet_start or hour < quiet_end
-    return quiet_start <= hour < quiet_end
-
-
 def push_matches(conn, ntfy, now: datetime, quiet_start: int, quiet_end: int, max_per_day: int) -> int:
     """Push matched-but-not-pushed hits on the deals topic: quiet hours, a separate daily cap."""
-    from deal_hunter.alerts import PRAGUE, first_image
+    from deal_hunter.alerts import PRAGUE, first_image, is_quiet
     from deal_hunter.db import repository as repo
 
     if ntfy is None:
         return 0
-    if _in_quiet_hours(now, quiet_start, quiet_end):
+    if is_quiet(now, quiet_start, quiet_end):
         return 0
     day_start = now.astimezone(PRAGUE).replace(hour=0, minute=0, second=0, microsecond=0)
     sent_today = repo.watch_pushes_since(conn, day_start)
@@ -534,40 +513,10 @@ def handle(ctx, event: dict, now: datetime | None = None) -> str | None:
 
 
 def listen_once(ctx, stop=lambda: False) -> int:
-    """Hold the watch-topic stream open until it drops (or `stop()`). Returns messages handled."""
-    from deal_hunter.db import repository as repo
-
-    since = repo.kv_get(ctx.conn, LAST_ID_KEY) or "all"
-    handled = 0
-    for event in ctx.ntfy.stream_watch(since):
-        if event.get("event") == "open":
-            log.info("watch stream connected (since %s)", since)
-        if event.get("event") == "message":
-            try:
-                result = handle(ctx, event)
-            except Exception:
-                log.exception("handling watch command %s failed", event.get("id"))
-                result = "failed"
-            log.info("watch %s: %s", event.get("id"), result)
-            repo.kv_set(ctx.conn, LAST_ID_KEY, event["id"])
-            handled += 1
-        if stop():
-            break
-    return handled
+    return listener.listen_once(
+        ctx.conn, ctx.ntfy.stream_watch, lambda event: handle(ctx, event), LAST_ID_KEY, "watch", stop
+    )
 
 
 def forever(ctx, sleep=time.sleep) -> None:
-    delay = BACKOFF_START
-    while True:
-        started = time.monotonic()
-        try:
-            listen_once(ctx)
-            log.info("watch stream closed by the server; reconnecting")
-        except (httpx.HTTPError, ValueError) as exc:
-            log.warning("watch stream: %s; reconnecting in %.0f s", exc, delay)
-        except Exception:
-            log.exception("watch stream failed; reconnecting in %.0f s", delay)
-        if time.monotonic() - started > 60:
-            delay = BACKOFF_START
-        sleep(delay)
-        delay = min(BACKOFF_MAX, delay * 2)
+    listener.forever(lambda: listen_once(ctx), "watch", sleep)

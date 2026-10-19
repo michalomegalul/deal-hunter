@@ -34,7 +34,7 @@ SECTIONS = {
     "pc": Section("pc", 12, 1, "office", "in_scope"),  # PC, Počítače
     "notebook": Section("notebook", 10, 1, "office", "in_scope"),  # Notebooky
     "hdd": Section("hdd", 5, 1, "storage", "in_scope"),  # Hard disky, SSD
-    # Phase 10 watchlists: not priced or alerted by the main pipeline (normalize.classify marks
+    # Watch-only sections: not priced or alerted by the main pipeline (normalize.classify marks
     # them excluded_reason='watch_only'), only matched against watches.py's keyword/LLM check.
     # Read every 45 min (Section.cadence_min, enforced in scraper.scrape_once), not every cycle,
     # to keep the request budget low; checked against robots.txt 2026-10-11 (plain category/RSS
@@ -67,7 +67,7 @@ PRICE_KINDS = {
 class Listing:
     """One ad. Category pages fill most fields; the detail page adds description, images, category.
 
-    Shared by every source (sbazar.py, aukro.py, facebook.py), not just Bazoš: `source` and
+    Shared by every source (aukro.py, facebook.py, shops.py), not just Bazoš: `source` and
     `external_id` say where it came from and what the site itself calls it (see sources.py for why
     `id` isn't simply that); `section` is always one of sources.CANONICAL_SECTIONS, whatever the
     source's own category is called, so normalize.py/pricing.py/alerts.py stay source-agnostic.
@@ -87,7 +87,7 @@ class Listing:
     images: list[str] = field(default_factory=list)
     raw_category: str | None = None
     section: str = CATEGORY  # the category page/feed we found it on (graficka | pc | notebook | hdd)
-    source: str = "bazos"  # bazos | sbazar | aukro | fb
+    source: str = "bazos"  # bazos | aukro | fb | mironet
     external_id: str | None = None  # the site's own id, as text; defaults to str(id) if unset
     auction_end_at: datetime | None = None  # Aukro auctions only
 

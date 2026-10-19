@@ -24,14 +24,13 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
-from deal_hunter import followup, geo, pricing, scraper, triage
+from deal_hunter import followup, geo, listener, pricing, scraper, triage
 from deal_hunter.alerts import PRAGUE, Ntfy, Vote, first_image, parse_vote, place_line
 
 log = logging.getLogger(__name__)
 
 LAST_ID_KEY = "feedback_last_id"
 FOLLOWUP_MAX_AGE = timedelta(hours=6)
-BACKOFF_START, BACKOFF_MAX = 2.0, 120.0
 
 
 @dataclass
@@ -193,41 +192,10 @@ def maybe_followup(ctx: Context, vote: Vote, now: datetime) -> str:
 
 
 def listen_once(ctx: Context, stop=lambda: False) -> int:
-    """Hold the stream open until it drops (or `stop()`); returns how many messages were handled."""
-    from deal_hunter.db import repository as repo
-
-    since = repo.kv_get(ctx.conn, LAST_ID_KEY) or "all"
-    handled = 0
-    for event in ctx.ntfy.stream_feedback(since):
-        if event.get("event") == "open":
-            log.info("feedback stream connected (since %s)", since)
-        if event.get("event") == "message":
-            try:
-                result = handle(ctx, event)
-            except Exception:  # one bad message must not wedge the stream
-                log.exception("handling feedback message %s failed", event.get("id"))
-                result = "failed"
-            log.info("feedback %s: %s", event.get("id"), result)
-            repo.kv_set(ctx.conn, LAST_ID_KEY, event["id"])
-            handled += 1
-        if stop():
-            break
-    return handled
+    return listener.listen_once(
+        ctx.conn, ctx.ntfy.stream_feedback, lambda event: handle(ctx, event), LAST_ID_KEY, "feedback", stop
+    )
 
 
 def forever(ctx: Context, sleep=time.sleep) -> None:
-    """Reconnect forever, with backoff while the server is unreachable."""
-    delay = BACKOFF_START
-    while True:
-        started = time.monotonic()
-        try:
-            listen_once(ctx)
-            log.info("feedback stream closed by the server; reconnecting")
-        except (httpx.HTTPError, ValueError) as exc:
-            log.warning("feedback stream: %s; reconnecting in %.0f s", exc, delay)
-        except Exception:
-            log.exception("feedback stream failed; reconnecting in %.0f s", delay)
-        if time.monotonic() - started > 60:
-            delay = BACKOFF_START  # it was up for a while: a fresh failure, start the backoff over
-        sleep(delay)
-        delay = min(BACKOFF_MAX, delay * 2)
+    listener.forever(lambda: listen_once(ctx), "feedback", sleep)

@@ -213,7 +213,7 @@ def scrape_once(
 
 
 def ingest_listings(conn: psycopg.Connection, listings: list[Listing], stats: repo.RunStats) -> None:
-    """Save listings that already carry everything a detail page would add (Aukro, sbazar, fb list
+    """Save listings that already carry everything a detail page would add (Aukro, FB list
     APIs return the full ad, not a teaser), so there is no separate detail fetch to do."""
     stats.seen += len(listings)
     for item in listings:
@@ -308,20 +308,6 @@ def scrape_shops_once(
         stats.requests = client.requests - start
 
     return _run(conn, "scrape_shops", body)
-
-
-def scrape_sbazar_once(conn: psycopg.Connection) -> repo.RunStats:
-    """sbazar.cz disallows us via robots.txt (sbazar.py): log it once per call, touch nothing else."""
-    from deal_hunter import sbazar
-
-    def body(stats):
-        try:
-            sbazar.fetch_category()
-        except RuntimeError as exc:
-            stats.errors.append(str(exc))
-            log.warning(str(exc))
-
-    return _run(conn, "scrape_sbazar", body)
 
 
 def backfill(

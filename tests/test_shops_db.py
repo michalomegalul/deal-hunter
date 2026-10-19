@@ -17,15 +17,17 @@ if not os.getenv("DATABASE_URL"):
 import httpx
 import psycopg
 
-from deal_hunter import alerts, cli, config, datart, normalize, pricing, scraper, shops, sources, watchlist
+from deal_hunter import alerts, config, datart, normalize, pricing, scraper, shops, sources, watchlist
 from deal_hunter.alerts import PRAGUE
 from deal_hunter.bazos import Listing
+from deal_hunter.cli import prices as cli_prices
+from deal_hunter.cli import scrape as cli_scrape
 from deal_hunter.db import repository as repo
 from deal_hunter.geo import DistanceRules
 from deal_hunter.http import PoliteClient
 from tests.conftest import fixture_text
-from tests.test_phase10_db import FakeNtfy, make_ntfy
 from tests.test_triage import FakeLLM
+from tests.test_watchlist_db import FakeNtfy, make_ntfy
 
 GRAFICKA, _, _, _, HDD = (shops.CATEGORIES[i] for i in range(5))
 GPU, DISK = datart.CATEGORIES
@@ -76,7 +78,6 @@ def test_datart_feed_is_stored_per_product_and_read_weekly(conn):
     offers = repo.latest_new_offers(conn)
     assert offers["rtx 5080"] == (43990, 1, "datart")
     assert offers["hdd35 nas 8tb"] == (9499, 1, "datart")  # the cheaper of two 8 TB NAS disks
-    assert repo.latest_new_prices(conn)["hdd35 nas 8tb"] == (9499, 1)
     rows = repo.new_price_rows(conn)
     assert {r["shop"] for r in rows} == {"datart"} and len(rows) == 7
     # fresh for a week; then due again
@@ -464,12 +465,12 @@ def test_settings_defaults_and_floors(monkeypatch):
 def test_shop_client_identifies_itself_and_throttles_on_row_4(conn, monkeypatch):
     monkeypatch.delenv("HUNTER_USER_AGENT", raising=False)
     s = config.load_settings()
-    http = cli._shop_http(s, conn)
+    http = cli_scrape._shop_http(s, conn)
     assert http._client.headers["User-Agent"] == config.SHOP_USER_AGENT
     assert (http.min_delay, http.throttle.row, http.throttle.min_delay) == (6.5, 4, 6.5)
-    assert cli._shop_http(s).throttle is None
+    assert cli_scrape._shop_http(s).throttle is None
     monkeypatch.setenv("HUNTER_USER_AGENT", "custom-agent")
-    assert cli._shop_http(config.load_settings())._client.headers["User-Agent"] == "custom-agent"
+    assert cli_scrape._shop_http(config.load_settings())._client.headers["User-Agent"] == "custom-agent"
 
 
 def test_scrape_runs_the_shop_pass_only_when_enabled(conn, test_url, monkeypatch, capsys):
@@ -483,25 +484,25 @@ def test_scrape_runs_the_shop_pass_only_when_enabled(conn, test_url, monkeypatch
 
     monkeypatch.setattr(scraper, "scrape_shops_once", fake_pass)
     monkeypatch.setattr(repo, "connect", lambda *a, **k: psycopg.connect(test_url, autocommit=True))
-    monkeypatch.setattr(cli, "_with_db", lambda work: work(None, conn))
+    monkeypatch.setattr(cli_scrape, "_with_db", lambda work: work(None, conn))
     monkeypatch.setattr(normalize, "run", lambda c: 0)
     args = argparse.Namespace(pages=None, dry_run=False, loop=False)
 
     monkeypatch.setenv("HUNTER_SOURCES", "mironet")
-    cli.cmd_scrape(args)
+    cli_scrape.cmd_scrape(args)
     assert calls == [(2, 6.0)] and "scrape_shops" not in capsys.readouterr().out  # not due: nothing printed
-    cli.cmd_scrape(args)
+    cli_scrape.cmd_scrape(args)
     assert "scrape_shops: 1 requests" in capsys.readouterr().out
     monkeypatch.setenv("HUNTER_SOURCES", "bazos,nope")
     with pytest.raises(SystemExit, match="Unknown HUNTER_SOURCES"):
-        cli.cmd_scrape(args)
+        cli_scrape.cmd_scrape(args)
 
 
 def test_newprices_command_lists_datart_only_where_it_is_the_new_price(conn, test_url, monkeypatch, capsys):
     zbozi_price(conn, "rtx 5080", 43000)
     datart.fetch_due(client(datart_site()), conn, 7, 4)
     monkeypatch.setattr(repo, "connect", lambda *a, **k: psycopg.connect(test_url, autocommit=True))
-    cli.cmd_newprices(argparse.Namespace(fetch=False, all=False, limit=10))
+    cli_prices.cmd_newprices(argparse.Namespace(fetch=False, all=False, limit=10))
     out = capsys.readouterr().out
     lines = out.splitlines()
     (rtx,) = [ln for ln in lines if "rtx 5080" in ln]
@@ -518,8 +519,10 @@ def test_newprices_fetch_reads_zbozi_and_datart(test_url, monkeypatch, capsys):
 
     monkeypatch.setattr(repo, "connect", lambda *a, **k: psycopg.connect(test_url, autocommit=True))
     monkeypatch.setattr(zbozi, "pages", dict)  # no curated Zboží pages: only Datart is read
-    monkeypatch.setattr(cli, "_new_price_http", lambda settings, throttle_conn=None: client(datart_site()))
-    cli.cmd_newprices(argparse.Namespace(fetch=True, all=True, limit=10))
+    monkeypatch.setattr(
+        cli_prices, "make_new_price_http", lambda settings, throttle_conn=None: client(datart_site())
+    )
+    cli_prices.cmd_newprices(argparse.Namespace(fetch=True, all=True, limit=10))
     out = capsys.readouterr().out
     assert "new prices: 4 pages read, 7 with offers, 3 rejected, 0 errors" in out
     assert "* rtx 5080" in out and "datart" in out

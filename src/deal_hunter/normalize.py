@@ -11,7 +11,6 @@ listed by `hunt review`, where it can be turned into a new catalog rule.
 """
 
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from functools import cache
 from importlib import resources
@@ -20,6 +19,7 @@ import yaml
 
 from deal_hunter import office, storage
 from deal_hunter.bazos import CATEGORY, SECTIONS
+from deal_hunter.text import fold
 
 
 @dataclass(frozen=True)
@@ -96,10 +96,7 @@ def launch_msrp(key: str) -> tuple[int, int] | None:
 
 
 def version() -> int:
-    """One number for all rule sets: GPU catalog * 100 000 + office rules * 100 + storage catalog.
-
-    (Until Phase 9 it was GPU * 1000 + office, at most 2003: every old row is re-normalized once.)
-    """
+    """One number for all rule sets: GPU catalog * 100 000 + office rules * 100 + storage catalog."""
     return load_catalog().version * 100_000 + office.VERSION * 100 + storage.version()
 
 
@@ -113,8 +110,7 @@ def prepare(title: str) -> str:
 
     'MSI RTX3080Ti 12GB' -> 'msi rtx 3080 ti 12 gb'; 'Sapphire 6700XT' -> 'sapphire 6700 xt'.
     """
-    t = unicodedata.normalize("NFKD", title.lower().replace("×", " x "))
-    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = fold(title.replace("×", " x "))
     t = re.sub(r"\b(720|1080|1440|2160) ?p\b", " ", t)  # screen resolutions, not GTX 1080s
     t = re.sub(r"(?<=[a-z])(?=\d)|(?<=\d)(?=[a-z])", " ", t)
     t = re.sub(r"[^a-z0-9+&]+", " ", t)
@@ -292,7 +288,7 @@ def classify(title: str, section: str = CATEGORY, description: str | None = None
     """The pricing key and features of one ad. `description` is only read for disks (storage.py)."""
     kind = SECTIONS.get(section, SECTIONS[CATEGORY]).kind
     if kind == "watch":
-        # RAM/network/case/motherboard sections (Phase 10): never priced or alerted by this
+        # RAM/network/case/motherboard sections: never priced or alerted by this
         # pipeline, only matched against watches.py. Excluded early so they don't show up as
         # unmatched GPUs in `hunt stats`/`hunt review`.
         return Normalized("watch", excluded_reason="watch_only")

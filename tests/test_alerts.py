@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from deal_hunter import alerts
-from deal_hunter.alerts import Rules, gate, in_quiet_hours, parse_votes
+from deal_hunter.alerts import Rules, gate, in_quiet_hours, parse_vote
 from deal_hunter.pricing import FairPrice
 
 RULES = Rules(
@@ -89,6 +89,10 @@ def test_vote_buttons_post_to_the_public_feedback_topic():
     assert up["headers"] == {"Authorization": "Bearer tk_fb"}
     assert up["body"] == '{"ad": 123, "vote": "up"}' and '"down"' in down["body"]
     assert alerts.Ntfy("http://lan", "t", "deals", "https://x", "fb", "").vote_actions(1) == []
+
+
+def parse_votes(events):
+    return [v for v in map(parse_vote, events) if v is not None]
 
 
 def test_parse_votes_skips_junk():

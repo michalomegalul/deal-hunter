@@ -6,8 +6,8 @@ sections (gaming PCs, MacBooks, consumer laptops, workstations) is excluded as `
 doesn't clutter `hunt review`; only titles that name one of these business lines but can't be pinned
 down to a model stay unmatched.
 
-Phase 8 added Fujitsu Esprimo desktops ('esprimo d756', 'esprimo q920') and HP's business all-in-ones
-('eliteone 800 g3', 'proone 600 g4'); both turn up in state auction lots.
+Fujitsu Esprimo desktops ('esprimo d756', 'esprimo q920') and HP's business all-in-ones
+('eliteone 800 g3', 'proone 600 g4') are covered because they turn up in state auction lots.
 
 The canonical model is the pricing key, e.g. 'thinkpad t480', 'thinkpad t14 gen 3', 'latitude 7490',
 'elitebook 840 g5', 'optiplex 7060 micro', 'thinkcentre m720q', 'elitedesk 800 g4 mini'. A missing
@@ -18,8 +18,9 @@ RAM, SSD size and CPU are read from the title as features (best effort, often mi
 """
 
 import re
-import unicodedata
 from dataclasses import dataclass, field
+
+from deal_hunter.text import fold
 
 # Bump whenever the rules change, so `hunt normalize` re-processes old listings.
 VERSION = 3  # v3: Fujitsu Esprimo, HP EliteOne/ProOne all-in-ones
@@ -44,8 +45,7 @@ def prepare(title: str) -> str:
 
     'Lenovo ThinkPad T14s G.2' -> 'lenovo thinkpad t14s g2'; 'HP 400 G2.5' -> 'hp 400 g2.5'.
     """
-    t = unicodedata.normalize("NFKD", title.lower().replace("×", " x "))
-    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = fold(title.replace("×", " x "))
     t = re.sub(r"\bg\.\s?(?=\d)", "g", t)  # 'G.2' -> 'g2'
     t = re.sub(r"(?<=\d)[.,](?=\d)", "#", t)  # keep decimal points ('g2.5', '2,5tb')
     t = re.sub(r"[^a-z0-9#+]+", " ", t).replace("#", ".")
@@ -365,8 +365,7 @@ CPU_RYZEN = re.compile(r"\bryzen ?([3579])(?: pro)? ?(\d{4}[a-z]{0,2})?\b")
 
 def features(title: str) -> dict:
     """{'ram_gb', 'ssd_gb', 'cpu'} from the title, each only when it is reasonably clear."""
-    t = unicodedata.normalize("NFKD", title.lower())
-    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = fold(title)
     t = re.sub(r"(?<=\d),(?=\d)", ".", t)
     t = re.sub(r"[^a-z0-9./]+", " ", t)
     t = re.sub(r"\b(ssd|nvme|hdd|ram)(?=\d)", r"\1 ", t)  # 'ssd256gb' -> 'ssd 256gb'
