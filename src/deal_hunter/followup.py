@@ -26,20 +26,12 @@ time, inspection and pickup.
 """
 
 import re
-import unicodedata
 from datetime import datetime
+
+from deal_hunter.text import kc
 
 MAX_DESCRIPTION = 1500
 NTFY_LIMIT = 3900  # bytes; ntfy turns longer messages into an attachment (limit 4096)
-
-
-def _ascii(text: str) -> str:
-    text = unicodedata.normalize("NFKD", (text or "").lower())
-    return "".join(c for c in text if not unicodedata.combining(c))
-
-
-def kc(n) -> str:
-    return f"{round(n):,} Kč".replace(",", " ") if n is not None else "-"
 
 
 # --- the offer ----------------------------------------------------------------------------------------

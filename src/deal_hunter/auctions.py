@@ -18,13 +18,13 @@ units on Bazoš pay?".
 
 import json
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from deal_hunter import normalize, office, triage
 from deal_hunter.pricing import LEVEL_RANK, FairPrice
+from deal_hunter.text import fold, kc
 
 PROMPT_VERSION = 1  # bump when the prompt or schema changes: lots are extracted again
 
@@ -167,13 +167,8 @@ class Extraction:
         return cls(items=items, **data)
 
 
-def _ascii(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text.lower())
-    return "".join(c for c in text if not unicodedata.combining(c))
-
-
 def _plain(text: str) -> str:
-    return " ".join(re.sub(r"[^\w]+", " ", _ascii(text)).split())
+    return " ".join(re.sub(r"[^\w]+", " ", fold(text)).split())
 
 
 FORM_SUFFIX = re.compile(r"(?<=\d)(dt|sff|mt|usff|t)\b", re.IGNORECASE)
@@ -222,7 +217,7 @@ def quantity_supported(q: int, ascii_source: str) -> bool:
 
 def stated_units(text: str) -> int | None:
     """The unit count the title or description states ('Soubor 22 ks', '19ks notebooků')."""
-    m = UNITS_RE.search(_ascii(text))
+    m = UNITS_RE.search(fold(text))
     if not m:
         return None
     n = int(m.group(1) or m.group(2))
@@ -237,7 +232,7 @@ def clean(data: dict, source: str, title: str = "") -> tuple[Extraction, list[st
     """Coerce the model's answer into an Extraction, checking every claim against the text."""
     notes: list[str] = []
     x = Extraction()
-    plain_source, ascii_source = _plain(source), _ascii(source)
+    plain_source, ascii_source = _plain(source), fold(source)
     raw_items = data.get("items") or []
     if not isinstance(raw_items, list):
         raw_items = [raw_items]
@@ -299,12 +294,7 @@ def clean(data: dict, source: str, title: str = "") -> tuple[Extraction, list[st
         pct = fees.get("percent")
         czk = _int(fees.get("czk"))
         pct = float(pct) if isinstance(pct, int | float) and 0 < pct <= 30 else 0.0
-        if (
-            (pct or czk)
-            and _plain(quote)
-            and _plain(quote) in plain_source
-            and FEE_WORDS.search(_ascii(quote))
-        ):
+        if (pct or czk) and _plain(quote) and _plain(quote) in plain_source and FEE_WORDS.search(fold(quote)):
             x.fee_percent, x.fee_czk, x.fee_quote = pct, czk or 0, quote[:200]
         elif pct or czk:
             notes.append(f"ignored fee {pct or czk}: quote {quote[:60]!r} is not a stated fee in the text")
@@ -549,10 +539,6 @@ def qualifies(v: Valuation, costs: Costs) -> tuple[bool, list[str]]:
 
 
 # --- presentation -----------------------------------------------------------------------------------
-
-
-def kc(n) -> str:
-    return f"{round(n):,} Kč".replace(",", " ") if n is not None else "-"
 
 
 def summary(x: Extraction, title: str) -> str:

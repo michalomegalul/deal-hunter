@@ -11,7 +11,6 @@ listed by `hunt review`, where it can be turned into a new catalog rule.
 """
 
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from functools import cache
 from importlib import resources
@@ -20,6 +19,7 @@ import yaml
 
 from deal_hunter import office, storage
 from deal_hunter.bazos import CATEGORY, SECTIONS
+from deal_hunter.text import fold
 
 
 @dataclass(frozen=True)
@@ -113,8 +113,7 @@ def prepare(title: str) -> str:
 
     'MSI RTX3080Ti 12GB' -> 'msi rtx 3080 ti 12 gb'; 'Sapphire 6700XT' -> 'sapphire 6700 xt'.
     """
-    t = unicodedata.normalize("NFKD", title.lower().replace("×", " x "))
-    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = fold(title.replace("×", " x "))
     t = re.sub(r"\b(720|1080|1440|2160) ?p\b", " ", t)  # screen resolutions, not GTX 1080s
     t = re.sub(r"(?<=[a-z])(?=\d)|(?<=\d)(?=[a-z])", " ", t)
     t = re.sub(r"[^a-z0-9+&]+", " ", t)

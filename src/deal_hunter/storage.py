@@ -35,12 +35,13 @@ costs a data point, so anything unclear stays unmatched and shows up in `hunt re
 """
 
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from functools import cache
 from importlib import resources
 
 import yaml
+
+from deal_hunter.text import fold
 
 
 @dataclass(frozen=True)
@@ -121,8 +122,7 @@ def prepare(text: str) -> str:
 
     '3,5" SATA HDD 2 TB' -> '3.5 sata hdd 2 tb'; 'M.2 NVMe' -> 'm2 nvme'; '4×' -> '4 x'.
     """
-    t = unicodedata.normalize("NFKD", (text or "").lower().replace("×", " x "))
-    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = fold((text or "").replace("×", " x "))
     t = re.sub(r"(?<=\d),(?=\d)", ".", t)
     t = re.sub(r"\bm\.2\b", "m2", t)
     t = re.sub(r"\b(\d{1,2})x(?=[a-z])", r"\1 x ", t)  # '3xSSD' -> '3 x ssd'

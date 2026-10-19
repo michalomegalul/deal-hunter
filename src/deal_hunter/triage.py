@@ -14,11 +14,12 @@ import hashlib
 import json
 import re
 import time
-import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
+
+from deal_hunter.text import fold
 
 # Bump when the prompt or schema changes: candidates are triaged again.
 PROMPT_VERSION = 3  # v3: `ships` for everything, the SMART/disk questions for hard disks
@@ -336,14 +337,9 @@ NEGATION = re.compile(r"\b(ne|neni|nelze|nemozn\w*|bez)\b")
 PAYMENT_WORDS = re.compile(r"zaloh|predem|ucet|platb|zaplat|prevod|prepay|deposit|penize")
 
 
-def _ascii(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text.lower())
-    return "".join(c for c in text if not unicodedata.combining(c))
-
-
 def check_signal(signal: str, quote: str, notes: list[str]) -> str | None:
     """Keep, relabel ('other') or reject a hard scam signal by what its quote says."""
-    q = _ascii(quote)
+    q = fold(quote)
     if signal == "shipping_only":
         if PICKUP_WORDS.search(q):
             if NEGATION.search(q):
@@ -383,7 +379,7 @@ def clean(data: dict, source: str = "") -> tuple[Triage, list[str]]:
         "ships",
     ):
         setattr(t, name, _bool(data.get(name, False)))
-    if t.ships and source and not SHIPPING_WORDS.search(_ascii(source)):
+    if t.ships and source and not SHIPPING_WORDS.search(fold(source)):
         t.ships = False  # nothing in the ad is about sending it
         notes.append("ignored 'ships': the ad says nothing about shipping")
     t.defects = _strings(data.get("defects"))[:10]
@@ -436,7 +432,7 @@ def numbers(text: str) -> set[int]:
 
 def clean_disk(raw: dict, source: str, notes: list[str]) -> dict:
     """The disk answer, with every claim checked against the ad: numbers must be in it, flags need words."""
-    text = _ascii(source)
+    text = fold(source)
     found = numbers(source)
     out: dict = {}
     hours = _int(raw.get("power_on_hours"))

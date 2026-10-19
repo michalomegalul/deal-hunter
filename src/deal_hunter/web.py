@@ -23,6 +23,8 @@ from html import escape as esc
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
+from deal_hunter.text import kc
+
 log = logging.getLogger(__name__)
 
 CSS = """
@@ -60,10 +62,6 @@ def page(title: str, body: str) -> str:
         f"<title>{esc(title)}</title><style>{CSS}</style></head>"
         f"<body>{NAV}<h1>{esc(title)}</h1>{body}</body></html>"
     )
-
-
-def kc(n) -> str:
-    return f"{round(n):,} Kč".replace(",", " ") if n is not None else "-"
 
 
 def pct(x) -> str:
