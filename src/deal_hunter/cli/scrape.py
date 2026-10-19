@@ -57,6 +57,8 @@ def cmd_scrape(args: argparse.Namespace) -> None:
         def work(client, conn):
             if "bazos" in settings.sources:
                 stats = scraper.scrape_once(client, conn, pages, sections)
+                if fast := scraper.fast_recheck(client, conn):
+                    print(fast.summary(), flush=True)
             else:
                 stats = repo.RunStats("scrape")
             if "aukro" in settings.sources:

@@ -186,6 +186,30 @@ def due_for_recheck(conn: psycopg.Connection, older_than_hours: float, limit: in
     ).fetchall()
 
 
+def due_for_fast_recheck(
+    conn: psycopg.Connection, max_age_hours: float, every_hours: float, limit: int
+) -> list[tuple[int, str]]:
+    """(id, url) of young Bazoš deal candidates that dropped off the pages we read.
+
+    Not seen for 30 min means the last scrapes didn't list it: it scrolled off or was deleted. Each one
+    is re-read at most every `every_hours`, and only while it is younger than `max_age_hours`.
+    """
+    return conn.execute(
+        "SELECT l.id, l.url FROM deals d JOIN listings l ON l.id = d.listing_id "
+        "WHERE l.gone_at IS NULL AND l.source = 'bazos' "
+        "AND l.first_seen > now() - make_interval(secs => %s) "
+        "AND l.last_seen < now() - interval '30 minutes' "
+        "AND (d.rechecked_at IS NULL OR d.rechecked_at < now() - make_interval(secs => %s)) "
+        "ORDER BY l.first_seen DESC LIMIT %s",
+        (max_age_hours * 3600, every_hours * 3600, limit),
+    ).fetchall()
+
+
+def mark_fast_rechecked(conn: psycopg.Connection, listing_id: int) -> None:
+    with conn.transaction():
+        conn.execute("UPDATE deals SET rechecked_at = now() WHERE listing_id = %s", (listing_id,))
+
+
 @dataclass
 class RunStats:
     kind: str

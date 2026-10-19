@@ -15,7 +15,9 @@ else is built on what it collects.
 - **Scraper** (`hunt scrape --loop`, every 10 min): the RSS feed and first category pages of the Bazoš
   sections for graphics cards, PCs, laptops and hard disks, plus Aukro's JSON API; a detail page only
   for new ads worth keeping. Five watch-only Bazoš sections (RAM, network, cases, motherboards) every
-  45 min. The **rechecker** (every 6 h) marks ads that have gone; a one-off **backfill** seeds history.
+  45 min. Deal candidates that drop off the pages are re-read soon (at most every 2 h, for 72 h), so a
+  quick sale is noticed within hours. The **rechecker** (every 6 h) marks other ads that have gone; a
+  one-off **backfill** seeds history.
   See [Sources and politeness](docs/sources.md).
 - **Normalizers**: rule-based, conservative mapping of titles to pricing keys: GPUs (`rtx 3060 12gb`,
   from a YAML catalog), ex-office PCs and business laptops (`thinkpad t480`, `optiplex 7060 micro`,

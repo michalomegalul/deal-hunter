@@ -131,7 +131,8 @@ text tables, for all categories together and for each category:
 
 Votes on auction lots and test pushes are not counted (test pushes are never stored as votes; a
 `listing_id` of 0 from older data is ignored too). `gone_at` is when a recheck noticed the ad was
-gone, up to a few hours after it went, and an ad also vanishes when the seller gives up, so treat the
+gone: within about 2 hours for deal candidates younger than 72 h (the fast recheck, see
+[Sources](sources.md)), up to ~12 hours for everything else. An ad also vanishes when the seller gives up, so treat the
 shares as a comparison between states, not as absolute numbers. The same tables are on the `/flips` page.
 
 ## Distance from home
