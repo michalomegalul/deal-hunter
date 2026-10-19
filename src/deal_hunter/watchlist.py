@@ -1,4 +1,4 @@
-"""Watchlists (Phase 10 part 1): standing "I want X" searches, managed from a phone over ntfy.
+"""Watchlists: standing "I want X" searches, managed from a phone over ntfy.
 
 Two independent pieces:
 

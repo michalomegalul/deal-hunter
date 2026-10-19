@@ -6,8 +6,8 @@ sections (gaming PCs, MacBooks, consumer laptops, workstations) is excluded as `
 doesn't clutter `hunt review`; only titles that name one of these business lines but can't be pinned
 down to a model stay unmatched.
 
-Phase 8 added Fujitsu Esprimo desktops ('esprimo d756', 'esprimo q920') and HP's business all-in-ones
-('eliteone 800 g3', 'proone 600 g4'); both turn up in state auction lots.
+Fujitsu Esprimo desktops ('esprimo d756', 'esprimo q920') and HP's business all-in-ones
+('eliteone 800 g3', 'proone 600 g4') are covered because they turn up in state auction lots.
 
 The canonical model is the pricing key, e.g. 'thinkpad t480', 'thinkpad t14 gen 3', 'latitude 7490',
 'elitebook 840 g5', 'optiplex 7060 micro', 'thinkcentre m720q', 'elitedesk 800 g4 mini'. A missing

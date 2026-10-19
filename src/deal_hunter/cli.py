@@ -512,7 +512,7 @@ def cmd_work(args: argparse.Namespace) -> None:
         step()
 
 
-# --- auctions (Phase 7) ---------------------------------------------------------------------------------
+# --- auctions -------------------------------------------------------------------------------------------
 
 
 def _auction_rules(settings):
@@ -938,7 +938,7 @@ def _notify_test_ad(listing_id: int) -> None:
     print(f"Sent TEST push for ad {listing_id} (id {msg_id}), photo: {alerts.first_image(row) or 'none'}")
 
 
-# --- watchlists (Phase 10 part 1) -----------------------------------------------------------------
+# --- watchlists ----------------------------------------------------------------------------------
 
 
 def cmd_watch_add(args: argparse.Namespace) -> None:
@@ -1012,7 +1012,7 @@ def cmd_watch_listen(args: argparse.Namespace) -> None:
         print(f"{sum(e.get('event') == 'message' for e in events)} messages since {since}")
 
 
-# --- flips log and evaluation (Phase 6) ------------------------------------------------------------
+# --- flips log and evaluation --------------------------------------------------------------------
 
 
 def _price(text: str) -> int:

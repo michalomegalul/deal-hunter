@@ -34,7 +34,7 @@ SECTIONS = {
     "pc": Section("pc", 12, 1, "office", "in_scope"),  # PC, Počítače
     "notebook": Section("notebook", 10, 1, "office", "in_scope"),  # Notebooky
     "hdd": Section("hdd", 5, 1, "storage", "in_scope"),  # Hard disky, SSD
-    # Phase 10 watchlists: not priced or alerted by the main pipeline (normalize.classify marks
+    # Watch-only sections: not priced or alerted by the main pipeline (normalize.classify marks
     # them excluded_reason='watch_only'), only matched against watches.py's keyword/LLM check.
     # Read every 45 min (Section.cadence_min, enforced in scraper.scrape_once), not every cycle,
     # to keep the request budget low; checked against robots.txt 2026-10-11 (plain category/RSS

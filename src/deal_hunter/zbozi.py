@@ -14,7 +14,7 @@ lowest offer across its pages: the cheapest way to buy one new, roughly.
 A product page is server-rendered: its `__NEXT_DATA__` JSON has the product name, the category, the
 lowest offer (`minPrice`, in hellers) and the number of shops. A page is only accepted if it is in the
 graphics card category and its name, run through our own GPU normalizer, gives the same pricing key:
-a wrong or moved URL can't silently price the wrong card. Hard disks (Phase 9) work the same way: the
+a wrong or moved URL can't silently price the wrong card. Hard disks work the same way: the
 internal hard disk category and the storage normalizer ('Seagate IronWolf 8 TB (ST8000VN004)' ->
 'hdd35 nas 8tb'), so a disk's new price is per class and capacity, and pushes show it per TB.
 

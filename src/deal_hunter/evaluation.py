@@ -1,4 +1,4 @@
-"""Does the alert pipeline work? Flip profit and the `hunt eval` numbers (Phase 6).
+"""Does the alert pipeline work? Flip profit and the `hunt eval` numbers.
 
 Pure functions over the rows `repository.list_flips` and `repository.eval_deals` return, so they are
 unit-testable without a database. `eval_tables` builds plain tables that `hunt eval` prints as text

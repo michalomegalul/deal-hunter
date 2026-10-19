@@ -32,7 +32,7 @@ class Settings:
     loop_minutes: float  # scrape cycle interval
     recheck_hours: float  # how often active listings are re-checked
     recheck_limit: int  # max detail pages per recheck run
-    # --- more sources, same pipeline (Phase 10) ---
+    # --- more sources, same pipeline ---
     sources: tuple[str, ...]  # HUNTER_SOURCES=bazos,sbazar,aukro,fb,mironet; default keeps today's behaviour
     aukro_pages: int  # category pages read per cycle, per Aukro category (60 items/page)
     shop_pages: int  # pages read per shop outlet category (shops.py)
@@ -58,7 +58,7 @@ class Settings:
     ntfy_token: str
     ntfy_feedback_topic: str
     ntfy_feedback_token: str  # write-only token for the feedback topic, embedded in the buttons
-    # --- watchlists (Phase 10 part 1) ---
+    # --- watchlists ---
     ntfy_watch_topic: str  # ntfy topic read for watch add/list/stop/help commands
     ntfy_watch_token: str  # read-only token for that topic
     watch_scan_hours: float  # how far back `hunt work` looks for listings to match against watches
@@ -86,7 +86,7 @@ class Settings:
     auction_lot_hours: float
     auction_target_margin: float
     auction_min_profit: float
-    # --- new prices (Zboží.cz, launch MSRPs) and follow-ups (Phase 8) ---
+    # --- new prices (Zboží.cz, Datart, launch MSRPs) and follow-ups ---
     usd_czk: float  # launch MSRPs to Kč (display and the sanity check only)
     new_prices_enabled: bool  # weekly Zboží.cz product pages and Datart.cz category pages, inside the worker
     new_price_days: float  # how often each product page is read
@@ -94,7 +94,7 @@ class Settings:
     new_price_per_cycle: int
     datart_pages: int  # category pages read per Datart category in the weekly new-price step
     offer_discount: float  # the follow-up's proposed price: this much below asking (5-10 %)
-    # --- distance from home and disks (Phase 9) ---
+    # --- distance from home and disks ---
     home: tuple[float, float]  # HUNTER_HOME_PSC, else HUNTER_HOME_LAT/LON, else Prague centre
     pickup_km: float  # pickup radius; 0 turns the distance rule off
     pickup_km_by_category: tuple[tuple[str, float], ...]  # HUNTER_PICKUP_KM_HDD=300 -> (('hdd', 300.0),)

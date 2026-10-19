@@ -597,7 +597,7 @@ def week_summary(conn: psycopg.Connection) -> dict:
     return out
 
 
-# --- auction lots (Phase 7) -----------------------------------------------------------------------
+# --- auction lots --------------------------------------------------------------------------------
 
 
 def _dicts(cur) -> list[dict]:
@@ -889,7 +889,7 @@ def sold_lot_extractions(conn: psycopg.Connection) -> list[tuple[int, dict]]:
     return [(r[0], r[1]) for r in rows]
 
 
-# --- Phase 8: votes, follow-ups, flips, new prices ---------------------------------------------------
+# --- votes, follow-ups, new prices -------------------------------------------------------------------
 
 
 def save_votes(conn: psycopg.Connection, votes: list) -> list:
@@ -1037,7 +1037,7 @@ def price_history(conn: psycopg.Connection, listing_id: int) -> list[dict]:
     return _dicts(cur)
 
 
-# --- watchlists (Phase 10 part 1) ------------------------------------------------------------------
+# --- watchlists -----------------------------------------------------------------------------------
 
 
 def insert_watch(
@@ -1140,7 +1140,7 @@ def watch_pushes_since(conn: psycopg.Connection, since) -> int:
     return conn.execute("SELECT count(*) FROM watch_hits WHERE pushed_at >= %s", (since,)).fetchone()[0]
 
 
-# --- Phase 6: the flips log and the alert evaluation --------------------------------------------------
+# --- the flips log and the alert evaluation -----------------------------------------------------------
 
 FLIP_FIELDS = ("buy_price", "sold_at", "sold_price", "fees", "notes")
 

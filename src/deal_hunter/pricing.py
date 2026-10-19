@@ -1,82 +1,16 @@
 """Fair price v1: a robust, weighted median of asking prices per canonical model.
 
-For every model (the normalizer's pricing key: 'rtx 3080 10gb', 'thinkpad t480', ...):
+The full rules and their reasons are in the README ("Fair price", "New prices and priors",
+"Hard disks"). In short, per pricing key:
 
-1. Samples: matched ads with a numeric price (`price_kind = 'fixed'`) seen in the last 60 days.
-2. Reposts are collapsed to one sample: same model and either the same seller or the same title,
-   at a price within 5 %. A seller who deletes and re-posts an ad every few days doesn't get to
-   vote five times.
-3. Weights: an ad that disappeared within 72 h of first being seen probably sold at about its
-   asking price, so it counts double. Everything else counts once.
-4. Outliers: anything below 10 % or above 300 % of the first-pass median is dropped (typos,
-   "1 Kč", a whole PC listed as a GPU, a box without the card...).
-5. Estimate: the weighted median of what is left, with the weighted 25th/75th percentiles as the
-   spread (IQR).
-6. Confidence (0..1) = n / (n + 5) * 1 / (1 + (IQR / median / 0.25)^2): more samples and a tighter
-   spread mean more trust. Levels: high >= 0.6 (and n >= 10), medium >= 0.35 (and n >= 6), low
-   otherwise; fewer than 4 samples gives no estimate at all.
-
-Office hardware also varies with RAM and SSD size. Per category (office PCs, office laptops) one
-pooled slope per doubling of RAM and of SSD is estimated from within-model differences:
-log(price) - model mean against log2(GB) - model mean, a two-variable least squares fit through the
-origin. It is shrunk toward a prior (RAM +12 %, SSD +6 % per doubling) with the weight of 20
-samples, and clipped to [0, 0.35]. Each sample is moved to its model's reference spec (the median
-RAM/SSD of that model's ads) before taking the median. A specific ad's fair price is then moved
-back to its own spec. Missing specs are left unadjusted.
-
-Disk pricing (Phase 9 review fix). 3.5" HDDs priced by class + capacity ('hdd35 enterprise 16tb')
-rarely got the 4 ads a fair price needs: most of a class's listings are spread across 6-8 different
-capacities. For a 3.5" HDD with a known class (nas / enterprise / desktop / surveillance) and desktop
-externals (also 3.5"; storage.pooled_key), the pricing key drops the capacity ('hdd35 enterprise') and
-the estimate is run on **Kč/TB** (each sample's price / capacity_tb) instead of Kč: same dedupe,
-weighting, outliers, median/IQR/confidence as above, just on a per-TB figure (`fair_price(...,
-per_tb=True)`). A listing's fair price is that Kč/TB median x its own capacity_tb (`FairPrice.
-for_listing`); quantity is handled as before (storage.unit_price splits a lot price per drive first).
-SAS drives (a market of their own, and rarer now that the interface call is stricter, see storage.py)
-and 3.5" drives with no known class keep their old capacity-specific key, unpooled - as do 2.5" and SSD.
-
-Whether bigger drives cost more per TB: checked against the curated Zboží.cz new-price pages
-(new_price_pages.yaml) on 2026-10-10 - nas class 8/12/16 TB averaged ~1 135 / 1 037 / 1 082 Kč/TB,
-enterprise 12/16/18/20 TB ~1 114 / 947 / 972 / 1 066 Kč/TB: noisy and not monotonic (16 TB enterprise
-was the *cheapest* per TB, not the dearest). That doesn't support a capacity slope, so disks are priced
-**flat per class**: no adjustment, unlike the RAM/SSD slopes above. If real data later shows a
-consistent per-TB trend, the same slope machinery (PRIOR_SLOPE, estimate_adjustment) could be pointed
-at capacity_tb instead of being left out; for now a slope fit to this shape of data would just be noise
-dressed up as a model.
-
-Priors for thin data (Phase 8). A model with fewer than `confident_n` samples (the alert gate's
-HUNTER_ALERT_MIN_SAMPLES, 15) is shrunk toward a prior, in log space, with the prior counting as
-PRIOR_N (5) samples:
-
-    w = n / (n + PRIOR_N)          fair = exp(w * ln(median) + (1 - w) * ln(prior))
-
-- GPUs and disks: prior = current new price (the lowest of Zboží.cz and Datart.cz, fetched in the last 30 days) x the typical
-  used/new ratio of that category (disks: 0.6 until there is data, see NEW_RATIO_FALLBACK_BY_CATEGORY). The ratio is the median of median/new over models that have both a new price and at least
-  `confident_n` samples (so no model's prior is built from its own shrunk value); with fewer than 3
-  such models it is 0.75 (current cards hold their value; 0.6 pulled fresh models 12-16 % too low).
-  Clipped to [0.35, 0.9]. For a pooled disk class the "new price" is itself a Kč/TB figure: the median
-  Kč/TB across that class's Zboží keys (disk_new_per_tb), one per capacity - same units as the class's
-  median, so the ratio and the shrink both just work. No confidence boost, and no prior at all when
-  the class is already `over_new`: the same rules as GPUs, just in Kč/TB instead of Kč.
-- Office hardware: prior = the median per-unit final price of ended state auction lots of that model
-  (wholesale, as-is) x AUCTION_UPLIFT (1.5: tested, cleaned, sold one by one). Each auction lot counts
-  as one sample, at most 3 (instead of PRIOR_N): a few lots are weak evidence. With at least 2 lots the
-  per-unit auction median is also a floor: a Bazoš asking price below what a state auction fetches as-is
-  is not a fair price for a working unit.
-- A prior that disagrees with the data by more than 2x (either way) is ignored and noted: the new
-  price page is probably the wrong product, or the market is odd.
-- With a prior, the gate counts n + the prior's weight (the "effective n"), so a model with 10 ads
-  and a new price passes the 15-sample gate. The 7-days-of-data rule is not touched. The confidence
-  level is NOT raised: it stays what the ads alone support, since a prior moves the estimate but is
-  not evidence about this market. At `confident_n` and above the median stands alone.
-- A model whose own ads already sit at >= 95 % of new (the sanity flag below) gets no prior: the
-  data or the mapping is off, and shrinking toward the new price would only hide that.
-
-Sanity check: a used fair price (or the raw median, before a prior) at 95 % or more of the new price (Zboží, else the launch MSRP converted
-with HUNTER_USD_CZK and 21 % VAT) means the estimate or the mapping is off; candidates of that model are
-dropped (FairPrice.over_new).
-
-These are asking prices, not sale prices; see the README.
+- samples are `fixed`-price ads from the last 60 days; reposts collapse to one, ads gone within 72 h
+  weigh double, outliers (<10 % or >300 % of a first-pass median) go;
+- estimate = weighted median, spread = weighted IQR, confidence from n and IQR/median;
+- office keys are moved to a reference RAM/SSD spec with pooled, shrunk per-doubling slopes;
+- pooled 3.5" HDD classes are priced flat in Kč/TB (no capacity slope: the new-price data showed none);
+- thin models are shrunk in log space toward a prior (new price x used/new ratio, or state auction
+  prices x AUCTION_UPLIFT for office), never raising the confidence level;
+- a fair price at >= 95 % of new marks the model as `over_new` and its candidates are dropped.
 """
 
 import math
@@ -286,7 +220,7 @@ def reference_spec(samples: list[Sample]) -> dict:
 
 
 def estimate_adjustment(samples: list[Sample]) -> Adjustment:
-    """Pooled RAM/SSD slopes for one category, from within-model differences (see module doc)."""
+    """Pooled RAM/SSD slopes for one category, from within-model differences (README, "Fair price")."""
     by_model: dict[str, list[Sample]] = defaultdict(list)
     for s in samples:
         if all(s.features.get(k) for k in SPEC_KEYS):
@@ -323,7 +257,7 @@ def fair_price(
 
     `per_tb`: each sample's price is divided by its own capacity_tb first, so the result (median,
     q25, q75) is a Kč/TB figure for a pooled 3.5" HDD class, not a Kč figure for one capacity (see
-    the module doc, "Disk pricing"). A sample without capacity_tb can't be put in Kč/TB and is
+    README, "Hard disks"). A sample without capacity_tb can't be put in Kč/TB and is
     dropped.
     """
     if not samples:
@@ -389,7 +323,7 @@ def estimate_all(samples: list[Sample]) -> dict[str, FairPrice]:
     return out
 
 
-# --- new prices and priors (Phase 8) ----------------------------------------------------------------
+# --- new prices and priors ------------------------------------------------------------------------
 
 RETAIL_SOURCES = ("zbozi", "datart")  # NewPrice.source values that are live shop offers (priors apply)
 
@@ -435,7 +369,7 @@ def disk_new_per_tb(
 
     Each key in `zbozi` (a Zboží page or a Datart row, see `shop`) prices one capacity ('hdd35 nas 8tb', 'hdd35 nas 12tb', ...);
     dividing by that capacity and taking the median across a class's keys gives the new Kč/TB that
-    matches the pooled class's own Kč/TB median (see the module doc, "Disk pricing").
+    matches the pooled class's own Kč/TB median (README, "Hard disks").
     """
     from deal_hunter import storage
 
@@ -508,7 +442,7 @@ def apply_priors(
 
     `auction_units`: {model: [per-unit final prices of ended auction lots]}. Returns the GPU used/new ratio
     (each category gets its own, see used_new_ratio).
-    See the module docstring for the rules.
+    See the README ("New prices and priors") for the rules.
     """
     new, auction_units = new or {}, auction_units or {}
     ratios = {c: used_new_ratio(prices, new, confident_n, c) for c in {fp.category for fp in prices.values()}}

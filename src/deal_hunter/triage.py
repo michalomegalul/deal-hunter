@@ -118,7 +118,7 @@ KIND = {
     "hdd": "hard disk / SSD",
 }
 
-# Hard disks (Phase 9) get extra questions: what the seller says about the drive's health. Only for that
+# Hard disks get extra questions: what the seller says about the drive's health. Only for that
 # category, so the GPU/office prompt and schema stay as they were (apart from `ships`).
 DISK_PROMPT = """
 This ad sells a hard disk (or SSD). Also fill in "disk" from what the ad says about the drive itself:
