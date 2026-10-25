@@ -1114,14 +1114,15 @@ def listings_for_watch(conn: psycopg.Connection, watch_id: int, hours: float, li
 
     A prefilter miss is never stored in `watch_hits` (see the migration), so it is simply seen
     again on the next cycle until it ages out of the `hours` window -- bounded and cheap (no LLM
-    call unless the prefilter matches).
+    call unless the prefilter matches). Newest first: those re-read misses would otherwise fill
+    `limit` and keep a new ad waiting until the older ones age out.
     """
     cur = conn.execute(
         "SELECT l.id, l.title, l.description, l.price_czk, l.location, l.psc, l.source, l.url, "
         "l.images, l.section, l.distance_km FROM listings l "
         "WHERE l.first_seen > now() - make_interval(secs => %s) AND l.gone_at IS NULL "
         "AND NOT EXISTS (SELECT 1 FROM watch_hits h WHERE h.watch_id = %s AND h.listing_id = l.id) "
-        "ORDER BY l.first_seen LIMIT %s",
+        "ORDER BY l.first_seen DESC LIMIT %s",
         (hours * 3600, watch_id, limit),
     )
     return _dicts(cur)
@@ -1140,16 +1141,33 @@ def record_watch_hit(
     return cur.rowcount == 1
 
 
-def pending_watch_matches(conn: psycopg.Connection, limit: int = 100) -> list[dict]:
-    """Matched hits never pushed yet, oldest first, with the listing and the watch they're for."""
+def pending_watch_matches(
+    conn: psycopg.Connection, limit: int = 100, max_age_hours: float = 24
+) -> list[dict]:
+    """Matched hits never pushed yet, oldest first, with the listing and the watch they're for.
+
+    Not for ads that are gone, nor for matches older than `max_age_hours`: a used item found a day
+    ago has most likely been sold, so it isn't worth a push.
+    """
     cur = conn.execute(
-        "SELECT h.watch_id, h.listing_id, h.result, h.created_at, w.query, w.tag, "
-        "l.title, l.price_czk, l.location, l.psc, l.url, l.images, l.source, l.distance_km "
-        "FROM watch_hits h JOIN watches w ON w.id = h.watch_id JOIN listings l ON l.id = h.listing_id "
-        "WHERE h.matched AND h.pushed_at IS NULL ORDER BY h.created_at LIMIT %s",
-        (limit,),
+        "SELECT h.watch_id, h.listing_id, h.result, h.created_at, w.query, w.tag, w.max_price, w.radius_km, "
+        "w.categories, l.title, l.price_czk, l.location, l.psc, l.url, l.images, l.source, l.distance_km, "
+        "l.section FROM watch_hits h JOIN watches w ON w.id = h.watch_id JOIN listings l ON l.id = h.listing_id "
+        "WHERE h.matched AND h.pushed_at IS NULL AND l.gone_at IS NULL "
+        "AND h.created_at > now() - make_interval(secs => %s) ORDER BY h.created_at LIMIT %s",
+        (max_age_hours * 3600, limit),
     )
     return _dicts(cur)
+
+
+def unmatch_watch_hit(conn: psycopg.Connection, watch_id: int, listing_id: int, reason: str) -> None:
+    """A matched hit that is no longer within the watch's limits: never pushed, the reason kept."""
+    conn.execute(
+        "UPDATE watch_hits SET matched = false, result = coalesce(result, '{}'::jsonb) || %s "
+        "WHERE watch_id = %s AND listing_id = %s",
+        (Jsonb({"skipped": reason}), watch_id, listing_id),
+    )
+    conn.commit()
 
 
 def mark_watch_pushed(conn: psycopg.Connection, watch_id: int, listing_id: int) -> None:

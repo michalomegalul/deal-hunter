@@ -140,6 +140,27 @@ def test_scan_prefilter_miss_never_calls_the_llm(conn):
     assert stats.scanned == 1 and stats.prefiltered == 0 and stats.llm_checked == 0
 
 
+def test_scan_skips_a_listing_over_the_watch_limits_without_the_llm(conn):
+    repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"], max_price=1600)
+    ram_listing(conn, price_czk=4500)
+    stats = watchlist.scan_and_match(conn, FakeLLM(), None, hours=48.0)  # FakeLLM() raises if called
+    assert stats.prefiltered == 1 and stats.llm_checked == 0 and stats.matched == 0
+    row = conn.execute("SELECT matched, result FROM watch_hits").fetchone()
+    assert row[0] is False and row[1]["skipped"] == "price 4 500 Kč > max 1 600 Kč"
+    # recorded, so it isn't scanned again
+    assert watchlist.scan_and_match(conn, FakeLLM(), None, hours=48.0).scanned == 0
+
+
+def test_scan_reads_the_newest_listings_first(conn):
+    repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
+    for i in range(3):  # older prefilter misses, re-read on every cycle
+        ram_listing(conn, listing_id=600 + i, title="RTX 3060 12GB grafická karta")
+    conn.execute("UPDATE listings SET first_seen = now() - interval '10 hours'")
+    ram_listing(conn)  # the new matching ad
+    stats = watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48.0, limit=2)
+    assert stats.matched == 1
+
+
 def test_push_matches_sends_and_marks_pushed(conn):
     repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"], tag="homelab")
     ram_listing(conn)
@@ -152,6 +173,31 @@ def test_push_matches_sends_and_marks_pushed(conn):
     assert "Kingston DDR4" in site.posts[0]["message"] and "1 200 Kč" in site.posts[0]["message"]
     # already pushed: a second call sends nothing more
     assert watchlist.push_matches(conn, make_ntfy(FakeNtfy()), now, 23, 7, max_per_day=10) == 0
+
+
+def test_push_matches_unmatches_a_hit_now_over_the_limits(conn):
+    watch_id = repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"], radius_km=80)
+    ram_listing(conn)
+    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48.0)
+    conn.execute("UPDATE listings SET distance_km = 231, location = 'Brno'")  # known only after the match
+    site = FakeNtfy()
+    now = datetime(2026, 10, 11, 14, 0, tzinfo=PRAGUE)
+    assert watchlist.push_matches(conn, make_ntfy(site), now, 23, 7, max_per_day=10) == 0
+    assert site.posts == [] and repo.pending_watch_matches(conn) == []
+    row = conn.execute("SELECT matched, result FROM watch_hits WHERE watch_id = %s", (watch_id,)).fetchone()
+    assert row[0] is False and row[1]["skipped"] == "Brno 231 km > 80 km" and row[1]["brand"] == "Kingston"
+
+
+def test_pending_matches_leave_out_gone_ads_and_old_matches(conn):
+    repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
+    ram_listing(conn, listing_id=501)
+    ram_listing(conn, listing_id=502, title="Corsair DDR4 2x16GB 3200MHz")
+    other = {**GOOD_ANSWER, "evidence": "Corsair DDR4 2x16GB 3200MHz"}
+    watchlist.scan_and_match(conn, FakeLLM(json.dumps(other), json.dumps(GOOD_ANSWER)), None, hours=48.0)
+    assert len(repo.pending_watch_matches(conn)) == 2
+    conn.execute("UPDATE listings SET gone_at = now() WHERE id = 501")
+    conn.execute("UPDATE watch_hits SET created_at = now() - interval '25 hours' WHERE listing_id = 502")
+    assert repo.pending_watch_matches(conn) == []
 
 
 def test_push_matches_respects_quiet_hours(conn):
@@ -171,7 +217,7 @@ def test_push_matches_respects_the_daily_cap(conn):
     # each listing needs its own evidence quote: an evidence string that isn't actually in the ad
     # is treated as unsupported (clean_watch_answer), same anti-hallucination check as triage.py
     other = {**GOOD_ANSWER, "evidence": "Corsair DDR4 2x16GB 3200MHz"}
-    llm = FakeLLM(json.dumps(GOOD_ANSWER), json.dumps(other))
+    llm = FakeLLM(json.dumps(other), json.dumps(GOOD_ANSWER))  # newest (502) is checked first
     watchlist.scan_and_match(conn, llm, None, hours=48.0)
     assert len(repo.pending_watch_matches(conn)) == 2
     site = FakeNtfy()
