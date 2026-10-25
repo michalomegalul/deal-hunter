@@ -10,15 +10,27 @@ just matched and pushed. Two independent pieces (`watchlist.py`).
   default 48 h) from *any* source and section -- not only the five sections below. A cheap
   keyword/regex prefilter on title + description runs first (`watchlist.prefilter`: include groups
   OR'd, terms within a group AND'd, an exclude list that drops a match outright); only prefilter
-  hits go to the LLM. The LLM check (the same local Ollama model as `triage.py`, JSON-schema output,
+  hits go to the LLM. Exclude terms match from the start of a word, and "SO-DIMM"/"non-ECC" count as
+  one word, so `sodimm` catches "SO-DIMM" and `ecc` doesn't drop a "non-ECC" kit. Before the LLM, the
+  watch's own limits apply (`watchlist.within_limits`): over `max_price`, beyond `radius_km`, or
+  outside its `categories` (when set) is recorded in `watch_hits` as no match with the reason
+  (`result.skipped`) and never asked about. The listing's own price and distance are used; an unknown
+  price ("dohodou") or distance passes. The LLM check (the same local Ollama model as `triage.py`, JSON-schema output,
   temperature 0, disk cache) answers yes/no plus `{product_type, brand, model, condition, price_czk}`
   with an exact quote from the ad as evidence -- a quote that isn't actually in the ad is treated as
-  no match, same defence as triage's scam-signal quotes. Every (watch, listing) pair that passes the
+  no match, same defence as triage's scam-signal quotes. It also answers `accessory_only` (the ad
+  sells only a mount, cover, cable, PoE injector or power supply for such an item); that is no match
+  either. Asked inside the `matches` rule alone, gemma3 said yes to those for a broad watch like
+  "UniFi gear"; the separate question it answers well. Every (watch, listing) pair that passes the
   prefilter is recorded in `watch_hits` exactly once (dedups the LLM call); a miss there is never
-  stored, so it is simply looked at again next cycle until it ages out of the scan window. A match
+  stored, so it is simply looked at again next cycle until it ages out of the scan window. Listings
+  are read newest first (at most 300 per watch and cycle), so those re-read misses never keep a new ad
+  waiting. A match
   is pushed on the `deals` topic (title, price, distance, the LLM's evidence quote, the watch's tag,
   the source if not Bazoš) respecting quiet hours and its own daily cap (`HUNTER_WATCH_MAX_PER_DAY`,
-  separate from `HUNTER_ALERT_MAX_PER_DAY`).
+  separate from `HUNTER_ALERT_MAX_PER_DAY`). The limits are checked again just before the push (the
+  price may have gone up), and a match is never pushed once its ad is gone or it is more than 24 h
+  old.
 - **Management**, its own small ntfy listener and compose service (`hunt watch listen --loop`, the
   same live-stream pattern as `feedback.py`): reads commands from its own topic
   (`HUNTER_WATCH_TOPIC`, default `watch`, read with `NTFY_WATCH_TOKEN`) and replies on the `deals`

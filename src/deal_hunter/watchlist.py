@@ -57,19 +57,23 @@ def normalize_text(text: str | None) -> str:
     t = re.sub(r"[^a-z0-9x+]+", " ", t)
     t = re.sub(r"(\d+)\s*x\s*(\d+)", r"\1x\2", t)
     t = re.sub(r"(\d+)\s*(gb|tb|u)\b", r"\1\2", t)
+    # 'SO-DIMM' / 'non-ECC' as one word, so exclude terms 'sodimm' and 'ecc' mean what they say
+    t = re.sub(r"\bso\s+dimm", "sodimm", t)
+    t = re.sub(r"\bnon\s+ecc", "nonecc", t)
     return " ".join(t.split())
 
 
 def prefilter(keywords: dict, title: str, description: str | None = None) -> bool:
     """keywords = {"include": [[term, ...], ...], "exclude": [term, ...]}.
 
-    Excluded if any exclude term appears; otherwise matched if every term of at least one
-    include group appears (groups are OR'd, terms within a group are AND'd). No include groups
-    at all matches anything not excluded.
+    Excluded if any exclude term appears at the start of a word ('ddr3' catches 'ddr3l', but 'ecc'
+    doesn't fire inside 'nonecc'); otherwise matched if every term of at least one include group
+    appears anywhere (groups are OR'd, terms within a group are AND'd). No include groups at all
+    matches anything not excluded.
     """
     text = normalize_text(f"{title} {description or ''}")
-    exclude = keywords.get("exclude") or []
-    if any(normalize_text(term) in text for term in exclude):
+    exclude = [normalize_text(term) for term in keywords.get("exclude") or []]
+    if any(term and re.search(rf"\b{re.escape(term)}", text) for term in exclude):
         return False
     include = keywords.get("include") or []
     if not include:
@@ -253,7 +257,11 @@ Also extract, from the ad only (null if not stated):
 - brand: the manufacturer, as named in the ad.
 - model: the model/part number, as named in the ad.
 - condition: "new", "used", or what the ad says about its state, in a few words; null if not said.
-- price_czk: the asking price in Kč as an integer; null if not a fixed price (dohodou, etc.)."""
+- price_czk: the asking price in Kč as an integer; null if not a fixed price (dohodou, etc.).
+- accessory_only: true if the ad sells only an accessory, spare part or power supply that goes with \
+such an item (mount, bracket, cover, cable, PoE injector or adapter, power supply, transceiver) and not \
+the device itself; false if it sells the device (accessories included with it are fine), or if the \
+accessory itself is what is wanted."""
 
 WATCH_RESPONSE_SCHEMA = {
     "type": "object",
@@ -265,8 +273,18 @@ WATCH_RESPONSE_SCHEMA = {
         "condition": {"type": ["string", "null"]},
         "price_czk": {"type": ["integer", "null"]},
         "evidence": {"type": "string"},
+        "accessory_only": {"type": "boolean"},
     },
-    "required": ["matches", "product_type", "brand", "model", "condition", "price_czk", "evidence"],
+    "required": [
+        "matches",
+        "product_type",
+        "brand",
+        "model",
+        "condition",
+        "price_czk",
+        "evidence",
+        "accessory_only",
+    ],
 }
 
 
@@ -285,6 +303,7 @@ class WatchMatch:
     condition: str | None = None
     price_czk: int | None = None
     evidence: str = ""
+    accessory_only: bool = False
 
     def as_dict(self) -> dict:
         return dict(self.__dict__)
@@ -296,11 +315,19 @@ def _plain(text: str) -> str:
 
 def clean_watch_answer(data: dict, source: str) -> WatchMatch:
     """Coerce the model's JSON into a WatchMatch; a quote that isn't really in the ad -> no match
-    (small models like to say yes with a made-up quote, same risk triage.py guards against)."""
+    (small models like to say yes with a made-up quote, same risk triage.py guards against).
+
+    An ad selling only an accessory for the item (a mount, a PoE injector) is no match either: asked
+    in the `matches` rule alone, gemma3 says yes to those for a broad watch like "UniFi gear", but it
+    answers the separate `accessory_only` question well.
+    """
     evidence = " ".join(str(data.get("evidence", "")).split())
     matches = bool(data.get("matches"))
+    accessory_only = data.get("accessory_only") is True
     if matches and (len(_plain(evidence)) < 4 or _plain(evidence) not in _plain(source)):
         matches, evidence = False, evidence + " (quote not found in the ad; treated as no match)"
+    if matches and accessory_only:
+        matches = False
     price = data.get("price_czk")
     price_czk = int(price) if isinstance(price, int | float) and not isinstance(price, bool) else None
 
@@ -316,6 +343,7 @@ def clean_watch_answer(data: dict, source: str) -> WatchMatch:
         condition=_s("condition"),
         price_czk=price_czk,
         evidence=evidence[:300],
+        accessory_only=accessory_only,
     )
 
 
@@ -335,6 +363,25 @@ def check(client, watch: dict, listing: dict, cache_dir) -> WatchMatch:
 
 
 # --- matching (worker cycle) -------------------------------------------------------------------------
+
+
+def within_limits(watch: dict, listing: dict) -> str | None:
+    """Why `listing` is outside the watch's own limits (max price, pickup radius, sections), or None.
+
+    Uses the listing's price and distance, not the LLM's reading of them. An unknown price
+    ('dohodou') or distance passes: the push shows what is known.
+    """
+    price, max_price = listing.get("price_czk"), watch.get("max_price")
+    if max_price and price and price > max_price:
+        return f"price {kc(price)} > max {kc(max_price)}"
+    km, radius = listing.get("distance_km"), watch.get("radius_km")
+    if radius and km is not None and km > radius:
+        where = listing.get("location") or "distance"
+        return f"{where} {km:.0f} km > {radius:g} km"
+    categories = watch.get("categories") or []
+    if categories and listing.get("section") not in categories:
+        return f"section {listing.get('section')} not in {', '.join(categories)}"
+    return None
 
 
 @dataclass
@@ -365,6 +412,10 @@ def scan_and_match(conn, llm, cache_dir, hours: float, limit: int = 300) -> Scan
             if not prefilter(watch["keywords"], listing["title"], listing.get("description")):
                 continue
             stats.prefiltered += 1
+            skipped = within_limits(watch, listing)
+            if skipped:
+                repo.record_watch_hit(conn, watch["id"], listing["id"], False, {"skipped": skipped})
+                continue
             if llm is None:
                 continue
             try:
@@ -417,6 +468,11 @@ def push_matches(conn, ntfy, now: datetime, quiet_start: int, quiet_end: int, ma
     for hit in repo.pending_watch_matches(conn):
         if sent_today >= max_per_day:
             break
+        # matched earlier, but the price may have gone up since (or the match predates the limits)
+        skipped = within_limits(hit, hit)
+        if skipped:
+            repo.unmatch_watch_hit(conn, hit["watch_id"], hit["listing_id"], skipped)
+            continue
         title, message = format_watch_push(hit)
         try:
             ntfy.publish(title, message, 3, ["eyes"], hit["url"], attach=first_image(hit))

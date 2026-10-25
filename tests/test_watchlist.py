@@ -33,6 +33,8 @@ def test_ddr4_watch_matches_the_right_kits(title):
     [
         "DDR4 ECC 2x16GB registered server RAM",  # excluded: ECC
         "SODIMM DDR4 2x16GB notebook RAM",  # excluded: SODIMM
+        "Kingston FURY Impact 32 GB (2× 16 GB) DDR4-3200 SO-DIMM",  # excluded: SO-DIMM, hyphenated
+        "Pamět SO DIMM DDR4 2x32GB (64GB) 3200 MHz",  # ... or with a space
         "DDR3 2x16GB 1600MHz",  # wrong generation (also excluded outright)
         "DDR4 2x8GB 3200MHz",  # right generation, wrong capacity
         "RTX 3060 12GB grafická karta",  # unrelated
@@ -40,6 +42,16 @@ def test_ddr4_watch_matches_the_right_kits(title):
 )
 def test_ddr4_watch_does_not_match(title):
     assert prefilter(DDR4["keywords"], title) is False
+
+
+def test_ddr4_watch_keeps_a_non_ecc_kit():
+    # 'ecc' is excluded, but 'non-ECC' is exactly what the watch wants
+    assert prefilter(DDR4["keywords"], "Kingston DDR4 2x16GB 3200MHz non-ECC") is True
+    assert prefilter(DDR4["keywords"], "Kingston DDR4 2x16GB 3200MHz, non ECC unbuffered") is True
+
+
+def test_exclude_terms_match_from_the_start_of_a_word():
+    assert prefilter(DDR4["keywords"], "DDR3L 2x16GB DDR4 compatible?") is False  # 'ddr3' catches 'ddr3l'
 
 
 def test_ddr4_watch_reads_the_description_too():
@@ -176,6 +188,12 @@ def test_check_rejects_a_match_with_a_made_up_quote():
     assert "not found" in match.evidence
 
 
+def test_check_rejects_an_accessory_for_the_item():
+    answer = {**GOOD_ANSWER, "accessory_only": True}
+    match = check(FakeLLM(json.dumps(answer)), WATCH, LISTING, None)
+    assert match.matches is False and match.accessory_only is True
+
+
 def test_check_handles_an_unreadable_answer():
     llm = FakeLLM("not json at all")
     match = check(llm, WATCH, LISTING, None)
@@ -195,6 +213,40 @@ def test_check_false_answer_with_no_evidence_is_kept_as_no_match():
     llm = FakeLLM(json.dumps(answer))
     match = check(llm, WATCH, LISTING, None)
     assert match.matches is False
+
+
+# --- the watch's own limits ---------------------------------------------------------------------------
+
+LIMITED = {"max_price": 1600, "radius_km": 80, "categories": []}
+
+
+def test_within_limits_passes_a_listing_inside_them():
+    assert watchlist.within_limits(LIMITED, {"price_czk": 1500, "distance_km": 30}) is None
+
+
+def test_within_limits_rejects_over_price_and_over_radius():
+    assert watchlist.within_limits(LIMITED, {"price_czk": 4500, "distance_km": 30}) == (
+        "price 4 500 Kč > max 1 600 Kč"
+    )
+    reason = watchlist.within_limits(LIMITED, {"price_czk": 1500, "distance_km": 231.4, "location": "Brno"})
+    assert reason == "Brno 231 km > 80 km"
+
+
+def test_within_limits_lets_unknown_price_and_distance_through():
+    assert watchlist.within_limits(LIMITED, {"price_czk": None, "distance_km": None}) is None
+
+
+def test_within_limits_without_limits_passes_anything():
+    watch = {"max_price": None, "radius_km": None, "categories": []}
+    assert watchlist.within_limits(watch, {"price_czk": 99999, "distance_km": 500}) is None
+
+
+def test_within_limits_applies_categories_when_set():
+    watch = {**LIMITED, "categories": ["pamet"]}
+    assert watchlist.within_limits(watch, {"price_czk": 1000, "section": "pamet"}) is None
+    assert watchlist.within_limits(watch, {"price_czk": 1000, "section": "notebook"}) == (
+        "section notebook not in pamet"
+    )
 
 
 # --- push formatting ---------------------------------------------------------------------------------
