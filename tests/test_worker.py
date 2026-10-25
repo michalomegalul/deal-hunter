@@ -94,6 +94,10 @@ def seed(conn, deal_price=6500, n=20):
 
 
 def work(conn, site, llm=None, now=None, **kw):
+    # today's digest counts as sent: on a Sunday evening it would otherwise be one more push
+    # (test_weekly_digest_on_sunday_evening_once covers it)
+    day = (now or datetime.now(UTC)).astimezone(PRAGUE).date()
+    repo.kv_set(conn, "digest_last", day.isoformat())
     return alerts.work_once(
         conn, rules(**kw), llm or FakeLLM(json.dumps(GOOD)), None, make_ntfy(site), 5, now
     )
