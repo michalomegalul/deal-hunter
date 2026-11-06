@@ -21,7 +21,11 @@ from the key entirely (not a placeholder): the key is then GPU-only.
 GPU bucket: the exact model name from gpu_catalog.yaml (normalize.py's desktop catalog, reused as-is
 -- no VRAM suffix, since a laptop GPU's VRAM often differs from its desktop namesake and the catalog
 only knows the desktop one) plus a handful of laptop-exclusive chips the desktop catalog has no entry
-for at all (RTX 2050/3050 Ti/4050, GTX 1650 Ti). No discrete GPU found -> 'igpu'.
+for at all (RTX 2050/3050 Ti/4050, GTX 1650 Ti). No discrete GPU found -> 'igpu'. A legacy
+'<number>M' mobile suffix (970M, 1060M: a differently-specced chip, not the same-numbered desktop
+card) is masked out before catalog lookup rather than matched as the desktop chip, so it reads
+'igpu' too; a modern 'Laptop GPU'/'Mobile'/'Max-Q' suffix needs no such handling, since that chip
+really is the desktop one, power-limited, and matches its number as-is.
 
 Category: `herni` if a discrete GPU was found (gpu_catalog.yaml only starts at GTX 10-series, so any
 hit is already gaming-tier) or a gaming-line brand name is in the title (Legion, ROG, TUF, Nitro,
@@ -48,7 +52,7 @@ from deal_hunter.office import features
 from deal_hunter.text import fold
 
 # Bump whenever the rules change, so `hunt normalize` re-processes old listings.
-VERSION = 1
+VERSION = 2  # v2: mask legacy '<number>M' mobile GPU suffixes, recognise 'víko' as an accessory word
 
 
 @dataclass(frozen=True)
@@ -81,7 +85,7 @@ ACCESSORY = re.compile(
     r"\b(nabijec\w*|adapter\w*|zdroj\w*|napajec\w*|baterie|baterk\w*|akumulator\w*|dok|dokovac\w*|docking"
     r"|dock|replikator\w*|klavesnic\w*|displej\w*|display|lcd|matrice|panel|kryt\w*|palmrest|pant\w*"
     r"|ventilator\w*|chladic\w*|kabel\w*|flex|brasn\w*|task\w*|obal\w*|batoh\w*|stojan\w*|drzak\w*|vesa"
-    r"|touchpad|reproduktor\w*|webkamer\w*|nahradni dil\w*|dily|kostr\w*|sasi|connector|konektor\w*)\b"
+    r"|touchpad|reproduktor\w*|webkamer\w*|nahradni dil\w*|dily|kostr\w*|sasi|connector|konektor\w*|viko\w*)\b"
 )
 BUNDLE = re.compile(r"\b(monitor\w*|tiskarn\w*)\b")
 MULTIPLE = re.compile(r"^\d{1,2} ?(x|ks|kusy|kusu)\b|\b([2-9]|\d{2}) ?(ks|kusy|kusu)\b")
@@ -157,6 +161,14 @@ GAMING_LINE = re.compile(
     r"|crosshair|aorus|alienware|loq|msi|gaming|herni)\b"
 )
 
+# Legacy laptop-GPU naming fused a trailing 'M' onto the chip number ('970M', '1060M', '980M'): a
+# differently-specced mobile chip, never the same-numbered desktop card gpu_catalog.yaml knows
+# about, so a 4-digit one (a 3-digit one, like 970, can't match the catalog's \d{4} models anyway)
+# must be masked out before catalog lookup, or '1060M' would wrongly resolve to desktop 'gtx 1060'.
+# Modern 'Laptop GPU'/'Mobile'/'Max-Q' suffixes are separate words that don't interfere with
+# matching the chip number as-is ('RTX 3060 Laptop GPU' already finds 'rtx 3060' with no help).
+MOBILE_SUFFIX_GPU = re.compile(r"\b(\d{4}) m\b")
+
 
 def gpu_bucket(title: str) -> tuple[str, bool]:
     """(GPU component of the key, whether a gaming-line brand name is in the title)."""
@@ -165,6 +177,7 @@ def gpu_bucket(title: str) -> tuple[str, bool]:
     for pattern, name in _LAPTOP_ONLY_GPU:
         if pattern.search(gt):
             return name, gaming_line
+    gt = MOBILE_SUFFIX_GPU.sub("", gt)
     models = _gpu_find_models(gt)
     if models:
         return models[0].name, gaming_line

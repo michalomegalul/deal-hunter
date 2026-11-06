@@ -307,3 +307,21 @@
 - {title: Klávesnice CZ pro Lenovo Legion 5, section: notebook, excluded: accessory}
 - {title: Chladič pro notebook Acer Nitro, section: notebook, excluded: accessory}
 - {title: Brašna na herní notebook 17, section: notebook, excluded: accessory}
+# Real production titles from a full-catalog review of an earlier version of this normalizer.
+# MSI GS60/Legion Y520: a legacy '<number>M' mobile GPU suffix (970M, 1060M) must never resolve to
+# the same-numbered desktop card (970M/1060M are weaker, differently specced chips) -- it's masked
+# out before catalog lookup, falling back to 'igpu' rather than a wrong 'gtx 1060'-style match.
+- {title: MSI GS60 6QE (i7-6700HQ, SSD+HDD, GTX 970M), section: notebook, model: laptop i7 g6 igpu, cpu: i7-6700hq,
+  category: herni}
+- {title: 'Lenovo Legion Y520, i5-7300HQ, GTX 1060M 6GB, 16GB RAM', section: notebook, model: laptop i5 g7 igpu,
+  ram_gb: 16, cpu: i5-7300hq, category: herni}
+# These are accessory/part-only listings (never a complete laptop for sale): category 'ostatni' with
+# model: null, but excluded_reason must be set so they're never counted as a price sample or an
+# alert candidate (classify() only reaches category 'ostatni'/'herni' with model=None when
+# laptop_spec.py's own result is 'excluded', never when it's merely 'unmatched').
+- {title: Brašna Acer, section: notebook, excluded: accessory}
+- {title: HP adaptér 65W, section: notebook, excluded: accessory}
+- {title: Napájecí adaptér, section: notebook, excluded: accessory}
+- {title: Kabel k displeji, section: notebook, excluded: accessory}
+- {title: Horní víko, section: notebook, excluded: accessory}
+- {title: Dokovací stanice Dell WD15, section: notebook, excluded: accessory}
