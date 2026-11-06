@@ -43,11 +43,16 @@ tree, so the same RAM/SSD log-price slope `pricing.py` already fits for office h
 slope per doubling, shrunk toward a prior, clipped to 0-35 %) applies to them too.
 
 **Apple** keys on the chip and screen size for Apple Silicon (`macbook air m2 13`, `macbook pro m1
-pro 14`, `imac m1 24`, `mac mini m2`, `mac studio m2 max`), falling back to year+screen for
-Intel-era Macs (`macbook pro intel 2017 13`) or just screen size when the title gives no year
-(`macbook air intel 13`, coarser, same mixed-variant trade-off a ThinkPad T14 without a generation
-has). A bare 'MacBook'/'iMac'/'Mac mini' with nothing to pin a key to is unmatched, same as a bare
-'Dell OptiPlex' in office.py.
+pro 14`, `imac m1 24`, `mac mini m2`, `mac studio m2 max`; any `Mx`, not just M1-M4, so a future chip
+still matches), falling back to an Intel key (`macbook pro intel 2017 13`, or `macbook air intel 13`
+with no year stated) only when that's actually safe: a year up to 2019, 2020 for a 16" Pro (the only
+Intel model still sold that year), or the title itself says "Intel"/"i5"/"i7"/"i9"/"Core Duo" --
+which also breaks the tie for the one year both an Intel *and* an M1 Mac were sold new (2020, 13"
+Air/Pro). Without a safe year or that signal (any 2021+ year, a 24" iMac with no chip, a bare 13"
+Air/Pro with neither), it's left unmatched rather than guessed: silently keying a current-generation
+Apple Silicon Mac as a cheap old Intel one inflates that Intel bucket's fair price, exactly the kind
+of wrong-model mistake this whole pipeline is built to avoid. A bare 'MacBook'/'iMac'/'Mac mini' with
+nothing to pin a key to is unmatched too, same as a bare 'Dell OptiPlex' in office.py.
 
 **Consumer/gaming laptops** have no stable catalog of SKUs the way ThinkPads do (far too many Lenovo
 IdeaPad/Legion model numbers alone), so the pricing key is a **spec bucket** instead of a model

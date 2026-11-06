@@ -18,22 +18,29 @@ Back to the [README](../README.md).
   factor. Broken or "for parts" items are still matched; the LLM catches those.
 - Office RAM/SSD/CPU come from the title only, and the RAM/SSD price adjustment is one shared
   slope per category, not per model. The CPU is recorded but doesn't affect the price yet.
-- **Apple and laptop spec bucketing can't tell everything a title doesn't say.** A 2020 13" MacBook
-  Pro/Air without "M1" in the title is keyed as Intel (same year/screen, different chip, very
-  different value) -- genuinely ambiguous from text alone. A consumer/gaming laptop's spec bucket
-  (`laptop i7 g12 rtx 4060`) mixes RAM/screen/panel variants the way a ThinkPad T14 without a
-  generation does, just one more axis (the exact laptop SKU) coarser; `spec_adjust` only corrects for
-  RAM/SSD, not screen size, panel quality or chassis. `office.features()`'s RAM/SSD reader (reused by
-  both) was tuned for office-ad phrasing: a GPU's VRAM number can be misread as `ram_gb` when a title
-  states both without "RAM"/"VRAM" labels (`"RTX 5070Ti 12 GB/R9-9955HX"`), and two unlabelled numbers
-  separated only by "/" with no space (`"128GB/4TB"`) can both land in the same bucket, losing one.
-  Apple Silicon's 128 GB+ RAM configurations hit the same ambiguity, since that threshold is also the
-  point office.py's heuristic assumes any bare number must be storage. An abbreviated CPU name
-  ("R9-9955HX" rather than "Ryzen 9 9955HX", "U9" rather than "Ultra 9") isn't recognised, the same
-  deliberate miss as any other un-stated spec. Laptop-only workstation mobile GPUs (RTX A-series,
-  Quadro) aren't modelled at all, so a workstation laptop with one reads as `igpu`. The
-  laptop/desktop split for the `pc` Bazoš section relies on the title saying
-  "notebook"/"laptop"/"ntb"; a laptop ad that says neither (rare) is missed, by design -- the
+- **Apple and laptop spec bucketing can't tell everything a title doesn't say.** apple.py only ever
+  guesses Intel when it's actually safe to: a year up to 2019, 2020 for a 16" Pro (the one Intel
+  model still sold that year), or an explicit "Intel"/"i5"/"i7"/"i9"/"Core Duo" signal (which also
+  settles the one genuinely ambiguous case -- a 2020 13" Air/Pro, both sold as Intel *and* M1 that
+  year). Everything else with no chip stated (any 2021+ year, a 24" iMac, a 13" Air/Pro with no year
+  and no Intel signal) is left unmatched rather than guessed -- closing a real bug where Apple
+  Silicon Macs were silently keyed as cheap old Intel ones, at the cost of some real Intel Macs that
+  say neither a year nor "Intel"/"i5" staying unmatched too. A consumer/gaming laptop's spec bucket (`laptop i7 g12
+  rtx 4060`) mixes RAM/screen/panel variants the way a ThinkPad T14 without a generation does, just
+  one more axis (the exact laptop SKU) coarser; `spec_adjust` only corrects for RAM/SSD, not screen
+  size, panel quality or chassis. A legacy "<number>M" mobile GPU suffix (970M, 1060M) is recognised
+  only enough to *not* match the differently-specced same-numbered desktop card (so it reads `igpu`,
+  not a wrong `gtx 1060`); modern "Laptop GPU"/"Mobile"/"Max-Q" suffixes do map onto the desktop chip
+  name, since those really are the same silicon power-limited. `office.features()`'s RAM/SSD reader
+  (reused by apple.py and laptop_spec.py) was tuned for office-ad phrasing: a GPU's VRAM number can be
+  misread as `ram_gb` when a title states both without "RAM"/"VRAM" labels (`"RTX 5070Ti 12
+  GB/R9-9955HX"`), and two unlabelled numbers separated only by "/" with no space (`"128GB/4TB"`) can
+  both land in the same bucket, losing one. An abbreviated CPU name ("R9-9955HX" rather than "Ryzen 9
+  9955HX", "U9" rather than "Ultra 9") isn't recognised, the same deliberate miss as any other
+  un-stated spec. Laptop-only workstation mobile GPUs (RTX A-series, Quadro) aren't modelled at all,
+  so a workstation laptop with one reads as `igpu`. The laptop/desktop split for the `pc` Bazoš
+  section relies on the title saying "notebook"/"laptop"/"ntb"; a laptop ad that says neither (rare)
+  is missed, by design -- the
   alternative (bucketing any `pc`-section spec match as a laptop) would misclassify gaming desktops,
   which this phase deliberately leaves alone.
 - Reposts are detected by seller name and title, both of which a seller can change.
