@@ -1,0 +1,227 @@
+# Apple hardware titles (MacBook Air/Pro, iMac, Mac mini, Mac Studio) for apple.py.
+# Real titles (hand-collected from pc.bazos.cz/notebook.bazos.cz, the same source as
+# office_titles.yaml) plus additional realistic titles authored to cover chip generations,
+# Intel-era years and exclusion cases the real sample alone didn't have enough of.
+# model = canonical Apple model key (+ ram_gb/ssd_gb/cpu read from the title, when present);
+# excluded = reason the ad is skipped; neither = unmatched (shows up in `hunt review`).
+# Used by tests/test_apple.py.
+- {title: 'Prodám iMac 24" M1 (2021),zelený, téměř nepoužívaný', section: pc, model: imac m1 24}
+- {title: 'Apple iMac 21,5" 2017', section: pc, model: imac 21.5 2017}
+- {title: 'MacBook Pro 16" M1 Max 32GB/1TB, 32 GPU, baterie 94 %', section: pc, model: macbook pro m1 max 16, ram_gb: 32,
+  ssd_gb: 1024}
+- {title: Apple sestava s tiskarnou klavesnici a mysi, section: pc, excluded: out_of_scope}
+- {title: Prodám iMac M1 úplně nový, section: pc, model: imac m1 24}
+- {title: '27 Apple iMac 5K RETINA 6jádro Fusion 1,03Tb Ram 16GB záruka', section: pc, model: imac 27, ram_gb: 16}
+- {title: 27 APPLE iMac 5K RETINA model 2020 ZÁRUKA lze až 128Gb, section: pc, model: imac 27 2020, ssd_gb: 128}
+- {title: Mac mini M4 2024 CTO, section: pc, model: mac mini m4}
+- {title: 'Prodám - Apple iMac 21,5" 2017 / 8GB RAM / 1T SSD', section: pc, model: imac 21.5 2017, ram_gb: 8}
+- {title: MacBook Air Mid 2013, section: notebook}
+- {title: APPLE MACBOOK PRO 16 M4PRO/48GB/512GB/BATERIE 97%, section: notebook, model: macbook pro m4 pro 16, ram_gb: 48,
+  ssd_gb: 512}
+- {title: NOVÝ APPLE MACBOOK PRO 16” M3 MAX (14core) /1TB/36GB, section: notebook, model: macbook pro m3 max 16,
+  ram_gb: 36, ssd_gb: 1024}
+- {title: NOVÝ APPLE MACBOOK AIR 15” M3/256GB/16GB/BATERIE 100%, section: notebook, model: macbook air m3 15, ram_gb: 16,
+  ssd_gb: 256}
+- {title: NOVÝ APPLE MACBOOK AIR 15 M4/16GB/512GB/BATERIE 100%, section: notebook, model: macbook air m4 15, ram_gb: 16,
+  ssd_gb: 512}
+- {title: APPLE MACBOOK AIR 13 i5/128GB/4GB, section: notebook, model: macbook air intel 13, ram_gb: 4, ssd_gb: 128,
+  cpu: i5}
+- {title: NOVÝ APPLE MACBOOK AIR 13” M4/256GB/16GB/ZARUKA DO 2.10.2027, section: notebook, model: macbook air m4
+    13, ram_gb: 16, ssd_gb: 256}
+- {title: APPLE MACBOOK AIR 13” 2020 M1/8GB RAM/256GB, section: notebook, model: macbook air m1 13, ram_gb: 8, ssd_gb: 256}
+- {title: 'MacBook Pro 14" M4 PRO CZ 2024 Vesmírně černý, s Nanotextur', section: notebook, model: macbook pro m4
+    pro 14}
+- {title: 13” MacBook air 16/256 83cyklů 99%baterie, section: notebook, model: macbook air intel 13}
+- {title: Macbook Pro 15 i7/16/256GB/ATI Pro 4GB/touchbar/nová bat., section: notebook, model: macbook pro intel
+    15, ram_gb: 4, cpu: i7}
+- {title: Macbook Air A1932, section: notebook}
+- {title: MacBook Pro 13", section: notebook, model: macbook pro intel 13}
+- {title: 'Apple MacBook A1342, 8GB RAM', section: notebook}
+- {title: 'MacbookPro M1Pro, 16 GB RAM, 512 GB SSD, Brno/Praha', section: notebook, model: macbook pro m1 pro 14,
+  ram_gb: 16, ssd_gb: 512}
+- {title: MacBook Air Intel core i5 8gb, section: notebook}
+- {title: Apple MacBook Air 13" M1, section: notebook, model: macbook air m1 13}
+- {title: Napájecí adaptér Apple usb-c 87W, section: notebook, excluded: out_of_scope}
+- {title: 'Apple MacBook Air M4 13,6″ (2025) – 16 GB RAM / 256 GB SSD', section: notebook, model: macbook air m4
+    13, ram_gb: 16, ssd_gb: 256}
+- {title: 'MacBook Pro 13" (A1278, Mid 2012)', section: notebook, model: macbook pro intel 2012 13}
+- {title: Macbook Air 2015 13” 250GB, section: notebook, model: macbook air intel 2015 13, ssd_gb: 250}
+- {title: CTO 13 APPLE MacBook Air M1 8jádro 256/16Gb ZÁRUKA Grey, section: notebook, model: macbook air m1 13,
+  ram_gb: 16}
+- {title: 13 APPLE MacBook Pro RETINA SSD 512 model 2020 Záruka, section: notebook, model: macbook pro intel 2020
+    13}
+- {title: 16 Apple MacBook Pro M1 Pro 10/16jádro 2021 SSD 1TB ZÁRUKA, section: notebook, model: macbook pro m1 pro
+    16, ssd_gb: 1024}
+- {title: '16 Apple MacBook Pro i7 2,6GHz 6jádro SSD 512/16GB ZÁRUKA', section: notebook, model: macbook pro intel
+    16, ram_gb: 16, cpu: i7}
+- {title: Macbook air13, section: notebook}
+- {title: Macbook air CZ nový - Koupím, section: notebook, excluded: wanted}
+- {title: MacBook Pro 13" M1, section: notebook, model: macbook pro m1 13}
+- {title: 'MacBook Pro 13" Touch Bar (2017) – 512 GB SSD, baterie 390', section: notebook, model: macbook pro intel
+    2017 13, ssd_gb: 512}
+- {title: MacBook PRO 13 palců M1 chip 8 RAM 256SSD 80 cyklů, section: notebook, model: macbook pro m1 13}
+- {title: Macbook Air 13” 2020 CTO 512Gb + 16Gb, section: notebook, model: macbook air intel 2020 13, ram_gb: 16,
+  ssd_gb: 512}
+- {title: Macbook Air 13” 2020 16Gb, section: notebook, model: macbook air intel 2020 13, ram_gb: 16}
+- {title: Macbook Air 13” 2020 M1, section: notebook, model: macbook air m1 13}
+- {title: Macbook Pro 15” CTO 32Gb RAM, section: notebook, model: macbook pro intel 15, ram_gb: 32}
+- {title: Macbook Air 13” 2022 M2, section: notebook, model: macbook air m2 13}
+- {title: Macbook 14' Pro M3, section: notebook, model: macbook pro m3 14}
+- {title: Prodám - Apple MacBook Pro 16" 2019 / 32GB RAM / 1T SSD, section: notebook, model: macbook pro intel 2019
+    16, ram_gb: 32}
+- {title: Prodám - Apple MacBook Air 13" 2020 / 8GB RAM / 512 SSD, section: notebook, model: macbook air intel 2020
+    13, ram_gb: 8}
+- {title: Macbook Air 13 M1/16GB/256GB Space Black, section: notebook, model: macbook air m1 13, ram_gb: 16, ssd_gb: 256}
+- {title: Macbook Pro 14 M1/16GB/512GB Space Grey, section: notebook, model: macbook pro m1 14, ram_gb: 16, ssd_gb: 512}
+- {title: MacBook Air Retina 13” (2020), section: notebook, model: macbook air intel 2020 13}
+- {title: 'MacBook Pro 16” M2 Pro (2023) 32GB/1TB, záruka', section: notebook, model: macbook pro m2 pro 16, ram_gb: 32,
+  ssd_gb: 1024}
+- {title: 'MacBook Pro 16” M2 Pro (2023) 16GB/512GB, rok záruka', section: notebook, model: macbook pro m2 pro 16,
+  ram_gb: 16, ssd_gb: 512}
+- {title: 'MacBook Air 13” M2 16GB/256GB, rok záruka', section: notebook, model: macbook air m2 13, ram_gb: 16,
+  ssd_gb: 256}
+- {title: 'MacBook Air 13” M2 8GB/256GB, rok záruka', section: notebook, model: macbook air m2 13, ram_gb: 8, ssd_gb: 256}
+- {title: 'MacBook Air 13,6" M2 2022 Midnight - 8GB / 256GB', section: notebook, model: macbook air m2 13, ram_gb: 8,
+  ssd_gb: 256}
+- {title: 'MacBook Pro Retina 13" Mid 2014, i5 / 8 GB / 256 GB', section: notebook, model: macbook pro intel 2014
+    13, ram_gb: 8, ssd_gb: 256, cpu: i5}
+- {title: MacBook Air 13” 2017, section: notebook, model: macbook air intel 2017 13}
+- {title: 'MacBook Air M1 2020 8/256 GB – velmi dobrý stav, komplet', section: notebook, model: macbook air m1 13}
+- {title: Mac Studio M1 Max 32GB/512GB, section: notebook, model: mac studio m1 max, ram_gb: 32, ssd_gb: 512}
+- {title: Apple Mac Studio M1 Ultra 64GB 1TB, section: notebook, model: mac studio m1 ultra, ram_gb: 64, ssd_gb: 1024}
+- {title: Mac Studio M2 Max 32GB/1TB, section: notebook, model: mac studio m2 max, ram_gb: 32, ssd_gb: 1024}
+- {title: Mac Studio M2 Ultra 128GB RAM, section: notebook, model: mac studio m2 ultra, ram_gb: 128}
+- {title: 'Prodám Mac Studio M3 Ultra, 96GB, 2TB SSD', section: notebook, model: mac studio m3 ultra, ram_gb: 96,
+  ssd_gb: 2048}
+- {title: 'Mac Studio - záruka, bez chipu', section: notebook}
+- {title: Mac mini M1 8GB/256GB, section: notebook, model: mac mini m1, ram_gb: 8, ssd_gb: 256}
+- {title: Apple Mac Mini M2 Pro 16GB/512GB, section: notebook, model: mac mini m2 pro, ram_gb: 16, ssd_gb: 512}
+- {title: Mac mini 2018 i5 8GB 256GB, section: notebook, model: mac mini intel 2018, ram_gb: 8, ssd_gb: 256, cpu: i5}
+- {title: Mac Mini late 2014 i5 4GB 500GB, section: notebook, model: mac mini intel 2014, ram_gb: 4, ssd_gb: 500,
+  cpu: i5}
+- {title: 'Mac mini na díly, nefunkční', section: notebook, excluded: accessory}
+- {title: Mac mini, section: notebook}
+- {title: Apple iMac 27 5K 2019 i5 8GB 1TB Fusion, section: notebook, model: imac 27 2019, ram_gb: 8, ssd_gb: 1024,
+  cpu: i5}
+- {title: iMac 21.5 2013 i5 8GB 1TB, section: notebook, model: imac 21.5 2013, ram_gb: 8, ssd_gb: 1024, cpu: i5}
+- {title: iMac 27 2015 5K Retina i7 16GB 256GB SSD, section: notebook, model: imac 27 2015, ram_gb: 16, ssd_gb: 256,
+  cpu: i7}
+- {title: Apple iMac 24 M3 2023 8GB 256GB, section: notebook, model: imac m3 24, ram_gb: 8, ssd_gb: 256}
+- {title: iMac M3 24 16GB/512GB růžový, section: notebook, model: imac m3 24, ram_gb: 16, ssd_gb: 512}
+- {title: iMac Pro 2017 Xeon 32GB 1TB, section: notebook}
+- {title: MacBook Air M3 13 8GB/256GB stříbrný, section: notebook, model: macbook air m3 13, ram_gb: 8, ssd_gb: 256}
+- {title: MacBook Air M3 15 16GB/512GB, section: notebook, model: macbook air m3 15, ram_gb: 16, ssd_gb: 512}
+- {title: Apple MacBook Air M2 15 24GB/1TB, section: notebook, model: macbook air m2 15, ram_gb: 24, ssd_gb: 1024}
+- {title: MacBook Air 2019 13 i5 8GB 128GB, section: notebook, model: macbook air intel 2019 13, ram_gb: 8, ssd_gb: 128,
+  cpu: i5}
+- {title: MacBook Air 2018 13 i5 8GB 256GB, section: notebook, model: macbook air intel 2018 13, ram_gb: 8, ssd_gb: 256,
+  cpu: i5}
+- {title: Macbook Air 11 2014 i5 4GB 128GB, section: notebook}
+- {title: MacBook Air M4 15 Midnight 16GB 512GB, section: notebook, model: macbook air m4 15, ram_gb: 16, ssd_gb: 512}
+- {title: MacBook Pro M2 13 8GB 256GB, section: notebook, model: macbook pro m2 13, ram_gb: 8, ssd_gb: 256}
+- {title: MacBook Pro M2 14 16GB 512GB, section: notebook, model: macbook pro m2 14, ram_gb: 16, ssd_gb: 512}
+- {title: Apple MacBook Pro M2 Max 14 32GB 1TB, section: notebook, model: macbook pro m2 max 14, ram_gb: 32, ssd_gb: 1024}
+- {title: MacBook Pro M3 Pro 14 18GB 512GB, section: notebook, model: macbook pro m3 pro 14, ssd_gb: 512}
+- {title: MacBook Pro M3 Max 16 48GB 1TB, section: notebook, model: macbook pro m3 max 16, ram_gb: 48, ssd_gb: 1024}
+- {title: MacBook Pro M4 14 16GB 512GB, section: notebook, model: macbook pro m4 14, ram_gb: 16, ssd_gb: 512}
+- {title: Apple MacBook Pro M4 Max 16 64GB 2TB, section: notebook, model: macbook pro m4 max 16, ram_gb: 64, ssd_gb: 2048}
+- {title: MacBook Pro 16 M1 Pro 16GB 1TB, section: notebook, model: macbook pro m1 pro 16, ram_gb: 16, ssd_gb: 1024}
+- {title: MacBook Pro 13 2015 i5 8GB 128GB, section: notebook, model: macbook pro intel 2015 13, ram_gb: 8, ssd_gb: 128,
+  cpu: i5}
+- {title: MacBook Pro 13 2016 Touch Bar i5 8GB 256GB, section: notebook, model: macbook pro intel 2016 13, ram_gb: 8,
+  ssd_gb: 256, cpu: i5}
+- {title: MacBook Pro 15 2017 i7 16GB 512GB Radeon Pro, section: notebook, model: macbook pro intel 2017 15, ram_gb: 16,
+  ssd_gb: 512, cpu: i7}
+- {title: MacBook Pro 13 2018 i5 8GB 256GB, section: notebook, model: macbook pro intel 2018 13, ram_gb: 8, ssd_gb: 256,
+  cpu: i5}
+- {title: MacBook Pro 16 2019 i9 16GB 1TB Radeon Pro 5500M, section: notebook, model: macbook pro intel 2019 16,
+  ram_gb: 16, ssd_gb: 1024, cpu: i9}
+- {title: MacBook Pro 13 2020 i5 16GB 512GB, section: notebook, model: macbook pro intel 2020 13, ram_gb: 16, ssd_gb: 512,
+  cpu: i5}
+- {title: Apple MacBook, section: notebook}
+- {title: MacBook 12 Retina 2017 m3, section: notebook}
+- {title: MacBook Air, section: notebook}
+- {title: MacBook Pro, section: notebook}
+- {title: iMac, section: notebook}
+- {title: Koupím MacBook Pro M2, section: notebook, excluded: wanted}
+- {title: Sháním Mac mini M1, section: notebook, excluded: wanted}
+- {title: 2x MacBook Air M1 13 na firmu, section: notebook, excluded: multiple}
+- {title: MacBook Pro M1 Pro 14 + externí monitor LG, section: notebook, excluded: bundle}
+- {title: Brašna na MacBook 13-14", section: notebook, excluded: accessory}
+- {title: Nabíječka MagSafe 2 60W, section: notebook, excluded: out_of_scope}
+- {title: Kryt na MacBook Air 13, section: notebook, excluded: accessory}
+- {title: Klávesnice US pro MacBook Pro 13 2015, section: notebook, excluded: accessory}
+- {title: Baterie A1964 pro MacBook Pro 13, section: notebook, excluded: accessory}
+- {title: 'MacBook Pro 13 2015 na díly, nefunguje, rozbitý displej', section: notebook, excluded: accessory}
+- {title: iPad Air 5 M1 64GB, section: notebook, excluded: out_of_scope}
+- {title: iPad Pro 12.9 M2 256GB, section: notebook, excluded: out_of_scope}
+- {title: iPhone 15 Pro 256GB, section: notebook, excluded: out_of_scope}
+- {title: Apple Watch Ultra 2, section: notebook, excluded: out_of_scope}
+- {title: AirPods Pro 2, section: notebook, excluded: out_of_scope}
+- {title: Apple magic mouse 2, section: notebook, excluded: out_of_scope}
+- {title: MacBook Air M1 13 CTO 16GB/1TB stříbrný, section: notebook, model: macbook air m1 13, ram_gb: 16, ssd_gb: 1024}
+- {title: MacBook Air M2 13 CTO 24GB/2TB, section: notebook, model: macbook air m2 13, ram_gb: 24, ssd_gb: 2048}
+- {title: MacBook Air M2 15 8GB 256GB vesmírně šedý, section: notebook, model: macbook air m2 15, ram_gb: 8, ssd_gb: 256}
+- {title: MacBook Air M3 13 24GB/1TB, section: notebook, model: macbook air m3 13, ram_gb: 24, ssd_gb: 1024}
+- {title: MacBook Air M4 13 24GB/1TB, section: notebook, model: macbook air m4 13, ram_gb: 24, ssd_gb: 1024}
+- {title: Apple MacBook Air M1 13 Space Gray 8GB 512GB, section: notebook, model: macbook air m1 13, ram_gb: 8,
+  ssd_gb: 512}
+- {title: MacBook Pro 13 M2 16GB 1TB, section: notebook, model: macbook pro m2 13, ram_gb: 16, ssd_gb: 1024}
+- {title: MacBook Pro 14 M2 Pro 32GB/1TB, section: notebook, model: macbook pro m2 pro 14, ram_gb: 32, ssd_gb: 1024}
+- {title: MacBook Pro 14 M2 Max 64GB/2TB, section: notebook, model: macbook pro m2 max 14, ram_gb: 64, ssd_gb: 2048}
+- {title: MacBook Pro 16 M3 Pro 36GB/512GB, section: notebook, model: macbook pro m3 pro 16, ram_gb: 36, ssd_gb: 512}
+- {title: MacBook Pro 16 M3 Max 48GB/1TB, section: notebook, model: macbook pro m3 max 16, ram_gb: 48, ssd_gb: 1024}
+- {title: MacBook Pro 14 M4 24GB/1TB stříbrný, section: notebook, model: macbook pro m4 14, ram_gb: 24, ssd_gb: 1024}
+- {title: MacBook Pro 14 M4 Pro 24GB/1TB vesmírně černý, section: notebook, model: macbook pro m4 pro 14, ram_gb: 24,
+  ssd_gb: 1024}
+- {title: MacBook Pro 16 M4 Max 36GB/1TB, section: notebook, model: macbook pro m4 max 16, ram_gb: 36, ssd_gb: 1024}
+- {title: Apple MacBook Pro 13 M1 16GB 2TB, section: notebook, model: macbook pro m1 13, ram_gb: 16, ssd_gb: 2048}
+- {title: MacBook Pro 13 2017 i5 8GB 256GB Touch Bar, section: notebook, model: macbook pro intel 2017 13, ram_gb: 8,
+  ssd_gb: 256, cpu: i5}
+- {title: MacBook Pro 13 2019 i5 8GB 256GB, section: notebook, model: macbook pro intel 2019 13, ram_gb: 8, ssd_gb: 256,
+  cpu: i5}
+- {title: MacBook Pro 15 2018 i7 16GB 512GB Radeon Pro 560, section: notebook, model: macbook pro intel 2018 15,
+  ram_gb: 16, ssd_gb: 512, cpu: i7}
+- {title: MacBook Pro 15 2015 i7 16GB 256GB, section: notebook, model: macbook pro intel 2015 15, ram_gb: 16, ssd_gb: 256,
+  cpu: i7}
+- {title: MacBook Pro 13 2013 i5 4GB 128GB, section: notebook, model: macbook pro intel 2013 13, ram_gb: 4, ssd_gb: 128,
+  cpu: i5}
+- {title: MacBook Pro 13 2012 i5 4GB 500GB, section: notebook, model: macbook pro intel 2012 13, ram_gb: 4, ssd_gb: 500,
+  cpu: i5}
+- {title: MacBook Air 13 2013 i5 4GB 128GB, section: notebook, model: macbook air intel 2013 13, ram_gb: 4, ssd_gb: 128,
+  cpu: i5}
+- {title: MacBook Air 13 2016 i5 8GB 128GB, section: notebook, model: macbook air intel 2016 13, ram_gb: 8, ssd_gb: 128,
+  cpu: i5}
+- {title: MacBook Air 13 2017 i5 8GB 256GB, section: notebook, model: macbook air intel 2017 13, ram_gb: 8, ssd_gb: 256,
+  cpu: i5}
+- {title: iMac 21.5 2014 i5 8GB 500GB, section: notebook, model: imac 21.5 2014, ram_gb: 8, ssd_gb: 500, cpu: i5}
+- {title: iMac 21.5 2015 4K i5 8GB 1TB, section: notebook, model: imac 21.5 2015, ram_gb: 8, ssd_gb: 1024, cpu: i5}
+- {title: iMac 21.5 2017 4K i5 8GB 1TB Fusion, section: notebook, model: imac 21.5 2017, ram_gb: 8, ssd_gb: 1024,
+  cpu: i5}
+- {title: iMac 27 2013 i5 8GB 1TB, section: notebook, model: imac 27 2013, ram_gb: 8, ssd_gb: 1024, cpu: i5}
+- {title: iMac 27 2017 5K i5 8GB 1TB Fusion, section: notebook, model: imac 27 2017, ram_gb: 8, ssd_gb: 1024, cpu: i5}
+- {title: Apple iMac 24 M1 8GB 256GB modrý, section: notebook, model: imac m1 24, ram_gb: 8, ssd_gb: 256}
+- {title: Apple iMac 24 M1 16GB 512GB zelený, section: notebook, model: imac m1 24, ram_gb: 16, ssd_gb: 512}
+- {title: iMac M4 24 16GB 256GB, section: notebook, model: imac m4 24, ram_gb: 16, ssd_gb: 256}
+- {title: Mac mini M2 8GB/256GB, section: notebook, model: mac mini m2, ram_gb: 8, ssd_gb: 256}
+- {title: Mac mini M2 16GB/512GB, section: notebook, model: mac mini m2, ram_gb: 16, ssd_gb: 512}
+- {title: Mac mini M4 Pro 24GB/512GB, section: notebook, model: mac mini m4 pro, ram_gb: 24, ssd_gb: 512}
+- {title: Mac mini 2012 i5 4GB 500GB, section: notebook, model: mac mini intel 2012, ram_gb: 4, ssd_gb: 500, cpu: i5}
+- {title: Mac Studio M4 Max 36GB/1TB, section: notebook, model: mac studio m4 max, ram_gb: 36, ssd_gb: 1024}
+- {title: Mac Studio M1 Max 64GB/2TB, section: notebook, model: mac studio m1 max, ram_gb: 64, ssd_gb: 2048}
+- {title: 'Macbook air 13 m1 cerny, zaruka', section: notebook, model: macbook air m1 13}
+- {title: MACBOOK PRO 14 M4 16GB 512GB NOVÝ ZÁRUKA, section: notebook, model: macbook pro m4 14, ram_gb: 16, ssd_gb: 512}
+- {title: macbook pro 16palců m1max 32gb 1tb, section: notebook, model: macbook pro m1 max 16, ram_gb: 32, ssd_gb: 1024}
+- {title: 'Prodám MacBook Air M2 13, 16GB, 512GB, jako nový', section: notebook, model: macbook air m2 13, ram_gb: 16,
+  ssd_gb: 512}
+- {title: Koupím iMac 24 M1 nebo M3, section: notebook, excluded: wanted}
+- {title: 3x MacBook Air M1 13 - firemní výprodej, section: notebook, excluded: multiple}
+- {title: MacBook Pro 16 M1 Max + Magic Mouse a klávesnice, section: notebook, model: macbook pro m1 max 16}
+- {title: Flex kabel pro MacBook Pro 13 2019, section: notebook, excluded: accessory}
+- {title: Displej pro MacBook Air 13 2020, section: notebook, excluded: accessory}
+- {title: Obal na MacBook Pro 14, section: notebook, excluded: accessory}
+- {title: Stojan na MacBook, section: notebook, excluded: accessory}
+- {title: iPad 9. generace 64GB, section: notebook, excluded: out_of_scope}
+- {title: iPhone SE 2022 64GB, section: notebook, excluded: out_of_scope}
+- {title: Apple TV 4K 2022, section: notebook, excluded: out_of_scope}
+- {title: HomePod mini, section: notebook, excluded: out_of_scope}
