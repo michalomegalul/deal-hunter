@@ -18,6 +18,24 @@ Back to the [README](../README.md).
   factor. Broken or "for parts" items are still matched; the LLM catches those.
 - Office RAM/SSD/CPU come from the title only, and the RAM/SSD price adjustment is one shared
   slope per category, not per model. The CPU is recorded but doesn't affect the price yet.
+- **Apple and laptop spec bucketing can't tell everything a title doesn't say.** A 2020 13" MacBook
+  Pro/Air without "M1" in the title is keyed as Intel (same year/screen, different chip, very
+  different value) -- genuinely ambiguous from text alone. A consumer/gaming laptop's spec bucket
+  (`laptop i7 g12 rtx 4060`) mixes RAM/screen/panel variants the way a ThinkPad T14 without a
+  generation does, just one more axis (the exact laptop SKU) coarser; `spec_adjust` only corrects for
+  RAM/SSD, not screen size, panel quality or chassis. `office.features()`'s RAM/SSD reader (reused by
+  both) was tuned for office-ad phrasing: a GPU's VRAM number can be misread as `ram_gb` when a title
+  states both without "RAM"/"VRAM" labels (`"RTX 5070Ti 12 GB/R9-9955HX"`), and two unlabelled numbers
+  separated only by "/" with no space (`"128GB/4TB"`) can both land in the same bucket, losing one.
+  Apple Silicon's 128 GB+ RAM configurations hit the same ambiguity, since that threshold is also the
+  point office.py's heuristic assumes any bare number must be storage. An abbreviated CPU name
+  ("R9-9955HX" rather than "Ryzen 9 9955HX", "U9" rather than "Ultra 9") isn't recognised, the same
+  deliberate miss as any other un-stated spec. Laptop-only workstation mobile GPUs (RTX A-series,
+  Quadro) aren't modelled at all, so a workstation laptop with one reads as `igpu`. The
+  laptop/desktop split for the `pc` Bazoš section relies on the title saying
+  "notebook"/"laptop"/"ntb"; a laptop ad that says neither (rare) is missed, by design -- the
+  alternative (bucketing any `pc`-section spec match as a laptop) would misclassify gaming desktops,
+  which this phase deliberately leaves alone.
 - Reposts are detected by seller name and title, both of which a seller can change.
 - The gate counts data-days per category from the first ad seen. GPU history starts 2026-10-09,
   office history (PCs, laptops) on 2026-10-09 with v0.3.0. Office volume is much lower, so office

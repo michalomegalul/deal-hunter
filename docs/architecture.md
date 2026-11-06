@@ -33,11 +33,14 @@ pc.bazos.cz ───────────────────► hunt sc
 - `db/`: raw psycopg 3 (`repository.py`) and numbered SQL migrations (`hunt db migrate`).
 - `categories.py` + `categories.yaml`: the category tree (names, icons, triage labels, follow-up
   nouns, pickup defaults, pricing/spec-adjust flags and source sections for `gpu`, `office_pc`,
-  `office_laptop`, `hdd` and their Phase-3 placeholder siblings). Every module below reads this
-  instead of its own hard-coded category tuple/dict.
-- `normalize.py` + `gpu_catalog.yaml`: the GPU normalizer; `office.py`: the office one;
-  `storage.py` + `storage_catalog.yaml`: disks. `geo.py` + `cz_postcodes.csv`: distances, shipping
-  detection and the pickup rule. `text.py`: shared text helpers (`fold`, `kc`).
+  `office_laptop`, `hdd`, `apple`, `apple_desktop`, `herni`, `ostatni` and the still-unpriced
+  Phase-3 placeholders -- gaming desktops and components). Every module below reads this instead of
+  its own hard-coded category tuple/dict.
+- `normalize.py` + `gpu_catalog.yaml`: the GPU normalizer; `office.py`: the office one; `apple.py`:
+  MacBook/iMac/Mac mini/Mac Studio; `laptop_spec.py`: consumer/gaming laptops (a CPU+GPU spec bucket,
+  reusing normalize.py's GPU catalog); `storage.py` + `storage_catalog.yaml`: disks. `geo.py` +
+  `cz_postcodes.csv`: distances, shipping detection and the pickup rule. `text.py`: shared text
+  helpers (`fold`, `kc`).
 - `pricing.py`: fair price v1. `triage.py`: Ollama client, prompt, tolerant parser, deal score.
   `alerts.py`: the worker cycle, gate, ntfy and digest. `health.py`: the worker heartbeat and the
   watchdog.

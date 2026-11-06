@@ -34,6 +34,49 @@ shows one model (prefix match, so both VRAM sizes) with its recent ads. A daily 
 model (Huber or Ridge on log price, shrunk per model, monotonic in RAM/SSD) is preferred over
 LightGBM, and it has to beat the median in a time-split evaluation.
 
+## Apple and consumer/gaming laptops
+
+`apple.py` and `laptop_spec.py` price what office.py always excluded as `out_of_scope`: MacBooks,
+iMacs, Mac minis/Studios, and consumer/gaming laptops (IdeaPad/Legion/Yoga, Pavilion/Omen/Victus,
+Aspire/Nitro/Predator, Vivobook/ROG/TUF, MSI, ...). Both get `spec_adjust: true` in the category
+tree, so the same RAM/SSD log-price slope `pricing.py` already fits for office hardware (one shared
+slope per doubling, shrunk toward a prior, clipped to 0-35 %) applies to them too.
+
+**Apple** keys on the chip and screen size for Apple Silicon (`macbook air m2 13`, `macbook pro m1
+pro 14`, `imac m1 24`, `mac mini m2`, `mac studio m2 max`), falling back to year+screen for
+Intel-era Macs (`macbook pro intel 2017 13`) or just screen size when the title gives no year
+(`macbook air intel 13`, coarser, same mixed-variant trade-off a ThinkPad T14 without a generation
+has). A bare 'MacBook'/'iMac'/'Mac mini' with nothing to pin a key to is unmatched, same as a bare
+'Dell OptiPlex' in office.py.
+
+**Consumer/gaming laptops** have no stable catalog of SKUs the way ThinkPads do (far too many Lenovo
+IdeaPad/Legion model numbers alone), so the pricing key is a **spec bucket** instead of a model
+number -- what actually drives resale value is the CPU tier+generation and the GPU:
+
+```
+laptop i7 g12 rtx 4060   Core i7, 12th gen, RTX 4060
+laptop r5 5000 igpu      Ryzen 5, 5000 series, no discrete GPU
+laptop rtx 5070          GPU only -- the ad never named a CPU (common in "wow spec" gaming ads)
+```
+
+CPU bucket: `i{3,5,7,9} g{gen}` (classic Core, generation read from the model number: `1135G7` ->
+11, `12700H` -> 12, `8265U` -> 8), `ultra{5,7,9} s{100,200}` (Core Ultra, by hundred-series --
+Meteor/Lunar Lake vs Arrow Lake), `r{3,5,7,9} {series}` (Ryzen, by thousand-series: `5600H` -> 5000),
+`rai{7,9} {series}` (Ryzen AI, by hundred-series). A bare tier with no model number at all still
+gives the tier alone (`r5`), coarser. GPU bucket: the exact model name from `gpu_catalog.yaml`
+(normalize.py's desktop GPU catalog, reused as-is -- no VRAM suffix, since a laptop GPU's VRAM often
+differs from its desktop namesake and the catalog only knows the desktop one), plus a handful of
+laptop-exclusive chips the desktop catalog has no entry for (RTX 2050/3050 Ti/4050, GTX 1650 Ti); no
+discrete GPU found -> `igpu`. The CPU component is *dropped*, not placeholder-filled, when the title
+names no CPU at all -- hence the GPU-only key above. These buckets were sized from the real titles
+available (see the generator script's commentary; no production sample was reachable while writing
+this): coarse enough that a handful of ads reach each bucket, at the cost of mixing somewhat
+different laptops (a budget RTX 3050 config and a maxed-out one) under the same `rtx 3050`-style key.
+Category: `herni` (a discrete GPU was found, or a gaming-line brand name is in the title: Legion,
+ROG, TUF, Nitro, Predator, Omen, Victus, MSI, Aorus, Alienware, Loq, ...) or `ostatni` otherwise. A
+title with none of a CPU, a discrete GPU or a gaming-line name ("Notebook Asus Vivobook 15 x507m")
+is left unmatched -- conservative, same as office.py.
+
 ## New prices and priors
 
 Bazoš medians are asking prices from thin data. Two kinds of new price help: as context in pushes, as
