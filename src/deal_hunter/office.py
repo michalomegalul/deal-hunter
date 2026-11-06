@@ -363,12 +363,19 @@ CPU_ULTRA = re.compile(r"\b(?:core )?ultra ?([579]) ?(\d{3}[a-z]{0,2})?\b")
 CPU_RYZEN = re.compile(r"\bryzen ?([3579])(?: pro)? ?(\d{4}[a-z]{0,2})?\b")
 
 
-def features(title: str) -> dict:
-    """{'ram_gb', 'ssd_gb', 'cpu'} from the title, each only when it is reasonably clear."""
+def features(title: str, extra_ram_sizes: frozenset[int] = frozenset()) -> dict:
+    """{'ram_gb', 'ssd_gb', 'cpu'} from the title, each only when it is reasonably clear.
+
+    `extra_ram_sizes` widens the set of bare numbers (no 'RAM'/'GB' label) under 120 read as RAM,
+    for callers whose products use capacities office PCs don't (apple.py: 36/96 GB Apple Silicon
+    configs; 128 GB and up already default to storage below, the same ambiguity a bare number that
+    high has for an office PC).
+    """
     t = fold(title)
     t = re.sub(r"(?<=\d),(?=\d)", ".", t)
     t = re.sub(r"[^a-z0-9./]+", " ", t)
     t = re.sub(r"\b(ssd|nvme|hdd|ram)(?=\d)", r"\1 ", t)  # 'ssd256gb' -> 'ssd 256gb'
+    ram_sizes = RAM_SIZES | extra_ram_sizes
     out: dict = {}
     ram_labeled, ram_plain, ssd_labeled, storage_plain = [], [], [], []
     for m in SIZE.finditer(t):
@@ -387,7 +394,7 @@ def features(title: str) -> dict:
             continue
         elif unit == "tb" or gb >= 120:
             storage_plain.append(gb)
-        elif gb in RAM_SIZES:
+        elif gb in ram_sizes:
             ram_plain.append(gb)
     ram = (ram_labeled or ram_plain or [None])[0]
     ssd = (ssd_labeled or storage_plain or [None])[0]
