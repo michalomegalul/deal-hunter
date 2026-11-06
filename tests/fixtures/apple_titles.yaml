@@ -15,7 +15,7 @@
 - {title: 27 APPLE iMac 5K RETINA model 2020 ZÁRUKA lze až 128Gb, section: pc, model: imac 27 2020, ssd_gb: 128}
 - {title: Mac mini M4 2024 CTO, section: pc, model: mac mini m4}
 - {title: 'Prodám - Apple iMac 21,5" 2017 / 8GB RAM / 1T SSD', section: pc, model: imac 21.5 2017, ram_gb: 8}
-- {title: MacBook Air Mid 2013, section: notebook}
+- {title: MacBook Air Mid 2013, section: notebook, model: macbook air intel 2013}
 - {title: APPLE MACBOOK PRO 16 M4PRO/48GB/512GB/BATERIE 97%, section: notebook, model: macbook pro m4 pro 16, ram_gb: 48,
   ssd_gb: 512}
 - {title: NOVÝ APPLE MACBOOK PRO 16” M3 MAX (14core) /1TB/36GB, section: notebook, model: macbook pro m3 max 16,
@@ -31,15 +31,15 @@
 - {title: APPLE MACBOOK AIR 13” 2020 M1/8GB RAM/256GB, section: notebook, model: macbook air m1 13, ram_gb: 8, ssd_gb: 256}
 - {title: 'MacBook Pro 14" M4 PRO CZ 2024 Vesmírně černý, s Nanotextur', section: notebook, model: macbook pro m4
     pro 14}
-- {title: 13” MacBook air 16/256 83cyklů 99%baterie, section: notebook, model: macbook air intel 13}
+- {title: 13” MacBook air 16/256 83cyklů 99%baterie, section: notebook, excluded: accessory}
 - {title: Macbook Pro 15 i7/16/256GB/ATI Pro 4GB/touchbar/nová bat., section: notebook, model: macbook pro intel
     15, ram_gb: 4, cpu: i7}
 - {title: Macbook Air A1932, section: notebook}
-- {title: MacBook Pro 13", section: notebook, model: macbook pro intel 13}
+- {title: MacBook Pro 13", section: notebook}
 - {title: 'Apple MacBook A1342, 8GB RAM', section: notebook}
 - {title: 'MacbookPro M1Pro, 16 GB RAM, 512 GB SSD, Brno/Praha', section: notebook, model: macbook pro m1 pro 14,
   ram_gb: 16, ssd_gb: 512}
-- {title: MacBook Air Intel core i5 8gb, section: notebook}
+- {title: MacBook Air Intel core i5 8gb, section: notebook, model: macbook air intel, ram_gb: 8, cpu: i5}
 - {title: Apple MacBook Air 13" M1, section: notebook, model: macbook air m1 13}
 - {title: Napájecí adaptér Apple usb-c 87W, section: notebook, excluded: out_of_scope}
 - {title: 'Apple MacBook Air M4 13,6″ (2025) – 16 GB RAM / 256 GB SSD', section: notebook, model: macbook air m4
@@ -48,8 +48,7 @@
 - {title: Macbook Air 2015 13” 250GB, section: notebook, model: macbook air intel 2015 13, ssd_gb: 250}
 - {title: CTO 13 APPLE MacBook Air M1 8jádro 256/16Gb ZÁRUKA Grey, section: notebook, model: macbook air m1 13,
   ram_gb: 16}
-- {title: 13 APPLE MacBook Pro RETINA SSD 512 model 2020 Záruka, section: notebook, model: macbook pro intel 2020
-    13}
+- {title: 13 APPLE MacBook Pro RETINA SSD 512 model 2020 Záruka, section: notebook}
 - {title: 16 Apple MacBook Pro M1 Pro 10/16jádro 2021 SSD 1TB ZÁRUKA, section: notebook, model: macbook pro m1 pro
     16, ssd_gb: 1024}
 - {title: '16 Apple MacBook Pro i7 2,6GHz 6jádro SSD 512/16GB ZÁRUKA', section: notebook, model: macbook pro intel
@@ -60,20 +59,18 @@
 - {title: 'MacBook Pro 13" Touch Bar (2017) – 512 GB SSD, baterie 390', section: notebook, model: macbook pro intel
     2017 13, ssd_gb: 512}
 - {title: MacBook PRO 13 palců M1 chip 8 RAM 256SSD 80 cyklů, section: notebook, model: macbook pro m1 13}
-- {title: Macbook Air 13” 2020 CTO 512Gb + 16Gb, section: notebook, model: macbook air intel 2020 13, ram_gb: 16,
-  ssd_gb: 512}
-- {title: Macbook Air 13” 2020 16Gb, section: notebook, model: macbook air intel 2020 13, ram_gb: 16}
+- {title: Macbook Air 13” 2020 CTO 512Gb + 16Gb, section: notebook}
+- {title: Macbook Air 13” 2020 16Gb, section: notebook}
 - {title: Macbook Air 13” 2020 M1, section: notebook, model: macbook air m1 13}
-- {title: Macbook Pro 15” CTO 32Gb RAM, section: notebook, model: macbook pro intel 15, ram_gb: 32}
+- {title: Macbook Pro 15” CTO 32Gb RAM, section: notebook}
 - {title: Macbook Air 13” 2022 M2, section: notebook, model: macbook air m2 13}
 - {title: Macbook 14' Pro M3, section: notebook, model: macbook pro m3 14}
 - {title: Prodám - Apple MacBook Pro 16" 2019 / 32GB RAM / 1T SSD, section: notebook, model: macbook pro intel 2019
     16, ram_gb: 32}
-- {title: Prodám - Apple MacBook Air 13" 2020 / 8GB RAM / 512 SSD, section: notebook, model: macbook air intel 2020
-    13, ram_gb: 8}
+- {title: Prodám - Apple MacBook Air 13" 2020 / 8GB RAM / 512 SSD, section: notebook}
 - {title: Macbook Air 13 M1/16GB/256GB Space Black, section: notebook, model: macbook air m1 13, ram_gb: 16, ssd_gb: 256}
 - {title: Macbook Pro 14 M1/16GB/512GB Space Grey, section: notebook, model: macbook pro m1 14, ram_gb: 16, ssd_gb: 512}
-- {title: MacBook Air Retina 13” (2020), section: notebook, model: macbook air intel 2020 13}
+- {title: MacBook Air Retina 13” (2020), section: notebook}
 - {title: 'MacBook Pro 16” M2 Pro (2023) 32GB/1TB, záruka', section: notebook, model: macbook pro m2 pro 16, ram_gb: 32,
   ssd_gb: 1024}
 - {title: 'MacBook Pro 16” M2 Pro (2023) 16GB/512GB, rok záruka', section: notebook, model: macbook pro m2 pro 16,
@@ -116,7 +113,8 @@
   cpu: i5}
 - {title: MacBook Air 2018 13 i5 8GB 256GB, section: notebook, model: macbook air intel 2018 13, ram_gb: 8, ssd_gb: 256,
   cpu: i5}
-- {title: Macbook Air 11 2014 i5 4GB 128GB, section: notebook}
+- {title: Macbook Air 11 2014 i5 4GB 128GB, section: notebook, model: macbook air intel 2014, ram_gb: 4, ssd_gb: 128,
+  cpu: i5}
 - {title: MacBook Air M4 15 Midnight 16GB 512GB, section: notebook, model: macbook air m4 15, ram_gb: 16, ssd_gb: 512}
 - {title: MacBook Pro M2 13 8GB 256GB, section: notebook, model: macbook pro m2 13, ram_gb: 8, ssd_gb: 256}
 - {title: MacBook Pro M2 14 16GB 512GB, section: notebook, model: macbook pro m2 14, ram_gb: 16, ssd_gb: 512}
@@ -225,3 +223,13 @@
 - {title: iPhone SE 2022 64GB, section: notebook, excluded: out_of_scope}
 - {title: Apple TV 4K 2022, section: notebook, excluded: out_of_scope}
 - {title: HomePod mini, section: notebook, excluded: out_of_scope}
+# Real production titles (from a full-catalog review of an earlier version of this normalizer) that
+# exposed the Intel-fallback bug: an M5 (or any Mx) chip wasn't recognised at all (CHIP was m1-m4
+# only), and a year/screen combo that's only ever been Apple Silicon fell through to an 'intel' key
+# anyway, inflating that model's fair price with a cheap old Intel Mac's asking prices.
+- {title: MacBook Air 13″ M5 2026 CZ - NOVÝ zabalený se zárukou, section: notebook, model: macbook air m5 13}
+- {title: 'MacBook Pro 14" M5 2025 Vesmírně černý', section: notebook, model: macbook pro m5 14}
+- {title: 'Macbook Air (2024) 15", 16GB/512GB', section: notebook}
+- {title: MacBook PRO 2024 14”, section: notebook}
+- {title: Prodám MacBook Pro 16” 2021, section: notebook}
+- {title: 'Apple Studio Displey + Apple Mac Mini M4 ,, NOVÝ', section: pc, excluded: bundle}
