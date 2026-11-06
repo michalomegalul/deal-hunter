@@ -17,7 +17,7 @@ from importlib import resources
 
 import yaml
 
-from deal_hunter import office, storage
+from deal_hunter import apple, office, storage
 from deal_hunter.bazos import CATEGORY, SECTIONS
 from deal_hunter.text import fold
 
@@ -96,8 +96,15 @@ def launch_msrp(key: str) -> tuple[int, int] | None:
 
 
 def version() -> int:
-    """One number for all rule sets: GPU catalog * 100 000 + office rules * 100 + storage catalog."""
-    return load_catalog().version * 100_000 + office.VERSION * 100 + storage.version()
+    """One number for all rule sets: GPU catalog * 1 000 000 + office rules * 10 000 + storage
+    catalog * 100 + apple rules * 10 + laptop_spec rules."""
+    return (
+        load_catalog().version * 1_000_000
+        + office.VERSION * 10_000
+        + storage.version() * 100
+        + apple.VERSION * 10
+        + laptop_spec.VERSION
+    )
 
 
 # --- text preparation ---------------------------------------------------------------------------
@@ -284,6 +291,12 @@ def gpu_key(model: Model, vram: int | None) -> str:
     return model.name
 
 
+# laptop_spec.py reuses this module's prepare()/find_models() for GPU detection, so it imports
+# normalize.py in turn; imported here (after both are defined) rather than at module top, to break
+# the import cycle.
+from deal_hunter import laptop_spec
+
+
 def classify(title: str, section: str = CATEGORY, description: str | None = None) -> Normalized:
     """The pricing key and features of one ad. `description` is only read for disks (storage.py)."""
     kind = SECTIONS.get(section, SECTIONS[CATEGORY]).kind
@@ -297,7 +310,23 @@ def classify(title: str, section: str = CATEGORY, description: str | None = None
         return Normalized("hdd", r.model, r.features, r.excluded_reason)
     if kind == "office":
         r = office.normalize(title)
-        return Normalized(r.category or "office", r.model, r.features, r.excluded_reason)
+        if r.model or r.excluded_reason != "out_of_scope":
+            # A business line was named (matched, or named but unclear which model) or the ad was
+            # excluded for a reason that applies regardless of brand (wanted/accessory/bundle/
+            # multiple): office.py's read stands. Only a title that named *no* business line at all
+            # ('out_of_scope') is worth trying against Apple's and the consumer/gaming laptop rules.
+            return Normalized(r.category or "office", r.model, r.features, r.excluded_reason)
+        a = apple.normalize(title)
+        if a.status != "excluded" or a.excluded_reason != "out_of_scope":
+            # Matched, excluded for an Apple-specific reason, or an Apple line named but unclear
+            # which model (-> `hunt review` under 'apple', the same way office.py's own unmatched
+            # business-line ads land under 'office'). Only apple.py's own out_of_scope ('not a Mac
+            # at all, or no Apple line named') is worth trying against the laptop spec bucketer.
+            return Normalized(a.category or "apple", a.model, a.features, a.excluded_reason)
+        lap = laptop_spec.normalize(title, section)
+        if lap.status != "unmatched":
+            return Normalized(lap.category or "ostatni", lap.model, lap.features, lap.excluded_reason)
+        return Normalized("office", excluded_reason="out_of_scope")
     r = normalize(title)
     if r.gpu_model is None:
         return Normalized("gpu", excluded_reason=r.excluded_reason)
