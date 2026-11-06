@@ -1,14 +1,18 @@
 """A small, plain, read-only LAN website: `hunt web` (port 8080, stdlib only, no JS framework).
 
-Five pages plus a detail page, all server-rendered HTML with one inline CSS block:
+Five pages plus a detail, a category tree and a model page, all server-rendered HTML with one
+inline CSS block:
 
-- `/`            recent deals (would-alert or alerted listings), with `?category=` and
-                  `?min_discount=` filters.
-- `/prices`       the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
-- `/auctions`     open nms.gov.cz lots with their valuation (reuses `auction_cycle.value`).
-- `/flips`        the flips log (buy, sell, fees, profit, days held, totals) and the `hunt eval` tables.
-- `/status`       what the LLM jobs and the scraper did lately, and whether anything looks stuck.
-- `/listing/<id>` one ad: description, triage JSON, price history.
+- `/`              recent deals (would-alert or alerted listings), with `?category=` and
+                    `?min_discount=` filters.
+- `/prices`         the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
+- `/category[/<id>]` the category tree (`categories.py`): a branch's children with subtree totals,
+                    or a leaf's (or a group's) own priced models and open deals.
+- `/model/<key>`    one pricing model: fair price, new price, and current live offers from every source.
+- `/auctions`       open nms.gov.cz lots with their valuation (reuses `auction_cycle.value`).
+- `/flips`          the flips log (buy, sell, fees, profit, days held, totals) and the `hunt eval` tables.
+- `/status`         what the LLM jobs and the scraper did lately, and whether anything looks stuck.
+- `/listing/<id>`   one ad: description, triage JSON, price history.
 
 Every value that comes from an ad (title, description, seller, location, the LLM's verdict) is
 untrusted input and is HTML-escaped before it goes on the page. All queries are parameterized
@@ -18,11 +22,13 @@ writes to the database.
 
 import json
 import logging
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from html import escape as esc
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
+from deal_hunter import categories
 from deal_hunter.text import kc
 
 log = logging.getLogger(__name__)
@@ -52,7 +58,10 @@ CSS = """
   footer { margin-top: 2rem; color: #999; font-size: .85rem; }
 """
 
-NAV = '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/auctions">Auctions</a><a href="/flips">Flips</a><a href="/status">Status</a></nav>'
+NAV = (
+    '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/category">Categories</a>'
+    '<a href="/auctions">Auctions</a><a href="/flips">Flips</a><a href="/status">Status</a></nav>'
+)
 
 
 def page(title: str, body: str) -> str:
@@ -83,13 +92,34 @@ def when(dt: datetime | None) -> str:
 # --- / : recent deals -------------------------------------------------------------------------------
 
 DEAL_STATES = ("alerted", "queued", "would_alert", "capped")
-CATEGORIES = ("gpu", "office_pc", "office_laptop", "hdd")
+# The categories offered by the `?category=` filter and the CLI's `--category`: every priced leaf of
+# the tree, plus the "office" group alias (office_pc + office_laptop) kept for backward compatibility.
+CATEGORIES = (*(n.id for n in categories.leaves(priced=True)), "office")
 
 
 def _matches_category(row_category: str, wanted: str) -> bool:
-    if wanted == "office":
-        return row_category.startswith("office")
-    return row_category == wanted
+    return row_category in categories.subtree(wanted)
+
+
+def _deal_row(d: dict) -> str:
+    state_cls = "good" if d["state"] == "alerted" else "muted"
+    return (
+        "<tr>"
+        f'<td class="wrap"><a class="ad" href="{esc(d["url"])}" target="_blank" rel="noopener">'
+        f'{esc(d["title"])}</a><br><a href="/listing/{d["listing_id"]}">details</a></td>'
+        f"<td>{kc(d['price'])}</td>"
+        f"<td>{kc(d['fair'])}</td>"
+        f'<td class="bad">{pct(d["discount"])}</td>'
+        f"<td>{km(d['distance_km'])}</td>"
+        f'<td class="wrap">{esc(d["verdict"] or "")}</td>'
+        f'<td><a href="/category/{esc(d["category"])}">{esc(d["category"])}</a></td>'
+        f'<td class="{state_cls}">{esc(d["state"])}</td>'
+        f"<td>{when(d['alerted_at'] or d['first_flagged'])}</td>"
+        "</tr>"
+    )
+
+
+DEAL_HEADERS = ["Ad", "Price", "Fair", "Discount", "Distance", "LLM verdict", "Category", "State", "Seen"]
 
 
 def render_index(conn, category: str | None = None, min_discount: float | None = None) -> str:
@@ -117,29 +147,7 @@ def render_index(conn, category: str | None = None, min_discount: float | None =
     if not deals:
         return filters + '<p class="empty">No deals in this view yet.</p>'
 
-    rows = []
-    for d in deals:
-        state_cls = "good" if d["state"] == "alerted" else "muted"
-        rows.append(
-            "<tr>"
-            f'<td class="wrap"><a class="ad" href="{esc(d["url"])}" target="_blank" rel="noopener">'
-            f'{esc(d["title"])}</a><br><a href="/listing/{d["listing_id"]}">details</a></td>'
-            f"<td>{kc(d['price'])}</td>"
-            f"<td>{kc(d['fair'])}</td>"
-            f'<td class="bad">{pct(d["discount"])}</td>'
-            f"<td>{km(d['distance_km'])}</td>"
-            f'<td class="wrap">{esc(d["verdict"] or "")}</td>'
-            f"<td>{esc(d['category'])}</td>"
-            f'<td class="{state_cls}">{esc(d["state"])}</td>'
-            f"<td>{when(d['alerted_at'] or d['first_flagged'])}</td>"
-            "</tr>"
-        )
-    table = (
-        '<div class="tablewrap"><table><thead><tr>'
-        "<th>Ad</th><th>Price</th><th>Fair</th><th>Discount</th><th>Distance</th>"
-        '<th class="wrap">LLM verdict</th><th>Category</th><th>State</th><th>Seen</th>'
-        "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>"
-    )
+    table = _table(DEAL_HEADERS, [_deal_row(d) for d in deals])
     return filters + f'<p class="muted">{len(deals)} deal(s).</p>' + table
 
 
@@ -168,8 +176,8 @@ def render_prices(conn) -> str:
             note = ""
         body.append(
             "<tr>"
-            f"<td>{esc(p.model)}</td>"
-            f"<td>{esc(p.category)}</td>"
+            f'<td><a href="/model/{esc(quote(p.model))}">{esc(p.model)}</a></td>'
+            f'<td><a href="/category/{esc(p.category)}">{esc(p.category)}</a></td>'
             f"<td>{p.n}</td>"
             f"<td>{median}</td>"
             f"<td>{esc(p.level)}</td>"
@@ -183,6 +191,157 @@ def render_prices(conn) -> str:
         "<th>Prior / note</th></tr></thead><tbody>" + "".join(body) + "</tbody></table></div>"
     )
     return f'<p class="muted">{len(rows)} model(s). Asking prices of the last 60 days.</p>' + table
+
+
+# --- /category/<id> : the category tree -------------------------------------------------------------
+#
+# categories.py (categories.yaml) is the single source of the tree; this just walks it. A branch node
+# (pocitace, notebooky, komponenty, ...) lists its children with how many open deals and priced
+# models fall under each (summed over its whole subtree); a leaf (or the "office" group alias) lists
+# its own priced models and open deals directly.
+
+
+def _breadcrumb(node_id: str) -> str:
+    chain = categories.ancestors(node_id)
+    if not chain:  # a group (e.g. "office"): no place in the physical tree, so no trail above it
+        g = categories.group(node_id)
+        return esc(g.name) if g else esc(node_id)
+    crumbs = [f'<a href="/category/{esc(n.id)}">{esc(n.name)}</a>' for n in chain[:-1]]
+    crumbs.append(esc(chain[-1].name))
+    return '<p class="muted">' + " › ".join(['<a href="/category">Categories</a>', *crumbs]) + "</p>"
+
+
+def render_category_index() -> str:
+    """`/category`: the top-level roots, as a starting point into the tree."""
+    rows = [
+        f'<tr><td><a href="/category/{esc(n.id)}">{esc(n.name)}</a></td></tr>' for n in categories.roots()
+    ]
+    return _table(["Category"], rows)
+
+
+def render_category(conn, node_id: str) -> str | None:
+    """`/category/<id>`: a branch node's children (with subtree totals) or a leaf's own models and
+    deals. None for an id this module doesn't know (404)."""
+    from deal_hunter import pricing
+    from deal_hunter.config import load_settings
+    from deal_hunter.db import repository as repo
+
+    if not categories.is_known(node_id):
+        return None
+
+    deals = repo.deals_in_state(conn, *DEAL_STATES)
+    deal_counts = Counter(d["category"] for d in deals)
+    settings = load_settings()
+    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    price_counts = Counter(p.category for p in prices.values())
+
+    crumb = _breadcrumb(node_id)
+    kids = categories.children(node_id)
+    if kids:
+        rows = []
+        for cid in kids:
+            child = categories.node(cid)
+            sub = categories.subtree(cid)
+            rows.append(
+                "<tr>"
+                f'<td><a href="/category/{esc(cid)}">{esc(child.name)}</a></td>'
+                f"<td>{sum(deal_counts.get(s, 0) for s in sub)}</td>"
+                f"<td>{sum(price_counts.get(s, 0) for s in sub)}</td>"
+                "</tr>"
+            )
+        return crumb + _table(["Category", "Open deals", "Priced models"], rows)
+
+    # a leaf, or the "office" group: its own models and deals, directly (subtree() of a leaf is
+    # itself; of "office" is office_pc + office_laptop).
+    leaf_ids = categories.subtree(node_id)
+    rows_models = sorted(
+        (p for p in prices.values() if p.category in leaf_ids), key=lambda p: (-p.n, p.model)
+    )
+    if rows_models:
+        model_rows = []
+        for p in rows_models:
+            median = f"{kc(p.median)}/TB" if p.per_tb else kc(p.median)
+            model_rows.append(
+                "<tr>"
+                f'<td><a href="/model/{esc(quote(p.model))}">{esc(p.model)}</a></td>'
+                f"<td>{p.n}</td><td>{median}</td><td>{esc(p.level)}</td>"
+                "</tr>"
+            )
+        models = _table(["Model", "n", "Median", "Level"], model_rows)
+    else:
+        models = '<p class="empty">No priced models in this category yet.</p>'
+
+    own_deals = sorted(
+        (d for d in deals if d["category"] in leaf_ids),
+        key=lambda d: d["alerted_at"] or d["first_flagged"],
+        reverse=True,
+    )
+    deals_html = (
+        _table(DEAL_HEADERS, [_deal_row(d) for d in own_deals])
+        if own_deals
+        else '<p class="empty">No open deals in this category.</p>'
+    )
+    return (
+        crumb
+        + f'<p class="muted">{len(rows_models)} priced model(s).</p>'
+        + models
+        + f'<h2>Open deals</h2><p class="muted">{len(own_deals)} deal(s).</p>'
+        + deals_html
+    )
+
+
+# --- /model/<key> : one pricing model ---------------------------------------------------------------
+
+
+def render_model(conn, model: str) -> str | None:
+    """`/model/<key>`: the fair price, the new price (if any) and current live offers from every
+    source. None if the model has no fair price yet (404)."""
+    from deal_hunter import pricing
+    from deal_hunter.config import load_settings
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    fp = prices.get(model)
+    if fp is None:
+        return None
+
+    crumb = _breadcrumb(fp.category) + f"<p>{esc(model)}</p>"
+    median = f"{kc(fp.median)}/TB" if fp.per_tb else kc(fp.median)
+    iqr = f"{kc(fp.q25)}-{kc(fp.q75)}" + ("/TB" if fp.per_tb else "")
+    lines = [
+        f"<tr><th>Fair price</th><td>{median}</td></tr>",
+        f"<tr><th>IQR</th><td>{iqr}</td></tr>",
+        f"<tr><th>Confidence</th><td>{esc(fp.level)} ({fp.confidence:.2f})</td></tr>",
+        f"<tr><th>Samples</th><td>{fp.n} of {fp.n_listings} ads ({fp.sold} gone fast)</td></tr>",
+    ]
+    if fp.new_price:
+        from deal_hunter.alerts import new_text
+
+        lines.append(f"<tr><th>New price</th><td>{esc(new_text(fp))}</td></tr>")
+    summary = "<table>" + "".join(lines) + "</table>"
+
+    offers = repo.active_model_listings(conn, model)
+    if offers:
+        rows = [
+            "<tr>"
+            f"<td>{esc(o['source'])}</td>"
+            f"<td>{kc(o['price_czk']) if o['price_czk'] else esc(o['price_kind'] or '-')}</td>"
+            f'<td class="wrap"><a class="ad" href="{esc(o["url"])}" target="_blank" rel="noopener">'
+            f'{esc(o["title"])}</a><br><a href="/listing/{o["id"]}">details</a></td>'
+            f"<td>{when(o['first_seen'])}</td>"
+            "</tr>"
+            for o in offers
+        ]
+        offers_html = _table(["Source", "Price", "Ad", "First seen"], rows)
+    else:
+        offers_html = '<p class="empty">No live offers right now.</p>'
+    return (
+        crumb
+        + summary
+        + f'<h2>Live offers</h2><p class="muted">{len(offers)} active ad(s).</p>'
+        + offers_html
+    )
 
 
 # --- /auctions : open nms.gov.cz lots --------------------------------------------------------------
@@ -705,6 +864,23 @@ class Handler(BaseHTTPRequestHandler):
                     self._respond(200, page("Deals", body))
                 elif path == "/prices":
                     self._respond(200, page("Fair prices", render_prices(conn)))
+                elif path == "/category":
+                    self._respond(200, page("Categories", render_category_index()))
+                elif path.startswith("/category/"):
+                    node_id = unquote(path.removeprefix("/category/"))
+                    body = render_category(conn, node_id)
+                    if body is None:
+                        self._respond(404, _not_found())
+                    else:
+                        name = categories.node(node_id) or categories.group(node_id)
+                        self._respond(200, page(name.name if name else node_id, body))
+                elif path.startswith("/model/"):
+                    model = unquote(path.removeprefix("/model/"))
+                    body = render_model(conn, model)
+                    if body is None:
+                        self._respond(404, _not_found())
+                    else:
+                        self._respond(200, page(model, body))
                 elif path == "/auctions":
                     self._respond(200, page("Open auctions", render_auctions(conn)))
                 elif path == "/flips":

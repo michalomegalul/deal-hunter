@@ -303,14 +303,15 @@ def fair_price(
 
 def estimate_all(samples: list[Sample]) -> dict[str, FairPrice]:
     """Fair prices for every model with enough samples."""
-    from deal_hunter import storage
+    from deal_hunter import categories, storage
 
     by_category: dict[str, list[Sample]] = defaultdict(list)
     for s in samples:
         by_category[s.category].append(s)
     out = {}
     for category, group in by_category.items():
-        adjustment = estimate_adjustment(dedupe(group)) if category.startswith("office") else None
+        node = categories.node(category)
+        adjustment = estimate_adjustment(dedupe(group)) if node and node.spec_adjust else None
         by_model: dict[str, list[Sample]] = defaultdict(list)
         for s in group:
             by_model[s.model].append(s)

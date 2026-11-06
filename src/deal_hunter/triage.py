@@ -19,6 +19,7 @@ from pathlib import Path
 
 import httpx
 
+from deal_hunter import categories
 from deal_hunter.text import fold
 
 # Bump when the prompt or schema changes: candidates are triaged again.
@@ -121,12 +122,7 @@ RESPONSE_SCHEMA = {
     ],
 }
 
-KIND = {
-    "gpu": "graphics card",
-    "office_pc": "ex-office PC",
-    "office_laptop": "business laptop",
-    "hdd": "hard disk / SSD",
-}
+KIND = categories.triage_labels(priced=True)  # {"gpu": "graphics card", "office_pc": "ex-office PC", ...}
 
 # Hard disks get extra questions: what the seller says about the drive's health. Only for that
 # category, so the GPU/office prompt and schema stay as they were (apart from `ships`).

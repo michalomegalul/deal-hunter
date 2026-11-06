@@ -411,6 +411,18 @@ def model_listings(conn: psycopg.Connection, model: str, limit: int) -> list[tup
     ).fetchall()
 
 
+def active_model_listings(conn: psycopg.Connection, model: str, limit: int = 50) -> list[dict]:
+    """Live (not gone) ads of one pricing model, newest first, across every source. For the web
+    model page's "current live offers" table (web.render_model)."""
+    cur = conn.execute(
+        "SELECT l.id, l.source, l.price_czk, l.price_kind, l.title, l.url, l.first_seen, n.features "
+        "FROM listings l JOIN normalized n ON n.listing_id = l.id "
+        "WHERE n.model = %s AND l.gone_at IS NULL ORDER BY l.first_seen DESC LIMIT %s",
+        (model, limit),
+    )
+    return _dicts(cur)
+
+
 def data_since(conn: psycopg.Connection) -> dict[str, object]:
     """{section: first_seen of its oldest listing}: how long each section has been collected."""
     return dict(conn.execute("SELECT section, min(first_seen) FROM listings GROUP BY 1").fetchall())

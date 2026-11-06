@@ -1,5 +1,6 @@
 """Settings loaded from the environment (and a local .env file)."""
 
+import logging
 import os
 from dataclasses import dataclass
 from importlib.metadata import version
@@ -7,6 +8,8 @@ from importlib.metadata import version
 from dotenv import load_dotenv
 
 from deal_hunter.geo import home_point
+
+log = logging.getLogger(__name__)
 
 REPO_URL = "https://github.com/michalomegalul/deal-hunter"
 VERSION = version("deal-hunter")
@@ -108,24 +111,36 @@ def _float_or_none(name: str) -> float | None:
     return float(raw) if raw else None
 
 
-HDD_PICKUP_KM_DEFAULT = 300.0  # disks ship easily; wider than HUNTER_PICKUP_KM unless overridden
-
-
 def pickup_by_category(env=None) -> tuple[tuple[str, float], ...]:
-    """HUNTER_PICKUP_KM_<CATEGORY>=km for any category (HDD, GPU, OFFICE_PC, OFFICE_LAPTOP; OFFICE = both).
+    """HUNTER_PICKUP_KM_<NODE>=km for any id in the category tree (categories.py): a leaf (HDD,
+    GPU, OFFICE_PC, OFFICE_LAPTOP, ...) or a group (OFFICE = office_pc + office_laptop); case
+    insensitive. A node applies to its whole subtree; the most specific node (the smallest subtree)
+    wins where two overlap, so HUNTER_PICKUP_KM_OFFICE_PC=30 next to HUNTER_PICKUP_KM_OFFICE=60
+    still gives office_pc 30 km.
 
-    HDD defaults to HDD_PICKUP_KM_DEFAULT (300 km) even with no env var set; HUNTER_PICKUP_KM_HDD
-    (including =0, to fall back to the plain HUNTER_PICKUP_KM) overrides it like any other category.
+    Leaves with a `default_pickup_km` in categories.yaml (today only hdd, 300 km: disks ship easily)
+    get it even with no env var set; HUNTER_PICKUP_KM_HDD (including =0, to fall back to the plain
+    HUNTER_PICKUP_KM) overrides it like any other leaf.
     """
+    from deal_hunter import categories
+
     env = os.environ if env is None else env
-    out: dict[str, float] = {}
-    for name, value in sorted(env.items()):
+    matches = []  # (subtree size, name, leaf ids, km): smallest subtree = most specific
+    for name, value in env.items():
         if not name.startswith("HUNTER_PICKUP_KM_") or not value.strip():
             continue
-        category = name.removeprefix("HUNTER_PICKUP_KM_").lower()
-        for c in ("office_pc", "office_laptop") if category == "office" else (category,):
-            out.setdefault(c, float(value))
-    out.setdefault("hdd", HDD_PICKUP_KM_DEFAULT)
+        leaf_ids = categories.subtree(name.removeprefix("HUNTER_PICKUP_KM_"))
+        if not leaf_ids:
+            log.warning("%s ignored: no such category in categories.yaml", name)
+            continue
+        matches.append((len(leaf_ids), name, leaf_ids, float(value)))
+
+    out: dict[str, float] = {}
+    for _, _, leaf_ids, km in sorted(matches, key=lambda m: (m[0], m[1])):
+        for leaf in leaf_ids:
+            out.setdefault(leaf, km)
+    for leaf, km in categories.pickup_defaults().items():
+        out.setdefault(leaf, km)
     return tuple(sorted(out.items()))
 
 

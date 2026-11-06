@@ -32,7 +32,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from deal_hunter import geo, pricing, triage
+from deal_hunter import categories, geo, pricing, triage
 from deal_hunter.geo import DistanceRules
 from deal_hunter.pricing import LEVEL_RANK, FairPrice
 from deal_hunter.text import kc
@@ -44,18 +44,6 @@ MAX_DISCOUNT = 0.9  # "price" under 10 % of fair is a typo or a placeholder, not
 FRESH_DAYS = 3  # only ads first seen this recently become candidates
 QUEUE_HOURS = 24  # a held (quiet hours) push older than this is dropped
 REPOST_DAYS = 14
-CATEGORY_SECTIONS = {
-    "gpu": ("graficka",),
-    "office_pc": ("pc", "notebook"),
-    "office_laptop": ("pc", "notebook"),
-    "hdd": ("hdd",),
-}
-CATEGORY_TAG = {
-    "gpu": "video_game",
-    "office_pc": "desktop_computer",
-    "office_laptop": "computer",
-    "hdd": "floppy_disk",
-}
 
 SOURCE_LABEL = {
     "sbazar": "Sbazar",
@@ -253,7 +241,9 @@ class Rules:
 
 def category_days(data_since: dict, category: str, now: datetime) -> float:
     """How many days of data the category's sections have (the shortest one counts)."""
-    starts = [data_since[s] for s in CATEGORY_SECTIONS.get(category, ()) if s in data_since]
+    node = categories.node(category)
+    sections = node.sections if node else ()
+    starts = [data_since[s] for s in sections if s in data_since]
     if not starts:
         return 0.0
     return (now - max(starts)).total_seconds() / 86400
@@ -350,7 +340,8 @@ def format_alert(
     source = deal.get("source")
     if source and source != "bazos":
         lines.append(f"via {SOURCE_LABEL.get(source, source)}")
-    tags = [CATEGORY_TAG.get(deal["category"], "shopping_cart")]
+    node = categories.node(deal["category"])
+    tags = [node.icon if node and node.icon else "shopping_cart"]
     if deal["discount"] >= 0.33:
         tags.append("moneybag")
     return title, "\n".join(lines), tags
