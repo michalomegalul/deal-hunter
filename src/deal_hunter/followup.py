@@ -28,6 +28,7 @@ time, inspection and pickup.
 import re
 from datetime import datetime
 
+from deal_hunter import categories
 from deal_hunter.text import kc
 
 MAX_DESCRIPTION = 1500
@@ -63,18 +64,12 @@ def offer_price(price: int, discount: float = 0.07) -> int:
 
 TEMPLATE = "Dobrý den, zajímám se o {noun} {item}. Mohl byste mi prosím sdělit, zda je stále k dispozici?"
 
-# What the item is, in the accusative ("zajímám se o ...").
-NOUNS = {
-    "gpu": "grafickou kartu",
-    "office_pc": "počítač",
-    "office_laptop": "notebook",
-    "aio": "all-in-one počítač",
-    "hdd": "disk",
-    "hdd_many": "disky",
-    "external": "externí disk",
-    "ssd": "SSD",
-}
-SECTION_CATEGORY = {"graficka": "gpu", "pc": "office_pc", "notebook": "office_laptop", "hdd": "hdd"}
+# What the item is, in the accusative ("zajímám se o ..."), from the category tree (categories.yaml);
+# hard disks build their own noun in storage.noun_and_name (SSD / externí disk(y) / disk(y)) and never
+# reach this dict. "aio" is a one-off override for office_pc's all-in-ones (EliteOne/ProOne), not a
+# category of its own.
+NOUNS = categories.nouns(priced=True)
+AIO_NOUN = "all-in-one počítač"
 
 GPU_BRANDS = (
     "asus|msi|gigabyte|zotac|palit|gainward|sapphire|powercolor|xfx|asrock|evga|pny|kfa2|galax|inno3d"
@@ -159,7 +154,7 @@ def office_name(title: str, key: str) -> str:
 
 def item_name(listing: dict) -> tuple[str, str]:
     """(noun, item) for the message to the seller."""
-    category = listing.get("category") or SECTION_CATEGORY.get(listing.get("section") or "", "gpu")
+    category = listing.get("category") or categories.for_section(listing.get("section") or "") or "gpu"
     key = listing.get("model")
     title = listing.get("title") or ""
     features = listing.get("features") or {}
@@ -170,7 +165,7 @@ def item_name(listing: dict) -> tuple[str, str]:
     if key and category == "gpu":
         return NOUNS["gpu"], gpu_name(title, key)
     if key and category in ("office_pc", "office_laptop"):
-        noun = NOUNS["aio"] if key.startswith(("eliteone", "proone")) else NOUNS[category]
+        noun = AIO_NOUN if key.startswith(("eliteone", "proone")) else NOUNS[category]
         return noun, office_name(title, key)
     return NOUNS.get(category, NOUNS["gpu"]), ""  # no model: "... o grafickou kartu z vašeho inzerátu"
 

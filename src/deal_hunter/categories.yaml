@@ -1,0 +1,163 @@
+# The category tree (categories.py). A shop-style menu, physically modelled on Datart's own:
+#
+#   pocitace > notebooky > {office_laptop, herni, apple, ostatni}
+#   pocitace > stolni > {office_pc, herni_pc, apple_desktop}
+#   komponenty > {gpu, procesory, pameti, zakladni_desky, skrine}
+#   uloziste > hdd
+#   sit
+#
+# Only office_laptop, office_pc, gpu and hdd are priced today (priced: true) -- they are the exact
+# ids normalize.py/office.py/storage.py already emit, unchanged, so no database data moves and no
+# migration is needed. Every other leaf is a placeholder (priced: false, spec_adjust: false, no
+# sections yet) for the catalogs Phase 3 will fill in; they are kept out of alerting (alerts.py only
+# ever sees a `category` that came from a priced normalizer result) until then.
+#
+# `sections` lists the Bazoš sections (bazos.SECTIONS) that feed a leaf, home section first: the
+# section whose ads normalize into this leaf by default (categories.for_section). A section can
+# feed more than one leaf (both office_pc and office_laptop drew their alert-gate history from both
+# "pc" and "notebook", a historical choice kept as-is for behaviour parity).
+#
+# `groups` are not part of the physical tree above: they are categories the normalizers can emit
+# that never carry a model and are never priced or alerted, documented in categories.py's module
+# docstring (`"office"` = office_pc + office_laptop, the unmatched-business-line bucket; `"watch"` =
+# a watch-only section's ads, matched only by watchlist.py). `"out_of_scope"` is never a category
+# value (always an excluded_reason instead), so it has no node or group here.
+
+nodes:
+  - id: pocitace
+    parent: null
+    name: "Počítače"
+    icon: computer
+
+  - id: notebooky
+    parent: pocitace
+    name: "Notebooky"
+    icon: laptop
+
+  - id: office_laptop
+    parent: notebooky
+    name: "Kancelářské"
+    noun: notebook
+    icon: computer
+    triage_label: "business laptop"
+    priced: true
+    spec_adjust: true
+    sections: [notebook, pc]
+
+  - id: herni
+    parent: notebooky
+    name: "Herní"
+    icon: joystick
+    priced: false
+
+  - id: apple
+    parent: notebooky
+    name: "Apple"
+    icon: apple
+    priced: false
+
+  - id: ostatni
+    parent: notebooky
+    name: "Ostatní"
+    icon: laptop
+    priced: false
+
+  - id: stolni
+    parent: pocitace
+    name: "Stolní"
+    icon: desktop_computer
+
+  - id: office_pc
+    parent: stolni
+    name: "Kancelářské"
+    noun: "počítač"
+    icon: desktop_computer
+    triage_label: "ex-office PC"
+    priced: true
+    spec_adjust: true
+    sections: [pc, notebook]
+
+  - id: herni_pc
+    parent: stolni
+    name: "Herní"
+    icon: joystick
+    priced: false
+
+  - id: apple_desktop
+    parent: stolni
+    name: "Apple"
+    icon: apple
+    priced: false
+
+  - id: komponenty
+    parent: null
+    name: "Komponenty"
+    icon: control_knobs
+
+  - id: gpu
+    parent: komponenty
+    name: "Grafické karty"
+    noun: "grafickou kartu"
+    icon: video_game
+    triage_label: "graphics card"
+    priced: true
+    spec_adjust: false
+    sections: [graficka]
+
+  - id: procesory
+    parent: komponenty
+    name: "Procesory"
+    icon: cpu
+    priced: false
+
+  - id: pameti
+    parent: komponenty
+    name: "Paměti"
+    icon: ram
+    priced: false
+    sections: [pamet]
+
+  - id: zakladni_desky
+    parent: komponenty
+    name: "Základní desky"
+    icon: motherboard
+    priced: false
+    sections: [motherboard]
+
+  - id: skrine
+    parent: komponenty
+    name: "Skříně"
+    icon: package
+    priced: false
+    sections: [case]
+
+  - id: uloziste
+    parent: null
+    name: "Úložiště"
+    icon: floppy_disk
+
+  - id: hdd
+    parent: uloziste
+    name: "Pevné disky"
+    noun: disk
+    icon: floppy_disk
+    triage_label: "hard disk / SSD"
+    default_pickup_km: 300
+    priced: true
+    spec_adjust: false
+    sections: [hdd]
+
+  - id: sit
+    parent: null
+    name: "Síťové prvky"
+    icon: satellite
+    priced: false
+    sections: [sit, wifi]
+
+groups:
+  office:
+    name: "Kancelářské (PC i notebooky)"
+    members: [office_pc, office_laptop]
+  watch:
+    name: "Jen sledování (bez cenění)"
+    members: []

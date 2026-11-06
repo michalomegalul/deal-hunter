@@ -2,6 +2,7 @@
 
 import argparse
 
+from deal_hunter import categories
 from deal_hunter.cli.common import load_estimates, make_new_price_http, num
 from deal_hunter.config import load_settings
 from deal_hunter.pricing import RETAIL_SOURCES
@@ -82,7 +83,7 @@ def cmd_prices(args: argparse.Namespace) -> None:
     rows = [
         p
         for p in prices.values()
-        if (args.category is None or p.category.startswith(args.category))
+        if (args.category is None or p.category in categories.subtree(args.category))
         and LEVEL_RANK[p.level] >= LEVEL_RANK[args.min_level]
     ]
     rows.sort(key=lambda p: (p.category, -p.n, p.model))
@@ -164,7 +165,13 @@ def register(sub: argparse._SubParsersAction) -> None:
     p.set_defaults(func=cmd_price)
 
     p = sub.add_parser("prices", help="fair price table: model, n, median, IQR, confidence, new price, prior")
-    p.add_argument("--category", choices=["gpu", "office", "office_pc", "office_laptop", "hdd"], default=None)
+    # Every priced leaf, plus any group that actually groups some of them ("office"; "watch" never
+    # has a priced member, so it would only ever filter to an empty table).
+    category_choices = sorted(
+        {n.id for n in categories.leaves(priced=True)}
+        | {g.id for g in categories.tree().groups.values() if g.members}
+    )
+    p.add_argument("--category", choices=category_choices, default=None)
     p.add_argument("--min-level", choices=["low", "medium", "high"], default="low")
     p.add_argument(
         "--no-prior", action="store_true", help="raw medians, without the new-price/auction priors"
