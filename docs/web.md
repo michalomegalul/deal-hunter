@@ -8,10 +8,17 @@ only reads the database - the scraper, worker and feedback service are unaffecte
 
 - `/` - recent deals (listings that would alert or were alerted: `would_alert`, `queued`, `alerted`,
   `capped`), title linking to the ad, price, fair price, discount %, distance, the LLM's verdict,
-  category and when it was flagged/pushed. `?category=gpu|office_pc|office_laptop|hdd|office` and
-  `?min_discount=30` filter the list.
+  category (linking into `/category/<id>`) and when it was flagged/pushed.
+  `?category=gpu|office_pc|office_laptop|hdd|office` and `?min_discount=30` filter the list.
 - `/prices` - the fair price table (model, n, median, level, new price, prior/note), the same
-  estimate `hunt prices` prints; pooled disk classes show Kč/TB.
+  estimate `hunt prices` prints; pooled disk classes show Kč/TB. Model and category link into
+  `/model/<key>` and `/category/<id>`.
+- `/category` and `/category/<id>` - the category tree (`categories.py`/`categories.yaml`): a
+  breadcrumb trail, a branch node's children with how many open deals and priced models fall under
+  each (summed over the whole subtree), or a leaf's (or the `office` group's) own priced models and
+  open deals directly.
+- `/model/<key>` - one pricing model: fair price, IQR, confidence, new price if any, and every
+  current live offer for it across every source (price, ad link, first seen).
 - `/auctions` - open nms.gov.cz lots with their valuation (max bid, profit, confidence) and end time.
 - `/flips` - the flips log (buy, sell, fees, profit, days held) with its totals, and the `hunt eval`
   tables for the last 90 days. Read-only like the rest: flips are recorded with `hunt flip`.

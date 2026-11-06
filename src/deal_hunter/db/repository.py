@@ -411,7 +411,7 @@ def model_listings(conn: psycopg.Connection, model: str, limit: int) -> list[tup
     ).fetchall()
 
 
-def active_model_listings(conn: psycopg.Connection, model: str, limit: int = 20) -> list[dict]:
+def active_model_listings(conn: psycopg.Connection, model: str, limit: int = 50) -> list[dict]:
     """Live (not gone) ads of one pricing model, newest first, across every source. For the web
     model page's "current live offers" table (web.render_model)."""
     cur = conn.execute(

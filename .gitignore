@@ -13,3 +13,7 @@ __pycache__/
 # generated
 data/
 
+
+# local agent notes and worktrees
+CLAUDE.md
+.claude/

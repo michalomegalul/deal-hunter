@@ -44,6 +44,62 @@ def test_prices_table_lists_a_priced_model(conn):
     html = web.render_prices(conn)
     assert "rtx 3080 10gb" in html
     assert "gpu" in html
+    assert '<a href="/model/rtx%203080%2010gb">' in html
+    assert '<a href="/category/gpu">' in html
+
+
+# --- /category and /model ---------------------------------------------------------------------------
+
+
+def test_category_page_branch_lists_children_with_subtree_totals(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+    assert deal_state(conn) == ("alerted", None)
+
+    html = web.render_category(conn, "komponenty")
+    # gpu's row: 1 open deal (listing 999, alerted), 1 priced model (rtx 3080 10gb)
+    assert '<td><a href="/category/gpu">Grafické karty</a></td><td>1</td><td>1</td>' in html
+    # a placeholder sibling with nothing in its subtree yet
+    assert '<td><a href="/category/procesory">Procesory</a></td><td>0</td><td>0</td>' in html
+
+
+def test_category_page_leaf_lists_its_models_and_deals(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+
+    html = web.render_category(conn, "gpu")
+    assert "Grafické karty" in html  # breadcrumb
+    assert '<a href="/model/rtx%203080%2010gb">rtx 3080 10gb</a>' in html
+    assert "/listing/999" in html
+
+
+def test_category_page_unknown_id_is_none(conn):
+    assert web.render_category(conn, "nonexistent") is None
+
+
+def test_category_page_office_group_has_no_members_seeded(conn):
+    seed(conn)  # only GPUs: office_pc/office_laptop have no samples
+    html = web.render_category(conn, "office")
+    assert html is not None
+    assert "Kancelářské (PC i notebooky)" in html
+    assert "No priced models in this category yet." in html
+
+
+def test_render_model_shows_fair_price_and_live_offers_escapes_titles(conn):
+    seed(conn)
+    conn.execute("UPDATE listings SET title = %s WHERE id = 100", ("<script>bad</script> RTX 3080",))
+
+    html = web.render_model(conn, "rtx 3080 10gb")
+    assert html is not None
+    assert "Grafické karty" in html  # breadcrumb to the category
+    assert "Fair price" in html
+    assert "<script>bad</script>" not in html and "&lt;script&gt;bad&lt;/script&gt;" in html
+    assert "21 active ad(s)" in html  # 20 seeded + the deal ad, none gone
+
+
+def test_render_model_unknown_model_is_none(conn):
+    seed(conn)
+    assert web.render_model(conn, "nonexistent model") is None
 
 
 def test_listing_page_has_description_and_price_history_unknown_id_is_none(conn):

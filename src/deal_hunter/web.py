@@ -1,14 +1,18 @@
 """A small, plain, read-only LAN website: `hunt web` (port 8080, stdlib only, no JS framework).
 
-Five pages plus a detail page, all server-rendered HTML with one inline CSS block:
+Five pages plus a detail, a category tree and a model page, all server-rendered HTML with one
+inline CSS block:
 
-- `/`            recent deals (would-alert or alerted listings), with `?category=` and
-                  `?min_discount=` filters.
-- `/prices`       the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
-- `/auctions`     open nms.gov.cz lots with their valuation (reuses `auction_cycle.value`).
-- `/flips`        the flips log (buy, sell, fees, profit, days held, totals) and the `hunt eval` tables.
-- `/status`       what the LLM jobs and the scraper did lately, and whether anything looks stuck.
-- `/listing/<id>` one ad: description, triage JSON, price history.
+- `/`              recent deals (would-alert or alerted listings), with `?category=` and
+                    `?min_discount=` filters.
+- `/prices`         the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
+- `/category[/<id>]` the category tree (`categories.py`): a branch's children with subtree totals,
+                    or a leaf's (or a group's) own priced models and open deals.
+- `/model/<key>`    one pricing model: fair price, new price, and current live offers from every source.
+- `/auctions`       open nms.gov.cz lots with their valuation (reuses `auction_cycle.value`).
+- `/flips`          the flips log (buy, sell, fees, profit, days held, totals) and the `hunt eval` tables.
+- `/status`         what the LLM jobs and the scraper did lately, and whether anything looks stuck.
+- `/listing/<id>`   one ad: description, triage JSON, price history.
 
 Every value that comes from an ad (title, description, seller, location, the LLM's verdict) is
 untrusted input and is HTML-escaped before it goes on the page. All queries are parameterized

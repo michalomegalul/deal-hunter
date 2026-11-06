@@ -27,3 +27,30 @@ def test_matches_category_groups_office():
     assert web._matches_category("office_laptop", "office")
     assert not web._matches_category("gpu", "office")
     assert web._matches_category("gpu", "gpu")
+
+
+def test_categories_tuple_has_the_four_priced_leaves_and_the_office_group():
+    assert set(web.CATEGORIES) == {"gpu", "office_pc", "office_laptop", "hdd", "office"}
+
+
+def test_breadcrumb_links_every_ancestor_but_the_last():
+    html = web._breadcrumb("office_laptop")
+    assert '<a href="/category/pocitace">Počítače</a>' in html
+    assert '<a href="/category/notebooky">Notebooky</a>' in html
+    assert "Kancelářské</p>" in html  # the node itself: text, not a link
+    assert '<a href="/category/office_laptop">' not in html
+
+
+def test_breadcrumb_of_a_group_has_no_trail():
+    assert web._breadcrumb("office") == "Kancelářské (PC i notebooky)"
+
+
+def test_breadcrumb_of_an_unknown_id_falls_back_to_the_id():
+    assert web._breadcrumb("nonexistent") == "nonexistent"
+
+
+def test_render_category_index_lists_the_top_level_roots():
+    html = web.render_category_index()
+    for name in ("Počítače", "Komponenty", "Úložiště", "Síťové prvky"):
+        assert name in html
+    assert '<a href="/category/pocitace">' in html
