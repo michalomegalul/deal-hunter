@@ -1,5 +1,6 @@
 """Settings loaded from the environment (and a local .env file)."""
 
+import logging
 import os
 from dataclasses import dataclass
 from importlib.metadata import version
@@ -7,6 +8,8 @@ from importlib.metadata import version
 from dotenv import load_dotenv
 
 from deal_hunter.geo import home_point
+
+log = logging.getLogger(__name__)
 
 REPO_URL = "https://github.com/michalomegalul/deal-hunter"
 VERSION = version("deal-hunter")
@@ -127,8 +130,10 @@ def pickup_by_category(env=None) -> tuple[tuple[str, float], ...]:
         if not name.startswith("HUNTER_PICKUP_KM_") or not value.strip():
             continue
         leaf_ids = categories.subtree(name.removeprefix("HUNTER_PICKUP_KM_"))
-        if leaf_ids:
-            matches.append((len(leaf_ids), name, leaf_ids, float(value)))
+        if not leaf_ids:
+            log.warning("%s ignored: no such category in categories.yaml", name)
+            continue
+        matches.append((len(leaf_ids), name, leaf_ids, float(value)))
 
     out: dict[str, float] = {}
     for _, _, leaf_ids, km in sorted(matches, key=lambda m: (m[0], m[1])):
