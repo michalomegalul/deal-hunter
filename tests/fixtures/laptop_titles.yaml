@@ -1,0 +1,309 @@
+# Consumer/gaming laptop titles for laptop_spec.py (IdeaPad/Legion/Yoga, Pavilion/Omen/Victus,
+# Aspire/Nitro/Predator, Vivobook/ROG/TUF, MSI, ...): everything office.py and apple.py don't
+# claim. Real titles (hand-collected from pc.bazos.cz/notebook.bazos.cz, the same source as
+# office_titles.yaml -- most of these were office.py's own out_of_scope negative examples)
+# plus additional realistic titles authored to cover CPU generations/series and GPU tiers the
+# real sample alone didn't have enough of, and a few 'pc' section gaming-desktop ads that must
+# stay unmatched here (desktops are a later phase).
+# model = canonical spec-bucket key (+ ram_gb/ssd_gb/cpu read from the title, when present);
+# category = herni | ostatni; excluded = reason the ad is skipped; neither = unmatched.
+# Used by tests/test_laptop_spec.py.
+- {title: Dell Precision 7650 32GB/1TB/i7/RTX A2000, section: notebook, model: laptop i7 igpu, ram_gb: 32, ssd_gb: 1024,
+  cpu: i7, category: ostatni}
+- {title: Notebook konvertibilní 2v1, section: notebook}
+- {title: 'Zánovní herní 8 jádro i5 13420H, 16GB, 1TB SSD, RTX5060 8gb', section: notebook, model: laptop i5 g13 rtx
+    5060, ram_gb: 16, ssd_gb: 1024, cpu: i5-13420h, category: herni}
+- {title: 16" QHD+_DELL 16S DS16260_U9-386H_32GB_NOVINKA 2026, section: notebook}
+- {title: ASUS Zenbook S 16 OLED | Ryzen AI 9 | 32 GB RAM | 1 TB SSD |, section: notebook, model: laptop rai9 igpu, ram_gb: 32,
+  ssd_gb: 1024, category: ostatni}
+- {title: Notebook Asus Zen 13, section: notebook}
+- {title: 'ASUS Chromebook Flip CX5 CX5400 – i5, 8GB, 256GB', section: notebook, model: laptop i5 igpu, ram_gb: 8, ssd_gb: 256,
+  cpu: i5, category: ostatni}
+- {title: Acer SWIFT GO 14' OLED displej, section: notebook, excluded: accessory}
+- {title: MSI Katana 15 B13V – i7 / RTX 4070 8GB / 16GB DDR5 / 144Hz, section: notebook, model: laptop i7 rtx 4070, ram_gb: 16,
+  cpu: i7, category: herni}
+- {title: Lenovo Yoga C640 i7 16GB 512GB + stylus a krabice, section: notebook, model: laptop i7 igpu, ram_gb: 16, ssd_gb: 512,
+  cpu: i7, category: ostatni}
+- {title: Acer TravelMate P614-51-G2, section: notebook}
+- {title: Pěkný Acer Aspire ES 13 Intel SSD128gb 13"HD W10 Bat 5 hod, section: notebook}
+- {title: Dell 5450 Intel i5 SSD256gb 8gbRAM W10 14"FHD IPS bat 5 hod, section: notebook, model: laptop i5 igpu, ram_gb: 8,
+  ssd_gb: 256, cpu: i5, category: ostatni}
+- {title: Pěkné Lenovo B50-45 AMD E1 SSD120gb 4gbRAM WIN10, section: notebook}
+- {title: STARŠÍ HERNÍ NOTEBOOK I5 9300HF/8GB RAM/GTX 1650/512GB SSD, section: notebook, model: laptop i5 g9 gtx 1650,
+  ram_gb: 8, ssd_gb: 512, cpu: i5-9300hf, category: herni}
+- {title: Herní notebook MSI Katana 17 B13VGK-1099CZ, section: notebook}
+- {title: Lenovo V320-17ISK Iron Grey, section: notebook}
+- {title: ASUS-X509•i5-8265U•NVIDIA MX250•NVME SSD OSC-512GB•12GB-RAM, section: notebook, model: laptop i5 g8 igpu, ram_gb: 12,
+  ssd_gb: 512, cpu: i5-8265u, category: ostatni}
+- {title: ACER A315-51 /i5-7200/8GB/SSD256GB/1920x1080/WIN11/ZÁRUKA, section: notebook, model: laptop i5 g7 gtx 1080,
+  ram_gb: 8, ssd_gb: 256, cpu: i5-7200, category: herni}
+- {title: ASUS X540L /i3-4005/8GB/SSD512GB/FULLHD/WIN11/ZÁRUKA, section: notebook, model: laptop i3 g4 igpu, ram_gb: 8,
+  ssd_gb: 512, cpu: i3-4005, category: ostatni}
+- {title: Huawei MateBook 14" 2K Ryzen7 4800H 5000B SSD TOPSTAV, section: notebook, model: laptop r7 4000 igpu, cpu: ryzen
+    7 4800h, category: ostatni}
+- {title: Dell Vostro 5481 Full HD IPS kovové šasi, section: notebook, excluded: accessory}
+- {title: Brašna HP, section: notebook, excluded: accessory}
+- {title: Brašna Acer, section: notebook, excluded: accessory}
+- {title: Napájecí zdroj Dell 65W, section: notebook, excluded: accessory}
+- {title: DELL adapter 90W, section: notebook, excluded: accessory}
+- {title: MSI Katana 17 HX | i7-14650HX | RTX 5060 | QHD 240Hz, section: notebook, model: laptop i7 g14 rtx 5060, cpu: i7-14650hx,
+  category: herni}
+- {title: Dell XPS 13", section: notebook}
+- {title: Acer Extensa 5510 - Core 2 DUO / 2GB RAM / HDD 150GB / Win 7, section: notebook}
+- {title: TOP Lenovo IdeaPad Slim 5 15AHP10 Zakoupen 5/2026, section: notebook}
+- {title: '3,5" disketová mechanika Dell', section: notebook}
+- {title: Notebook Asus X550c, section: notebook}
+- {title: Dell Precision 3591 Ultra 9 DDR5 32GB 1TB RTX 2000 Ada Záruk, section: notebook, model: laptop ultra9 igpu,
+  ram_gb: 32, ssd_gb: 1024, cpu: ultra 9, category: ostatni}
+- {title: MSI MODERN 14 B11MO, section: notebook}
+- {title: Toshiba Satellite Pro, section: notebook}
+- {title: Flex kabel DELL Latitude 5500 5510 5511 Precision 3540, section: notebook, excluded: accessory}
+- {title: 'Lenovo Legion Pro 5 16IRX8+nová klávesnice, nov myš', section: notebook}
+- {title: Acer Aspire, section: notebook}
+- {title: Lenovo IdeaPad Z710, section: notebook}
+- {title: 'HP Pavilion 15 – Ryzen 7, 16 GB RAM, SSD 512 GB', section: notebook, model: laptop r7 igpu, ram_gb: 16, ssd_gb: 512,
+  cpu: ryzen 7, category: ostatni}
+- {title: herní notebook acer nitro RTX 3060, section: notebook, model: laptop rtx 3060, category: herni}
+- {title: Acer TravelMate 5360G-ZRJ - B814G50Mnsk, section: notebook}
+- {title: Napájecí adaptér Lenovo 90W, section: notebook, excluded: accessory}
+- {title: Dell Inspiron 13-7359 (2v1 dotykový) – i5 / 8GB RAM / 500GB, section: notebook, model: laptop i5 igpu, ram_gb: 8,
+  ssd_gb: 500, cpu: i5, category: ostatni}
+- {title: Notebok+dokovaci stanice, section: notebook, excluded: accessory}
+- {title: ✨ Microsoft Surface Laptop 13" (Snapdragon X Plus), section: notebook}
+- {title: Hp 250 g5, section: notebook}
+- {title: Dell 7559 Gaming-Herní i7(8xvlákno)-Full HD-16g ram-ssd, section: notebook, model: laptop i7 igpu, ram_gb: 16,
+  cpu: i7, category: herni}
+- {title: 16" ASUS GAMING V16_CORE 7 240H_16GB_1TB_RTX 5060 8GB, section: notebook, model: laptop rtx 5060, ram_gb: 16,
+  ssd_gb: 1024, category: herni}
+- {title: Herní notebook HP Omen 17-an136ng, section: notebook}
+- {title: Webkamera ASUS X553, section: notebook, excluded: accessory}
+- {title: Nová brašna na notebook BASE XX až 17", section: notebook, excluded: accessory}
+- {title: Acer SWIFT GO 14' OLED displej+ záruka, section: notebook, excluded: accessory}
+- {title: Lenovo IdeaPad Slim 3 14AMN8 Záruka 21 Měsicu, section: notebook}
+- {title: HP Laptop 15S-FG2402NC Nový, section: notebook}
+- {title: Notebook Lenovo U310, section: notebook}
+- {title: Notebook Lenovo G50, section: notebook}
+- {title: Notebook Acer Aspire 3 15 A315510P-35CF, section: notebook}
+- {title: Notebook Asus (E410MA-EK016T) bílý, section: notebook}
+- {title: Notebook Sony SVF14N1D4E celokovový, section: notebook}
+- {title: HP ENVY X360 15-DS0105NC, section: notebook}
+- {title: Lenovo Ideapad 3, section: notebook}
+- {title: Originálna nabíjačka Dell 130W, section: notebook}
+- {title: Lenovo B50-30, section: notebook}
+- {title: SSD connector pre Lenovo Thinkpad, section: notebook, excluded: accessory}
+- {title: Lenovo Legion 7 16IAX7 šedý Záruka 3 Měsicu, section: notebook}
+- {title: 'Lenovo S130-14IGM, N4100', section: notebook}
+- {title: Prodám notebook Dell Vostro 3578 i7-8550U 8GB DDR4 256GB SSD, section: notebook, model: laptop i7 g8 igpu,
+  ram_gb: 8, ssd_gb: 256, cpu: i7-8550u, category: ostatni}
+- {title: Hp probook 4540s, section: notebook}
+- {title: 💻 Rychlý 14" NTB Dell - i3-1005G1 / 8 GB RAM / 256 GB NVMe, section: notebook, model: laptop i3 g10 igpu, ram_gb: 8,
+  ssd_gb: 256, cpu: i3-1005g1, category: ostatni}
+- {title: '15,6" FHD_LENOVO V15 G4_i3-1315U_8GB_512GB_WIN 11 PRO', section: notebook, model: laptop i3 igpu, ram_gb: 8,
+  ssd_gb: 512, cpu: i3-1315u, category: ostatni}
+- {title: 'Asus notebook A555L Windows 11, 4GB DDR3, 1TB HDD', section: notebook}
+- {title: '15.6" 240Hz, 8 jádro Ryzen 9 4900H, 16GB, RTX2060 6GB, 1TB', section: notebook, model: laptop r9 4000 rtx
+    2060, ram_gb: 16, ssd_gb: 1024, cpu: ryzen 9 4900h, category: herni}
+- {title: '17.3" 144Hz, 8jádro Ryzen 7 4800H, RX5500 4GB, SSD+HDD', section: notebook, model: laptop r7 4000 igpu, ram_gb: 4,
+  cpu: ryzen 7 4800h, category: ostatni}
+- {title: '18" QHD 240Hz, 16jádro Ryzen 9950HX, 32GB, RTX5080 16GB', section: notebook, model: laptop rtx 5080, ram_gb: 32,
+  category: herni}
+- {title: Lenovo Yoga 7 14ITL5 | i5 | 16 GB | dotyk | Lenovo Pen, section: notebook, model: laptop i5 igpu, ram_gb: 16,
+  cpu: i5, category: ostatni}
+- {title: 'HP Pavilion (15,6", R5 5600H, GTX 1650, 480 GB)', section: notebook, model: laptop gtx 1650, ssd_gb: 480,
+  category: herni}
+- {title: B CZ/SK/ENG Zaruka Herny Nvidia GTX 4GB grafika Core i7 1.5T, section: notebook, model: laptop i7 igpu, ram_gb: 4,
+  cpu: i7, category: ostatni}
+- {title: 'LENOVO 15,6" FHD/i5-3120M 4x2,50GHZ/8GB DDR3/120GB SSD/W11', section: notebook, model: laptop i5 igpu, ram_gb: 8,
+  ssd_gb: 120, cpu: i5-3120m, category: ostatni}
+- {title: '16 Vector,RTX-4080-12gb-175w,i9,QHD+,32GB,1TB-TOP', section: notebook, model: laptop i9 rtx 4080, ram_gb: 12,
+  ssd_gb: 1024, cpu: i9, category: herni}
+- {title: Notebook Asus vivobook 15 x507m, section: notebook}
+- {title: Acer predator herní notebook, section: notebook}
+- {title: Lenovo IdeaPad 3 15" – Intel Core i5 12. gen, section: notebook, model: laptop i5 igpu, cpu: i5, category: ostatni}
+- {title: 15" ULTRABOOK RYZEN5/16GB DDR4/VEGA 8/512GB SSD/W11 ZÁNOVNÍ, section: notebook, model: laptop r5 igpu, ram_gb: 16,
+  cpu: ryzen 5, category: ostatni}
+- {title: Dell Inspiron 3542 – Intel i5 / 8GB RAM / 480GB SSD / Win 10, section: notebook, model: laptop i5 igpu, ram_gb: 8,
+  ssd_gb: 480, cpu: i5, category: ostatni}
+- {title: 18" / RTX 5070 8GB / 2560×1600 / 240Hz / RAM 32GB / R.7 260, section: notebook, model: laptop rtx 5070, ram_gb: 32,
+  category: herni}
+- {title: Baterie, section: notebook, excluded: accessory}
+- {title: ASUS Vivobook 14 Flip TP3407SA-OLED003W Matte Gray kovový, section: notebook}
+- {title: 'Dell 5400,SSD 256GB, RAM 8/16GB,i5-8265U CPU,FullHD,Win11Pro', section: notebook, model: laptop i5 g8 igpu,
+  ram_gb: 256, cpu: i5-8265u, category: ostatni}
+- {title: OLED_ALIENWARE 16 AREA-51_240HZ_U9-290HX PLUS_RTX 5090 24GB, section: notebook, model: laptop rtx 5090, ram_gb: 24,
+  category: herni}
+- {title: ThinkPad Ethernet Extension Adapter Gen 2 EX250, section: notebook, excluded: accessory}
+- {title: 'ASUS ROG Flow Z13 - i9, 3050Ti,120hz, 13,4'''' tablet/notebo', section: notebook, model: laptop i9 rtx 3050
+    ti, cpu: i9-3050ti, category: herni}
+- {title: 'HP ProBook 6460 i3,SSD,Windows 11, LAN, WiFi, FireWire', section: notebook, model: laptop i3 igpu, cpu: i3,
+  category: ostatni}
+- {title: Dell Precision 5750 17" 4K Touch / i7 / 64GB / RTX 3000, section: notebook, model: laptop i7 igpu, ram_gb: 64,
+  cpu: i7, category: ostatni}
+- {title: Lenovo IdeaPad Gaming 3 i5, section: notebook, model: laptop i5 igpu, cpu: i5, category: herni}
+- {title: NOVÝ Umax Visionbook N15R Pro, section: notebook}
+- {title: Nový 2026 DELL XPS 16 DA16260 16" OLED Touch Ultra X7 358H, section: notebook}
+- {title: ACER NITRO V 16 HERNÍ NOTEBOOK, section: notebook}
+- {title: 'Lenovo Ideapad 5, R5 4500U, 16GB RAM, 512 GB SSD, TOP STAV', section: notebook}
+- {title: 'Dell 5400, SSD 256GB, RAM 16GB,i5-8265U CPU,FullHD,Win11Pro', section: notebook, model: laptop i5 g8 igpu,
+  ram_gb: 256, cpu: i5-8265u, category: ostatni}
+- {title: 'Dell 5420,SSD 256GB, RAM 8/16GB,i5-1135G7,FullHD,Win11Pro', section: notebook, model: laptop i5 g11 igpu,
+  ram_gb: 256, cpu: i5-1135g7, category: ostatni}
+- {title: OLED_ALIENWARE 16 AREA-51_U9-290HX_RTX 5070 Ti_CHERRY MX, section: notebook, model: laptop rtx 5070 ti, category: herni}
+- {title: Lenovo ThinkBook 14 G4 IAP, section: notebook}
+- {title: 'Herní notebook HP OMEN 16 Core 7 250H 32/512GB, RTX 5060 8GB', section: notebook, model: laptop rtx 5060,
+  ram_gb: 8, category: herni}
+- {title: Mac Book Pro 16" M3 Max (16 CPU) 36GB 1TB CZ, section: notebook}
+- {title: 'Obří 18 Al Predator,Ultra-9,5070-Rtx,32gb-6400Mhz,QHD,ZÁRUKA', section: notebook, model: laptop ultra9 rtx
+    5070, ram_gb: 32, cpu: ultra 9, category: herni}
+- {title: 'Loq 15,32Gb-DDR5,R7 Ai,RTX-5060,RGB,CZ-Záruka.', section: notebook, model: laptop rtx 5060, category: herni}
+- {title: 'Gigabyte Gaming A16,RTX-5060,R7,1TB-CZ-Záruka', section: notebook, model: laptop rtx 5060, category: herni}
+- {title: 'Nový Asus 16,Core 9,DDR5-5600MHz,Oled-FHD+,Podsv.kláv.', section: notebook}
+- {title: '17" Katana,RTX-5060 Mux,i7-14th,DDR5 5600,1TB-CZ-ZÁRUKA.', section: notebook, model: laptop i7 rtx 5060, cpu: i7,
+  category: herni}
+- {title: 'Herní Gigabyte-G5,i5-12Core,RTX-4Gen+příslušenství.', section: notebook, model: laptop i5 igpu, cpu: i5, category: herni}
+- {title: 'Nový Asus 16,Core-5,16gb Ram,FHD-IPS,Záruka.', section: notebook}
+- {title: Notebook ACER Aspire 3 (A315-23-R57N), section: notebook}
+- {title: Notebook Asus Vivobook S15 15.6 OLED záruka Alza do 2/2027, section: notebook}
+- {title: DELL XPS 13- 9340 Hliníkový FHD+ IPS Herní notebook, section: notebook}
+- {title: HP ZBook Fury 16 G10 5F8Z2ES Mobile Workstation, section: notebook}
+- {title: 18”/2.5K/MSI/RTX5070Ti 12 GB/R9-9955HX, section: notebook, model: laptop rtx 5070 ti, ram_gb: 12, category: herni}
+- {title: Predam notebook Thinkbook 16G4+IAP, section: notebook}
+- {title: ASUS Zenbook 14 UX425 - Win 11, section: notebook}
+- {title: Lenovo Legion Pro 7 16ARX8H – Ryzen 9 7945HX / RTX 4080, section: notebook, model: laptop r9 7000 rtx 4080,
+  cpu: ryzen 9 7945hx, category: herni}
+- {title: Asus Vivobook 15 - Ryzen 7 8GB 512GB, section: notebook, model: laptop r7 igpu, ram_gb: 8, ssd_gb: 512, cpu: ryzen
+    7, category: ostatni}
+- {title: Prodám velmi lehký a výkonný notebook Lenovo IdeaPad Slim 5, section: notebook}
+- {title: Lenovo IdeaPad 110-15IBR -  240GB SSD | Windows 11, section: notebook}
+- {title: Lenovo V15 G4 | NOVÝ | ZÁRUKA DO 30.12.2029, section: notebook}
+- {title: Herní notebook, section: notebook}
+- {title: 'LENOVO Legion PRO 7:Ultra 9 275HX,64GB,SSD 1TB,RTX5080 16GB', section: notebook, model: laptop ultra9 s200
+    rtx 5080, ram_gb: 16, ssd_gb: 64, cpu: ultra 9 275hx, category: herni}
+- {title: Fujitsu Siemens Esprimo D9510, section: notebook}
+- {title: 'Herní 8 jádro i7 11700F, 16GB, 1TB SSD, RTX3070 8GB - záruka', section: pc}
+- {title: 'Herní 8jádro Ryzen 7800x3d, 32GB DDR5, RTX4080 16GB, 2TB SSD', section: pc}
+- {title: 'Počítač, PC, gtx 1660ti- i3-10105 16gb', section: pc}
+- {title: 🔧 ČIŠTĚNÍ PC A NOTEBOOKŮ + VÝMĚNA TEPELNÉ PASTY, section: pc}
+- {title: '❰ Herní PC | RYZEN 5 5600, RTX 3070, 32GB RAM, SSD 1TB ❱', section: pc}
+- {title: 'stolní počítač PC, monitor, mobilní telefon Samsung', section: pc}
+- {title: Prodam, section: pc}
+- {title: 'Herní PC,6600K 3.9 GHz, AMD Vega 56 8GB (podobná RTX 3060)', section: pc}
+- {title: 'Core i5 9400F, Geforce 1080, 16 GB RAM,  512 GB SSD, WIN11', section: pc}
+- {title: PC, section: pc}
+- {title: 'PC AMD 3,1 GHz, 2 GB Ram', section: pc}
+- {title: Fujitsu Celsius M740n Xeon/32GB/SSD512+500/K2200 4GB, section: pc}
+- {title: 'Mini PC HP 4jádro AMD Ryzen 3 PRO 3200G, 16GB ram, SSD+HDD', section: pc}
+- {title: SKLENĚNEJ NESMYSL, section: pc}
+- {title: Herní PC HP i5-7500 / GTX 1650 4GB / 16GB / 512GB SSD, section: pc}
+- {title: Herní PC AM5 - Ryzen 5 8500G / RTX 4060 8GB / 32GB RAM DDR5, section: pc}
+- {title: Mini PC Intel NUC, section: pc}
+- {title: Herní PC s RTX 5060 ti, section: pc}
+- {title: Herní PC s RTX 5070 ti, section: pc}
+- {title: Herní PC i5-9400F / RTX 2060 6GB / 16GB RAM / Samsung SSD, section: pc}
+- {title: HP Z6 G4 – výkonná pracovní stanice Xeon / Quadro, section: pc}
+- {title: 'NOVÝ HERNÍ PC - i5-12500, 32GB DDR5, 1TB SSD, RX 6650 XT', section: pc}
+- {title: Výkonný herní PC s příslušenstvím, section: pc}
+- {title: 'Lenovo IdeaPad 3 15, i3-1115G4, 8GB, 256GB SSD', section: notebook, model: laptop i3 g11 igpu, ram_gb: 8,
+  ssd_gb: 256, cpu: i3-1115g4, category: ostatni}
+- {title: 'Acer Aspire 5, i5-1135G7, 8GB, 512GB SSD', section: notebook, model: laptop i5 g11 igpu, ram_gb: 8, ssd_gb: 512,
+  cpu: i5-1135g7, category: ostatni}
+- {title: 'HP Pavilion 15, i5-1035G1, 8GB, 256GB SSD', section: notebook, model: laptop i5 g10 igpu, ram_gb: 8, ssd_gb: 256,
+  cpu: i5-1035g1, category: ostatni}
+- {title: 'Asus Vivobook 15, i7-1165G7, 16GB, 512GB SSD', section: notebook, model: laptop i7 g11 igpu, ram_gb: 16, ssd_gb: 512,
+  cpu: i7-1165g7, category: ostatni}
+- {title: 'Acer Aspire 7, i5-10210U, 8GB, 512GB SSD, MX330', section: notebook, model: laptop i5 g10 igpu, ram_gb: 8,
+  ssd_gb: 512, cpu: i5-10210u, category: ostatni}
+- {title: 'Dell Inspiron 15, i3-8130U, 4GB, 1TB HDD', section: notebook, model: laptop i3 g8 igpu, ram_gb: 4, cpu: i3-8130u,
+  category: ostatni}
+- {title: 'HP 250 G7, i3-7020U, 8GB, 256GB SSD', section: notebook, model: laptop i3 g7 igpu, ram_gb: 8, ssd_gb: 256,
+  cpu: i3-7020u, category: ostatni}
+- {title: 'Lenovo IdeaPad 330, i5-8250U, 8GB, 256GB SSD, MX150', section: notebook, model: laptop i5 g8 igpu, ram_gb: 8,
+  ssd_gb: 256, cpu: i5-8250u, category: ostatni}
+- {title: 'Acer Nitro 5, i5-9300H, 16GB, 512GB SSD, GTX 1650', section: notebook, model: laptop i5 g9 gtx 1650, ram_gb: 16,
+  ssd_gb: 512, cpu: i5-9300h, category: herni}
+- {title: 'ASUS TUF Gaming F15, i7-11800H, 16GB, 512GB SSD, RTX 3060', section: notebook, model: laptop i7 g11 rtx 3060,
+  ram_gb: 16, ssd_gb: 512, cpu: i7-11800h, category: herni}
+- {title: 'ASUS ROG Strix G15, i7-12700H, 16GB, 1TB SSD, RTX 3070', section: notebook, model: laptop i7 g12 rtx 3070,
+  ram_gb: 16, ssd_gb: 1024, cpu: i7-12700h, category: herni}
+- {title: 'MSI Pulse GL66, i7-11800H, 16GB, 1TB SSD, RTX 3060', section: notebook, model: laptop i7 g11 rtx 3060, ram_gb: 16,
+  ssd_gb: 1024, cpu: i7-11800h, category: herni}
+- {title: 'HP Victus 15, i5-12500H, 16GB, 512GB SSD, RTX 4050', section: notebook, model: laptop i5 g12 rtx 4050, ram_gb: 16,
+  ssd_gb: 512, cpu: i5-12500h, category: herni}
+- {title: 'Lenovo Legion 5 Pro, i7-13700HX, 32GB, 1TB SSD, RTX 4070', section: notebook, model: laptop i7 g13 rtx 4070,
+  ram_gb: 32, ssd_gb: 1024, cpu: i7-13700hx, category: herni}
+- {title: 'Acer Predator Helios 300, i7-13700HX, 32GB, 1TB SSD, RTX 4060', section: notebook, model: laptop i7 g13 rtx
+    4060, ram_gb: 32, ssd_gb: 1024, cpu: i7-13700hx, category: herni}
+- {title: 'MSI Stealth 16, i9-13900H, 32GB, 1TB SSD, RTX 4080', section: notebook, model: laptop i9 g13 rtx 4080, ram_gb: 32,
+  ssd_gb: 1024, cpu: i9-13900h, category: herni}
+- {title: 'ASUS ROG Zephyrus G14, Ryzen 9 7940HS, 32GB, 1TB SSD, RTX 4060', section: notebook, model: laptop r9 7000
+    rtx 4060, ram_gb: 32, ssd_gb: 1024, cpu: ryzen 9 7940hs, category: herni}
+- {title: 'Lenovo Legion Slim 5, Ryzen 7 7840HS, 16GB, 1TB SSD, RTX 4060', section: notebook, model: laptop r7 7000 rtx
+    4060, ram_gb: 16, ssd_gb: 1024, cpu: ryzen 7 7840hs, category: herni}
+- {title: 'HP Omen 16, Ryzen 7 6800H, 16GB, 512GB SSD, RTX 3060', section: notebook, model: laptop r7 6000 rtx 3060,
+  ram_gb: 16, ssd_gb: 512, cpu: ryzen 7 6800h, category: herni}
+- {title: 'Acer Nitro 5, Ryzen 5 5600H, 16GB, 512GB SSD, RTX 3050', section: notebook, model: laptop r5 5000 rtx 3050,
+  ram_gb: 16, ssd_gb: 512, cpu: ryzen 5 5600h, category: herni}
+- {title: 'Lenovo IdeaPad Gaming 3, Ryzen 5 5600H, 8GB, 512GB SSD, GTX 1650', section: notebook, model: laptop r5 5000
+    gtx 1650, ram_gb: 8, ssd_gb: 512, cpu: ryzen 5 5600h, category: herni}
+- {title: 'ASUS TUF Gaming A15, Ryzen 7 4800H, 16GB, 512GB SSD, RTX 2060', section: notebook, model: laptop r7 4000 rtx
+    2060, ram_gb: 16, ssd_gb: 512, cpu: ryzen 7 4800h, category: herni}
+- {title: 'Lenovo IdeaPad 3, Ryzen 3 3250U, 8GB, 256GB SSD', section: notebook, model: laptop r3 3000 igpu, ram_gb: 8,
+  ssd_gb: 256, cpu: ryzen 3 3250u, category: ostatni}
+- {title: 'HP 255 G8, Ryzen 5 3500U, 8GB, 256GB SSD', section: notebook, model: laptop r5 3000 igpu, ram_gb: 8, ssd_gb: 256,
+  cpu: ryzen 5 3500u, category: ostatni}
+- {title: 'Asus Vivobook 14, Ryzen 5 7530U, 16GB, 512GB SSD', section: notebook, model: laptop r5 7000 igpu, ram_gb: 16,
+  ssd_gb: 512, cpu: ryzen 5 7530u, category: ostatni}
+- {title: 'Lenovo ThinkBook 14 G6, Core Ultra 5 125U, 16GB, 512GB SSD', section: notebook, model: laptop ultra5 s100
+    igpu, ram_gb: 16, ssd_gb: 512, cpu: ultra 5 125u, category: ostatni}
+- {title: 'ASUS Zenbook 14 OLED, Core Ultra 7 155H, 32GB, 1TB SSD', section: notebook, model: laptop ultra7 s100 igpu,
+  ram_gb: 32, ssd_gb: 1024, cpu: ultra 7 155h, category: ostatni}
+- {title: 'Acer Swift Go 14, Core Ultra 7 155H, 16GB, 512GB SSD', section: notebook, model: laptop ultra7 s100 igpu,
+  ram_gb: 16, ssd_gb: 512, cpu: ultra 7 155h, category: ostatni}
+- {title: 'Lenovo Legion Slim 7, Core Ultra 9 185H, 32GB, 1TB SSD, RTX 4070', section: notebook, model: laptop ultra9
+    s100 rtx 4070, ram_gb: 32, ssd_gb: 1024, cpu: ultra 9 185h, category: herni}
+- {title: 'MSI Prestige 13 Evo, Core Ultra 7 155H, 16GB, 1TB SSD', section: notebook, model: laptop ultra7 s100 igpu,
+  ram_gb: 16, ssd_gb: 1024, cpu: ultra 7 155h, category: herni}
+- {title: 'ASUS Zenbook S14, Core Ultra 7 258V, 32GB, 1TB SSD', section: notebook, model: laptop ultra7 s200 igpu, ram_gb: 32,
+  ssd_gb: 1024, cpu: ultra 7 258v, category: ostatni}
+- {title: 'Lenovo Yoga Slim 7, Core Ultra 7 258V, 32GB, 1TB SSD', section: notebook, model: laptop ultra7 s200 igpu,
+  ram_gb: 32, ssd_gb: 1024, cpu: ultra 7 258v, category: ostatni}
+- {title: 'Dell XPS 14, Core Ultra 9 285H, 32GB, 1TB SSD, RTX 4070', section: notebook, model: laptop ultra9 s200 rtx
+    4070, ram_gb: 32, ssd_gb: 1024, cpu: ultra 9 285h, category: herni}
+- {title: 'HP Omen Transcend 14, Ryzen AI 9 365, 32GB, 1TB SSD, RTX 4070', section: notebook, model: laptop rai9 300
+    rtx 4070, ram_gb: 32, ssd_gb: 1024, category: herni}
+- {title: 'ASUS ROG Zephyrus G16, Ryzen AI 9 HX 370, 32GB, 1TB SSD, RTX 4090', section: notebook, model: laptop rai9
+    300 rtx 4090, ram_gb: 32, ssd_gb: 1024, category: herni}
+- {title: 'Lenovo Legion Go-like Gigabyte Aorus 15, i7-12700H, 16GB, 512GB SSD, RTX 3070 Ti', section: notebook, model: laptop
+    i7 g12 rtx 3070 ti, ram_gb: 16, ssd_gb: 512, cpu: i7-12700h, category: herni}
+- {title: 'Dell G15, i5-12500H, 16GB, 512GB SSD, RTX 3050', section: notebook, model: laptop i5 g12 rtx 3050, ram_gb: 16,
+  ssd_gb: 512, cpu: i5-12500h, category: herni}
+- {title: 'Alienware m16, i9-13900HX, 32GB, 1TB SSD, RTX 4080', section: notebook, model: laptop i9 g13 rtx 4080, ram_gb: 32,
+  ssd_gb: 1024, cpu: i9-13900hx, category: herni}
+- {title: 'Razer Blade 15, i7-12800H, 32GB, 1TB SSD, RTX 3080 Ti', section: notebook, model: laptop i7 g12 rtx 3080 ti,
+  ram_gb: 32, ssd_gb: 1024, cpu: i7-12800h, category: herni}
+- {title: 'Lenovo IdeaPad 1, Celeron N4020, 4GB, 128GB SSD', section: notebook}
+- {title: 'HP 15s, i3-1115G4, 8GB, 256GB SSD, integrovana grafika', section: notebook, model: laptop i3 g11 igpu, ram_gb: 8,
+  ssd_gb: 256, cpu: i3-1115g4, category: ostatni}
+- {title: 'Acer Aspire 1, Celeron N4500, 4GB, 128GB eMMC', section: notebook}
+- {title: 'Asus Vivobook Go, Ryzen 3 7320U, 8GB, 256GB SSD', section: notebook, model: laptop r3 7000 igpu, ram_gb: 8,
+  ssd_gb: 256, cpu: ryzen 3 7320u, category: ostatni}
+- {title: 'Notebook Lenovo nefunkční displej, na náhradní díly', section: notebook, excluded: accessory}
+- {title: 'Notebook Dell, nevím o jaký model jde', section: notebook}
+- {title: Starý notebook Toshiba na díly, section: notebook, excluded: accessory}
+- {title: 'Herní notebook, super stav', section: notebook}
+- {title: Herní PC Ryzen 7 5800X / RTX 4070 / 32GB RAM / 1TB SSD, section: pc}
+- {title: 'Herní PC Legion Tower 5, i7-12700F, RTX 3070, 32GB', section: pc}
+- {title: Sestava Ryzen 5 5600 / RTX 4060 / 16GB / 1TB NVMe, section: pc}
+- {title: 'MSI herní PC, i5-12400F, RTX 3060, 16GB RAM', section: pc}
+- {title: 'Notebook Acer Nitro 5, i5-10300H, RTX 3050, 8GB RAM', section: pc, model: laptop i5 g10 rtx 3050, ram_gb: 8,
+  cpu: i5-10300h, category: herni}
+- {title: 'Herní notebook Lenovo Legion, Ryzen 5 5600H, RTX 3060, 16GB', section: pc, model: laptop r5 5000 rtx 3060,
+  ram_gb: 16, cpu: ryzen 5 5600h, category: herni}
+- {title: Koupím herní notebook s RTX 3060, section: notebook, excluded: wanted}
+- {title: '2x Lenovo Legion 5, RTX 3060, 16GB', section: notebook, excluded: multiple}
+- {title: 'ASUS ROG Strix G15, i7-11800H, RTX 3070, 16GB + monitor 27', section: notebook, excluded: bundle}
+- {title: Baterie pro Acer Nitro 5, section: notebook, excluded: accessory}
+- {title: Nabíječka 150W pro herní notebook Asus, section: notebook, excluded: accessory}
+- {title: Klávesnice CZ pro Lenovo Legion 5, section: notebook, excluded: accessory}
+- {title: Chladič pro notebook Acer Nitro, section: notebook, excluded: accessory}
+- {title: Brašna na herní notebook 17, section: notebook, excluded: accessory}
