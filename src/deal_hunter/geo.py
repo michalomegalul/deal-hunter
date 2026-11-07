@@ -148,6 +148,17 @@ def locate(psc: str | None, location: str | None) -> tuple[tuple[float, float] |
     return None, "unknown"
 
 
+def locate_town(name: str) -> tuple[float, float] | None:
+    """A typed town name ('Praha', 'Brno', 'Brno-střed', 'Ostrava') -> its point, or None when it
+    isn't a known, unambiguous town (folded/cased the same way as an ad's own location: `town_keys`).
+    For the web search/category "Místo" filter -- a person's free-text town, not an ad's own psc."""
+    g = gazetteer()
+    for key in town_keys(name.strip()):
+        if key in g.by_town:
+            return g.by_town[key]
+    return None
+
+
 def home_point(psc: str | None, lat: float | None, lon: float | None) -> tuple[float, float]:
     """HUNTER_HOME_PSC if it is a known code, else HUNTER_HOME_LAT/LON, else Prague centre."""
     code = norm_psc(psc)

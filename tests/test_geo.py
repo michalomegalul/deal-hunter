@@ -42,6 +42,27 @@ def test_ambiguous_or_unknown_places_have_no_distance(location):
     assert geo.distance_km(PRAGUE, None, location) == (None, "unknown")
 
 
+@pytest.mark.parametrize(
+    "town, km_from_prague",
+    [
+        ("Praha", 0),
+        ("praha 5", 7),  # folded/cased the same way as an ad's own location
+        ("Brno-střed", 183),
+        ("ostrava", 275),
+        ("Ústí nad Labem", 72),
+    ],
+)
+def test_locate_town_folds_accents_and_case(town, km_from_prague):
+    point = geo.locate_town(town)
+    assert point is not None
+    assert abs(geo.haversine_km(PRAGUE, point) - km_from_prague) <= 10
+
+
+@pytest.mark.parametrize("town", ["Lhota", "Nowhere at all", "", "   "])
+def test_locate_town_unknown_or_ambiguous_is_none(town):
+    assert geo.locate_town(town) is None
+
+
 def test_home_from_psc_or_coordinates():
     assert geo.home_point("602 00", None, None) == geo.gazetteer().by_psc["60200"]
     assert geo.home_point(None, 49.2, 16.6) == (49.2, 16.6)
