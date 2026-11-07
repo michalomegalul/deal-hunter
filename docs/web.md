@@ -4,21 +4,31 @@ Back to the [README](../README.md).
 
 A plain, read-only LAN website (`hunt web`, port 8080): server-rendered HTML, one small inline CSS
 block, no JS framework, no build step (stdlib `http.server`, nothing new in `pyproject.toml`). It
-only reads the database - the scraper, worker and feedback service are unaffected.
+only reads the database - the scraper, worker and feedback service are unaffected. The look is a
+plain shop catalogue (square corners everywhere, no gradients/shadows, one link colour, dense
+information, bold prices), on purpose, not a dashboard; filters are plain GET forms, no JS.
 
 - `/` - recent deals (listings that would alert or were alerted: `would_alert`, `queued`, `alerted`,
-  `capped`), title linking to the ad, price, fair price, discount %, distance, the LLM's verdict,
-  category (linking into `/category/<id>`) and when it was flagged/pushed.
-  `?category=gpu|office_pc|office_laptop|hdd|office` and `?min_discount=30` filter the list.
+  `capped`), as catalogue rows (thumbnail, title linking to the ad, price, fair price, discount %,
+  distance or "posílá" when the ad ships, source, first seen), plus the category and deal state as
+  a small note. `?category=gpu|office_pc|office_laptop|hdd|office` and `?min_discount=30` filter the
+  list.
 - `/prices` - the fair price table (model, n, median, level, new price, prior/note), the same
   estimate `hunt prices` prints; pooled disk classes show Kč/TB. Model and category link into
   `/model/<key>` and `/category/<id>`.
-- `/category` and `/category/<id>` - the category tree (`categories.py`/`categories.yaml`): a
-  breadcrumb trail, a branch node's children with how many open deals and priced models fall under
-  each (summed over the whole subtree), or a leaf's (or the `office` group's) own priced models and
-  open deals directly.
-- `/model/<key>` - one pricing model: fair price, IQR, confidence, new price if any, and every
-  current live offer for it across every source (price, ad link, first seen).
+- `/category` and `/category/<id>` - the category tree (`categories.py`/`categories.yaml`) as the
+  shop's own department pages: a breadcrumb trail and a grid of square boxes, one per child (or per
+  root on `/category` itself), each with how many priced models, active offers and open deals fall
+  under it (summed over the whole subtree). A leaf (or the `office` group) shows its own product
+  list instead: every active offer as a catalogue row, with a GET form to filter by price range,
+  max distance, source (Bazoš/Aukro/Mironet/Facebook) and "jen výhodné" (cheaper than fair), and to
+  sort by newest/cheapest/biggest discount (`web.Filters`/`parse_filters`,
+  `repository.listings_in_categories`).
+- `/model/<key>` - one pricing model: fair price, IQR, confidence, new price if any, a plain
+  horizontal price bar (inline SVG: the cheapest live offer, the fair price and the new price
+  marked on one axis, every live offer as a tick), every current live offer for it across every
+  source (the same catalogue row as `/category`) and a weekly median price history table
+  (`repository.weekly_median_prices`, from listings already in the database).
 - `/auctions` - open nms.gov.cz lots with their valuation (max bid, profit, confidence) and end time.
 - `/flips` - the flips log (buy, sell, fees, profit, days held) with its totals, and the `hunt eval`
   tables for the last 90 days. Read-only like the rest: flips are recorded with `hunt flip`.
