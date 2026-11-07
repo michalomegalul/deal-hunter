@@ -88,10 +88,13 @@ def test_source_name_known_and_fallback():
     assert web.source_name(None) == "-"
 
 
-def test_thumb_renders_the_ad_image_or_a_plain_grey_box():
-    assert web.thumb(["https://example.com/a.jpg"]) == (
-        '<img class="thumb" src="https://example.com/a.jpg" loading="lazy" alt="">'
+def test_thumb_renders_the_ad_image_over_a_grey_placeholder_with_onerror():
+    html = web.thumb(["https://example.com/a.jpg"])
+    assert html == (
+        '<div class="thumb"><img src="https://example.com/a.jpg" loading="lazy" alt="" '
+        'onerror="this.remove()"></div>'
     )
+    assert 'onerror="this.remove()"' in html  # a renewed/removed ad's broken thumbnail just vanishes
     assert web.thumb([]) == '<div class="thumb empty"></div>'
     assert web.thumb(None) == '<div class="thumb empty"></div>'
 
@@ -128,6 +131,37 @@ def test_row_shows_discount_text_only_when_cheaper_than_fair():
     assert "12 km" in fair_priced
 
 
+def test_row_marks_unknown_location_and_shows_the_town():
+    unknown = web._row(
+        listing_id=3,
+        url="https://example.com/3",
+        title="RTX 3060",
+        price=5000,
+        fair=None,
+        images=None,
+        distance_km=None,
+        ships=False,
+        source="bazos",
+        first_seen=None,
+    )
+    assert "místo neznámé" in unknown  # kept in the list, never a bare "-"
+
+    with_town = web._row(
+        listing_id=4,
+        url="https://example.com/4",
+        title="RTX 3060",
+        price=5000,
+        fair=None,
+        images=None,
+        distance_km=12.3,
+        ships=False,
+        source="bazos",
+        first_seen=None,
+        town="Brno",
+    )
+    assert "<span>Brno</span>" in with_town  # the town, never a seller name
+
+
 def test_parse_filters_ignores_bad_values_and_unknown_sources():
     f = web.parse_filters(
         {
@@ -153,3 +187,56 @@ def test_parse_filters_defaults_to_nothing_set():
     assert f.sort == "newest"
     assert f.sources == ()
     assert f.deals_only is False
+    assert f.town is None
+
+
+def test_parse_filters_reads_mesto_and_strips_it():
+    assert web.parse_filters({"mesto": ["  Brno  "]}).town == "Brno"
+    assert web.parse_filters({"mesto": [""]}).town is None
+    assert web.parse_filters({}).town is None
+
+
+# --- /hledat: mapping a free-text query to pricing models (normalize.py, no DB needed) ---------------
+
+
+def test_guess_models_rtx_3060_is_every_vram_variant_plus_the_ambiguous_bare_name():
+    assert web._guess_models("rtx 3060") == ["rtx 3060 8gb", "rtx 3060 12gb", "rtx 3060"]
+
+
+def test_guess_models_with_vram_named_is_just_that_one_key():
+    assert web._guess_models("RTX3060 12GB") == ["rtx 3060 12gb"]
+
+
+def test_guess_models_macbook_air_m2_is_the_apple_model():
+    assert web._guess_models("macbook air m2") == ["macbook air m2 13"]
+
+
+def test_guess_models_thinkpad_t480_is_the_office_laptop_model():
+    assert web._guess_models("thinkpad t480") == ["thinkpad t480"]
+
+
+def test_guess_models_nonsense_text_is_empty_so_the_caller_falls_back():
+    assert web._guess_models("asdkjaslkdj nonsense") == []
+
+
+# --- /hledat and /category: distance text, the "Místo" town resolution and its form field ------------
+
+
+def test_place_bits_known_distance_unknown_and_shipping():
+    assert web._place_bits(12.3, False) == "12 km"
+    assert web._place_bits(12.3, True) == "12 km, posílá"
+    assert web._place_bits(None, True) == "posílá"
+    assert web._place_bits(None, False) == "místo neznámé"
+
+
+def test_filters_form_shows_a_query_box_only_when_asked():
+    with_q = web._filters_form("/hledat", web.Filters(), query="rtx 3060")
+    assert 'name="q" value="rtx 3060"' in with_q
+    without_q = web._filters_form("/category/gpu", web.Filters())
+    assert 'name="q"' not in without_q
+    assert 'name="mesto"' in without_q  # Místo is on every filter form, search or category
+
+
+def test_filters_form_keeps_the_typed_town():
+    html = web._filters_form("/category/gpu", web.Filters(town="Brno"))
+    assert 'name="mesto" value="Brno"' in html

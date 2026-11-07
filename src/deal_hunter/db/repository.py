@@ -448,11 +448,12 @@ def listings_in_categories(
 ) -> list[dict]:
     """Active, fixed-price ads normalized into one of `categories`: the catalogue's product list
     for a leaf category (web.render_category). Price and source are filtered here (parameterized
-    SQL); distance and "deals only" are derived values the caller (web.py) filters in Python once
-    fair prices are applied per listing's features."""
+    SQL); distance, town and "deals only" are derived values the caller (web.py) filters in Python
+    once fair prices are applied per listing's features (psc/location are carried along so the
+    distance can be recomputed from an arbitrary point, e.g. a searched town, not just home)."""
     cur = conn.execute(
         "SELECT l.id, l.source, l.url, l.title, l.price_czk, l.images, l.distance_km, l.description, "
-        "l.first_seen, n.category, n.model, n.features "
+        "l.psc, l.location, l.first_seen, n.category, n.model, n.features "
         "FROM listings l JOIN normalized n ON n.listing_id = l.id "
         "WHERE l.gone_at IS NULL AND n.model IS NOT NULL AND n.category = ANY(%(categories)s) "
         "AND l.price_kind = 'fixed' AND l.price_czk > 0 "
@@ -467,6 +468,59 @@ def listings_in_categories(
             "sources": list(sources) if sources else None,
             "limit": limit,
         },
+    )
+    return _dicts(cur)
+
+
+def listings_by_models(
+    conn: psycopg.Connection,
+    models: list[str],
+    *,
+    price_min: int | None = None,
+    price_max: int | None = None,
+    sources: tuple[str, ...] | None = None,
+    limit: int = 1000,
+) -> list[dict]:
+    """Active, fixed-price ads normalized into one of `models`: the search page's result list
+    (web.render_search), grouped by model there. Same shape as listings_in_categories (psc/location
+    included for a per-row distance from an arbitrary point), filtered by model instead of category."""
+    cur = conn.execute(
+        "SELECT l.id, l.source, l.url, l.title, l.price_czk, l.images, l.distance_km, l.description, "
+        "l.psc, l.location, l.first_seen, n.category, n.model, n.features "
+        "FROM listings l JOIN normalized n ON n.listing_id = l.id "
+        "WHERE l.gone_at IS NULL AND n.model = ANY(%(models)s) "
+        "AND l.price_kind = 'fixed' AND l.price_czk > 0 "
+        "AND (%(price_min)s::int IS NULL OR l.price_czk >= %(price_min)s) "
+        "AND (%(price_max)s::int IS NULL OR l.price_czk <= %(price_max)s) "
+        "AND (%(sources)s::text[] IS NULL OR l.source = ANY(%(sources)s)) "
+        "ORDER BY l.first_seen DESC LIMIT %(limit)s",
+        {
+            "models": list(models),
+            "price_min": price_min,
+            "price_max": price_max,
+            "sources": list(sources) if sources else None,
+            "limit": limit,
+        },
+    )
+    return _dicts(cur)
+
+
+def escape_like(text: str) -> str:
+    """Escape ILIKE's wildcards in user-typed text (backslash is Postgres' default escape char)."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def search_listings_title(conn: psycopg.Connection, query: str, limit: int = 200) -> list[dict]:
+    """Active, fixed-price ads whose title plainly contains `query` (case-insensitive, parameterized
+    ILIKE with wildcards escaped): the search page's fallback when nothing normalizes. No model or
+    category (never normalized), so no fair price either -- the catalogue row just shows the ad."""
+    pattern = f"%{escape_like(query)}%"
+    cur = conn.execute(
+        "SELECT l.id, l.source, l.url, l.title, l.price_czk, l.images, l.distance_km, l.description, "
+        "l.psc, l.location, l.first_seen FROM listings l "
+        "WHERE l.gone_at IS NULL AND l.price_kind = 'fixed' AND l.price_czk > 0 AND l.title ILIKE %s "
+        "ORDER BY l.first_seen DESC LIMIT %s",
+        (pattern, limit),
     )
     return _dicts(cur)
 
@@ -616,9 +670,12 @@ def save_triage(
 
 
 def listings_needing_distance(conn: psycopg.Connection, home_key: str) -> list[tuple]:
-    """(id, psc, location) of listings whose distance was never computed, or for another home."""
+    """(id, psc, location) of active listings whose distance was never computed, or for another
+    home. Gone ads are skipped: nothing renders their distance, so there is no point computing it
+    (this is also what listings_distance_home_idx is scoped to)."""
     return conn.execute(
-        "SELECT id, psc, location FROM listings WHERE distance_home IS DISTINCT FROM %s", (home_key,)
+        "SELECT id, psc, location FROM listings WHERE gone_at IS NULL AND distance_home IS DISTINCT FROM %s",
+        (home_key,),
     ).fetchall()
 
 

@@ -85,6 +85,73 @@ def test_due_for_recheck(conn):
     assert [r[0] for r in repo.due_for_recheck(conn, 6, 10)] == [2]
 
 
+# --- the search page's two queries: by model and the plain title fallback ----------------------------
+
+
+def test_listings_by_models_filters_by_model_and_carries_psc_location(conn):
+    repo.save_listing(
+        conn,
+        Listing(
+            id=1,
+            url="https://pc.bazos.cz/inzerat/1/x.php",
+            title="RTX 3060 12GB",
+            price_czk=1000,
+            price_kind="fixed",
+            location="Brno",
+            psc="602 00",
+        ),
+        detail=True,
+    )
+    repo.save_listing(
+        conn,
+        Listing(
+            id=2,
+            url="https://pc.bazos.cz/inzerat/2/x.php",
+            title="RTX 3070",
+            price_czk=1000,
+            price_kind="fixed",
+        ),
+        detail=True,
+    )
+    for lid, model in ((1, "rtx 3060 12gb"), (2, "rtx 3070")):
+        conn.execute(
+            "INSERT INTO normalized (listing_id, category, model, normalizer_version) VALUES (%s, 'gpu', %s, 1)",
+            (lid, model),
+        )
+    rows = repo.listings_by_models(conn, ["rtx 3060 12gb"])
+    assert [r["id"] for r in rows] == [1]
+    assert rows[0]["location"] == "Brno" and rows[0]["psc"] == "602 00"
+    assert repo.listings_by_models(conn, ["rtx 3070", "rtx 3060 12gb"]).__len__() == 2
+    assert repo.listings_by_models(conn, ["rtx 4090"]) == []
+
+
+def test_escape_like_escapes_percent_underscore_and_backslash():
+    assert repo.escape_like("50%_off\\") == "50\\%\\_off\\\\"
+
+
+def test_search_listings_title_matches_case_insensitively_and_escapes_wildcards(conn):
+    def titled(id, title):
+        return Listing(
+            id=id,
+            url=f"https://pc.bazos.cz/inzerat/{id}/x.php",
+            title=title,
+            price_czk=1000,
+            price_kind="fixed",
+        )
+
+    repo.save_listing(conn, titled(1, "Grafická karta RTX 3060"), detail=True)
+    repo.save_listing(conn, titled(2, "jiny inzerat"), detail=True)
+    repo.save_listing(conn, titled(3, "100% sleva_dnes"), detail=True)
+    repo.mark_gone(conn, 2, "http_404")
+
+    assert [r["id"] for r in repo.search_listings_title(conn, "grafick")] == [1]
+    assert [r["id"] for r in repo.search_listings_title(conn, "RTX 3060")] == [1]  # case-insensitive
+    assert repo.search_listings_title(conn, "jiny") == []  # gone ads are excluded
+    # a literal % or _ in the query must not act as a wildcard
+    assert [r["id"] for r in repo.search_listings_title(conn, "100% sleva_dnes")] == [3]
+    assert repo.search_listings_title(conn, "100X slevaXdnes") == []
+
+
 class FakeBazos:
     """Serves the saved fixtures as if it were pc.bazos.cz."""
 

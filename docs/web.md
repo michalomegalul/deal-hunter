@@ -13,6 +13,15 @@ information, bold prices), on purpose, not a dashboard; filters are plain GET fo
   distance or "posílá" when the ad ships, source, first seen), plus the category and deal state as
   a small note. `?category=gpu|office_pc|office_laptop|hdd|office` and `?min_discount=30` filter the
   list.
+- `/hledat?q=...` - free-text search, also a box in the nav on every page. The query is run through
+  the existing normalizers (the GPU catalog directly, then one `normalize.classify` call per
+  "notebook"/"hdd" section guess, which covers office.py/apple.py/laptop_spec.py/storage.py) to find
+  matching pricing models; every VRAM variant shows as its own group with a link to `/model/<key>`
+  and its fair/new price ("rtx 3060" -> both "rtx 3060 12gb" and the ambiguous "rtx 3060"), then its
+  live offers (the same catalogue row as `/category`). When nothing normalizes, a plain,
+  parameterized, case-insensitive title match over active listings instead
+  (`repository.search_listings_title`). Same "Místo"/"do km"/source/sort filters as a category
+  product list, below.
 - `/prices` - the fair price table (model, n, median, level, new price, prior/note), the same
   estimate `hunt prices` prints; pooled disk classes show Kč/TB. Model and category link into
   `/model/<key>` and `/category/<id>`.
@@ -21,9 +30,15 @@ information, bold prices), on purpose, not a dashboard; filters are plain GET fo
   root on `/category` itself), each with how many priced models, active offers and open deals fall
   under it (summed over the whole subtree). A leaf (or the `office` group) shows its own product
   list instead: every active offer as a catalogue row, with a GET form to filter by price range,
-  max distance, source (Bazoš/Aukro/Mironet/Facebook) and "jen výhodné" (cheaper than fair), and to
-  sort by newest/cheapest/biggest discount (`web.Filters`/`parse_filters`,
-  `repository.listings_in_categories`).
+  "Místo" (a typed town, folded/cased the same way as an ad's own location; `geo.locate_town`) + "do
+  km" measured from that town instead of home, source (Bazoš/Aukro/Mironet/Facebook) and "jen
+  výhodné" (cheaper than fair), and to sort by newest/cheapest/biggest discount
+  (`web.Filters`/`parse_filters`, `repository.listings_in_categories`). An unknown "Místo" shows
+  "Místo nenalezeno" and the km filter is not applied. Distance is always recomputed in Python from
+  the ad's own `psc`/`location` (`web._apply_price_filters`), never read off the stored,
+  home-relative `distance_km` column, so it is right immediately and never stuck on a stale "-"; an
+  ad with no resolvable town is kept, marked "místo neznámé" (dropped only when a km limit is set
+  and it doesn't ship), and one that ships is marked "posílá" regardless.
 - `/model/<key>` - one pricing model: fair price, IQR, confidence, new price if any, a plain
   horizontal price bar (inline SVG: the cheapest live offer, the fair price and the new price
   marked on one axis, every live offer as a tick), every current live offer for it across every
@@ -59,7 +74,11 @@ information, bold prices), on purpose, not a dashboard; filters are plain GET fo
 
 Everything from an ad (title, description, seller, location, the LLM's verdict) is untrusted input
 and is HTML-escaped before it reaches the page; every query is parameterized (no SQL is built in
-`web.py` itself - it calls into `repository.py`, `pricing.py` and `auction_cycle.py`). Run it locally
+`web.py` itself - it calls into `repository.py`, `pricing.py` and `auction_cycle.py`). A listing's
+own image is hotlinked (`loading="lazy"`, never downloaded or re-hosted), over a plain grey
+placeholder box: Bazoš thumbnails stop working once an ad is renewed or removed, and rather than
+proxy them, a broken `<img>` removes itself (`onerror="this.remove()"`), leaving the placeholder
+instead of a broken-image icon. Run it locally
 with `uv run hunt web` (defaults to `0.0.0.0:8080`); in production it is its own compose service
 (`web`), publishing host port 8090 (8080 is bot-arena's on CT 121) on the homelab's LAN only - no Cloudflare tunnel, since it was never
 meant to be reachable from outside.

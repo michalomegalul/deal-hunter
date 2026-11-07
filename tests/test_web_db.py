@@ -106,16 +106,15 @@ def test_category_page_office_group_has_no_members_seeded(conn):
 
 
 def test_category_page_leaf_filters_by_price_and_distance(conn):
-    seed(conn)
+    seed(conn)  # listing 999 is in Brno; the ordinary ads have no location at all
     work(conn, FakeNtfy())
-    conn.execute("UPDATE listings SET distance_km = 500 WHERE id = 999")  # far away, no shipping words
 
     cheap_only = web.render_category(conn, "gpu", web.Filters(price_do=7000))
     assert "/listing/999" in cheap_only  # 6500, kept
     assert "/listing/100" not in cheap_only  # ~9500+, dropped
 
     near_only = web.render_category(conn, "gpu", web.Filters(max_km=50))
-    assert "/listing/999" not in near_only  # 500 km away and not marked as shipping
+    assert "/listing/999" not in near_only  # Brno is ~183 km from home (Prague) and doesn't ship
 
     deals_only = web.render_category(conn, "gpu", web.Filters(deals_only=True))
     assert "/listing/999" in deals_only  # well below fair
@@ -132,6 +131,95 @@ def test_category_page_leaf_source_filter_and_checkbox_state(conn):
     html = web.render_category(conn, "gpu", f)
     assert "/listing/999" not in html and "/listing/100" not in html  # everything seeded is bazos
     assert 'name="source" value="aukro" checked' in html
+
+
+# --- "Místo" (town): distance measured from a typed town instead of home, unknown town/place --------
+
+
+def test_category_page_town_filter_measures_distance_from_the_town(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+
+    # no km limit: everything is kept, the unresolvable ads just say so instead of a bare "-"
+    from_brno = web.render_category(conn, "gpu", web.Filters(town="Brno"))
+    assert "/listing/999" in from_brno  # listing 999 is in Brno itself: ~0 km from "Brno"
+    assert "/listing/100" in from_brno
+    assert "místo neznámé" in from_brno  # the ordinary ads have no location at all
+
+    # a km limit does drop the ones with no resolvable town (they don't ship either)
+    near_brno = web.render_category(conn, "gpu", web.Filters(town="Brno", max_km=5))
+    assert "/listing/999" in near_brno
+    assert "/listing/100" not in near_brno
+
+    unknown_town = web.render_category(conn, "gpu", web.Filters(town="Nikdeland", max_km=5))
+    assert "Místo nenalezeno" in unknown_town
+    assert "/listing/999" in unknown_town  # the km filter is not applied when the town is unknown
+    assert "/listing/100" in unknown_town
+
+
+def test_category_page_ships_marked_even_with_a_known_distance(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+    conn.execute("UPDATE listings SET description = 'Posilam Zasilkovnou.' WHERE id = 999")
+    html = web.render_category(conn, "gpu")
+    assert "182 km, posílá" in html or "183 km, posílá" in html
+
+
+# --- /hledat : free-text search ----------------------------------------------------------------------
+
+
+def test_search_groups_by_model_shows_fair_price_and_the_towns(conn):
+    seed(conn)  # 21 "RTX 3080 10GB" ads: 20 ordinary, one deal (999) in Brno
+    work(conn, FakeNtfy())
+
+    html = web.render_search(conn, "rtx 3080", web.Filters())
+    assert '<a href="/model/rtx%203080%2010gb">rtx 3080 10gb</a>' in html
+    assert "Férová cena" in html
+    assert "/listing/999" in html and "<span>Brno</span>" in html
+    assert "Nalezeno: 21" in html
+    # the other VRAM variants of "rtx 3080" exist in the catalog but have no samples: no empty section
+    assert "rtx 3080 12gb" not in html
+    assert html.count("<h2>") == 1
+
+
+def test_search_cheapest_first_by_default_when_no_sort_is_given(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+    html = web.render_search(conn, "rtx 3080", web.Filters(sort="cheapest"))
+    assert html.index("listing/999") < html.index("listing/100")
+
+
+def test_search_falls_back_to_a_plain_title_match(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+    conn.execute(
+        "INSERT INTO listings (id, url, title, price_czk, price_kind, external_id) "
+        "VALUES (5000, 'https://pc.bazos.cz/inzerat/5000/x.php', 'Stare sluchatka Sony', 500, 'fixed', '5000')"
+    )
+    html = web.render_search(conn, "sluchatka", web.Filters())
+    assert "Nenašel se žádný model" in html
+    assert "/listing/5000" in html
+    assert "/listing/999" not in html  # not a title match for "sluchatka"
+
+
+def test_search_nonsense_query_and_empty_query(conn):
+    seed(conn)
+    assert "Nenašel se žádný model" in web.render_search(conn, "asdkjaslkdj nonsense", web.Filters())
+    assert "Nic nenalezeno" in web.render_search(conn, "asdkjaslkdj nonsense", web.Filters())
+    empty = web.render_search(conn, "", web.Filters())
+    assert "Zadejte" in empty and "<h2>" not in empty
+
+
+def test_search_town_filter_and_unknown_town(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+    from_brno = web.render_search(conn, "rtx 3080", web.Filters(town="Brno", max_km=5))
+    assert "/listing/999" in from_brno
+    assert "/listing/100" not in from_brno  # no resolvable location, dropped by the km limit
+
+    unknown = web.render_search(conn, "rtx 3080", web.Filters(town="Nowhereistan"))
+    assert "Místo nenalezeno" in unknown
+    assert "/listing/999" in unknown and "/listing/100" in unknown
 
 
 def test_render_model_shows_fair_price_and_live_offers_escapes_titles(conn):
@@ -532,6 +620,9 @@ def _every_page_html(conn, now) -> str:
         web.page("Open auctions", web.render_auctions(conn)),
         web.page("Flips", web.render_flips(conn, now)),
         web.page("Status", web.render_status(conn, now)),
+        web.page("Hledat", web.render_search(conn, "", web.Filters())),  # empty query: just the form
+        web.page("Hledat", web.render_search(conn, "rtx 3080", web.Filters())),
+        web.page("Hledat", web.render_search(conn, "asdkjaslkdj nonsense", web.Filters())),  # fallback path
     ]
     if model:
         pages.append(web.page(model, web.render_model(conn, model)))

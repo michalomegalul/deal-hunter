@@ -6,12 +6,26 @@ block; filters are plain GET forms, no client-side JS at all.
 
 - `/`              recent deals (would-alert or alerted listings), with `?category=` and
                     `?min_discount=` filters.
+- `/hledat?q=...`   free-text search (also a box in the nav on every page): the query is run through
+                    the existing normalizers (the GPU catalog, then office/apple/laptop_spec/storage
+                    via `normalize.classify`) to find matching pricing models (every VRAM variant
+                    shown as its own group, e.g. "rtx 3060" -> "rtx 3060 12gb" and "rtx 3060"), each
+                    with its fair/new price and live offers; a plain, parameterized, case-insensitive
+                    title match over active listings when nothing normalizes. Same "Místo"/"do km"/
+                    source/sort filters as a category product list (see below).
 - `/prices`         the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
 - `/category[/<id>]` the category tree (`categories.py`) as the shop's own department pages: a grid
                     of square boxes (priced models / active offers / open deals per subtree) for
                     the index and a branch node, or a leaf's (or a group's) own product list -
-                    every active offer, with GET filters (price, distance, source, "deals only",
-                    sort: see `Filters`/`parse_filters`).
+                    every active offer, with GET filters (price, distance, "Místo" (town) + "do km",
+                    source, "deals only", sort: see `Filters`/`parse_filters`). "Místo" resolves a
+                    typed town (`geo.locate_town`, accent/case folded) and measures distance from
+                    there instead of home; an unknown town shows "Místo nenalezeno" and is not
+                    applied. Distance is always recomputed in Python from the ad's own psc/location
+                    (`_apply_price_filters`), never read off the stored, home-relative column, so a
+                    town filter is correct immediately and a worker backlog never shows a stale "-".
+                    An ad with no resolvable town is kept and marked "místo neznámé" (dropped only
+                    when a km limit is set and it doesn't ship); one that ships is marked "posílá".
 - `/model/<key>`    one pricing model: fair price, IQR, confidence, new price, a price bar (inline
                     SVG: cheapest live offer, fair price, new price, every offer as a tick), the
                     live offers (same row format as a category's product list) and a weekly price
@@ -31,7 +45,7 @@ writes to the database.
 import json
 import logging
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from html import escape as esc
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -51,9 +65,13 @@ CSS = """
   h1 { font-size: 1.3rem; margin: 0 0 .75rem; }
   h2 { font-size: 1.05rem; margin: 1.25rem 0 .5rem; border-top: 1px solid #ddd; padding-top: .75rem; }
   a { color: #0a4e9e; }
-  nav { margin-bottom: 1rem; border-bottom: 1px solid #ddd; padding-bottom: .6rem; }
+  nav { margin-bottom: 1rem; border-bottom: 1px solid #ddd; padding-bottom: .6rem;
+        display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
   nav a { margin-right: 1rem; color: #0a4e9e; text-decoration: none; }
   nav a:hover { text-decoration: underline; }
+  nav form.search { margin-left: auto; display: flex; gap: .4rem; }
+  nav form.search input { padding: .3rem; border: 1px solid #bbb; background: #fff; }
+  nav form.search button { padding: .3rem .8rem; border: 1px solid #888; background: #eee; cursor: pointer; }
   form.filters { margin-bottom: 1rem; padding: .6rem .75rem; border: 1px solid #ddd; background: #fafafa; }
   form.filters label { margin-right: .9rem; display: inline-block; margin-bottom: .4rem; }
   form.filters input[type=number] { width: 6rem; padding: .3rem; border: 1px solid #bbb; background: #fff; }
@@ -84,8 +102,8 @@ CSS = """
   .catbox-stats { color: #666; font-size: .85rem; margin-top: .35rem; }
 
   .row { display: flex; gap: .75rem; padding: .6rem 0; border-bottom: 1px solid #ddd; align-items: flex-start; }
-  .thumb { width: 72px; height: 72px; object-fit: cover; border: 1px solid #ddd; flex-shrink: 0; }
-  .thumb.empty { background: #eee; }
+  .thumb { width: 72px; height: 72px; border: 1px solid #ddd; background: #eee; flex-shrink: 0; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .row-body { flex: 1; min-width: 0; }
   .row-meta { margin-top: .3rem; color: #333; font-size: .9rem; }
   .row-meta span { margin-right: 1rem; }
@@ -112,7 +130,10 @@ CSS = """
 
 NAV = (
     '<nav><a href="/">Výhodné</a><a href="/category">Kategorie</a><a href="/prices">Ceny</a>'
-    '<a href="/auctions">Aukce</a><a href="/flips">Nákupy</a><a href="/status">Stav</a></nav>'
+    '<a href="/auctions">Aukce</a><a href="/flips">Nákupy</a><a href="/status">Stav</a>'
+    '<form class="search" method="get" action="/hledat">'
+    '<input type="text" name="q" placeholder="Hledat, např. rtx 3060">'
+    '<button type="submit">Hledat</button></form></nav>'
 )
 
 
@@ -168,11 +189,16 @@ def source_name(code: str | None) -> str:
 
 
 def thumb(images: list | None) -> str:
-    """Hotlinked thumbnail of the listing's own first image, or a plain grey box. Never downloaded
-    or re-hosted."""
+    """Hotlinked thumbnail of the listing's own first image, over a plain grey placeholder box, or
+    just the placeholder when there is no image. Never downloaded or re-hosted. Bazoš thumbnails
+    stop working once an ad is renewed or removed (the img then 404s); rather than proxy or re-host
+    them, `onerror` removes the broken `<img>` so the grey box underneath shows instead of a broken-
+    image icon."""
     url = (images or [None])[0]
     if url:
-        return f'<img class="thumb" src="{esc(url)}" loading="lazy" alt="">'
+        return (
+            f'<div class="thumb"><img src="{esc(url)}" loading="lazy" alt="" onerror="this.remove()"></div>'
+        )
     return '<div class="thumb empty"></div>'
 
 
@@ -180,6 +206,21 @@ def ships_offer(title: str, description: str | None) -> bool:
     from deal_hunter import geo
 
     return bool(geo.shipping_offer(f"{title}\n{description or ''}"))
+
+
+def _place_bits(distance_km, ships: bool) -> str:
+    """'123 km', '123 km, posílá', 'posílá' (unknown distance, but it ships) or 'místo neznámé'
+    (unknown distance, and it doesn't). An ad that ships always says so, in addition to a known
+    distance; one that doesn't and has no resolvable town is kept (never dropped for that alone --
+    see `_apply_price_filters`), just marked as such instead of a bare, unexplained "-"."""
+    bits = []
+    if distance_km is not None:
+        bits.append(km(distance_km))
+    elif not ships:
+        bits.append("místo neznámé")
+    if ships:
+        bits.append("posílá")
+    return ", ".join(bits)
 
 
 def _row(
@@ -194,15 +235,18 @@ def _row(
     ships: bool,
     source,
     first_seen,
+    town: str | None = None,
     extra: str = "",
 ) -> str:
     """One catalogue product row: thumbnail, the ad's own title (linking out), price, the discount
-    note when it is cheaper than fair, distance (or "posílá" when it ships), source and first seen."""
+    note when it is cheaper than fair, distance (or "posílá"/"místo neznámé"), the seller's town
+    (`town`, e.g. for a search result or a town-filtered category list -- never the seller's name),
+    source and first seen."""
     disc = ""
     if price and fair and price < fair:
         disc_pct = round((1 - price / fair) * 100)
         disc = f'<div class="disc">-{disc_pct} % pod férovou cenou</div>'
-    dist = "posílá" if ships else km(distance_km)
+    town_span = f"<span>{esc(town)}</span>" if town else ""
     return (
         '<div class="row">'
         f"{thumb(images)}"
@@ -211,7 +255,8 @@ def _row(
         f'<a class="detail" href="/listing/{listing_id}">detail</a>'
         '<div class="row-meta">'
         f'<span class="price">{kc(price)}</span>'
-        f"<span>{esc(dist)}</span>"
+        f"<span>{esc(_place_bits(distance_km, ships))}</span>"
+        f"{town_span}"
         f"<span>{esc(source_name(source))}</span>"
         f"<span>{when(first_seen)}</span>"
         "</div>"
@@ -234,6 +279,7 @@ class Filters:
     sources: tuple[str, ...] = ()
     deals_only: bool = False
     sort: str = "newest"
+    town: str | None = None  # a typed "Místo" (town), resolved by geo.locate_town
 
 
 def _num(raw: str | None, kind):
@@ -263,10 +309,14 @@ def parse_filters(query: dict[str, list[str]]) -> Filters:
         sources=sources,
         deals_only=first("deals") == "1",
         sort=sort if sort in dict(SORTS) else "newest",
+        town=(first("mesto") or "").strip() or None,
     )
 
 
-def _filters_form(action: str, f: Filters) -> str:
+def _filters_form(action: str, f: Filters, *, query: str | None = None) -> str:
+    """The shared GET filter form (price range, "Místo" + "do km", source, "jen výhodné", sort),
+    used by both a category product list and the search page. `query` is only given on the search
+    page: it adds the free-text box itself, so changing a filter there keeps the search term."""
     source_boxes = "".join(
         f'<label><input type="checkbox" name="source" value="{s}"'
         f"{' checked' if s in f.sources else ''}> {esc(source_name(s))}</label>"
@@ -275,13 +325,21 @@ def _filters_form(action: str, f: Filters) -> str:
     sort_opts = "".join(
         f'<option value="{s}"{" selected" if f.sort == s else ""}>{esc(label)}</option>' for s, label in SORTS
     )
+    q_field = (
+        f'<label>Hledat <input type="text" name="q" value="{esc(query)}"></label>'
+        if query is not None
+        else ""
+    )
     return (
         f'<form class="filters" method="get" action="{esc(action)}">'
+        f"{q_field}"
         f'<label>Cena od <input type="number" name="price_od" min="0" step="100" '
         f'value="{f.price_od if f.price_od is not None else ""}"></label>'
         f'<label>do <input type="number" name="price_do" min="0" step="100" '
         f'value="{f.price_do if f.price_do is not None else ""}"></label>'
-        f'<label>Vzdálenost do (km) <input type="number" name="max_km" min="0" step="10" '
+        f'<label>Místo <input type="text" name="mesto" value="{esc(f.town or "")}" '
+        'placeholder="např. Praha"></label>'
+        f'<label>do km <input type="number" name="max_km" min="0" step="10" '
         f'value="{f.max_km if f.max_km is not None else ""}"></label>'
         f'<span class="src-group">{source_boxes}</span>'
         f'<label><input type="checkbox" name="deals" value="1"{" checked" if f.deals_only else ""}> '
@@ -435,22 +493,50 @@ def _category_grid(
     return f'<div class="catgrid">{"".join(boxes)}</div>'
 
 
-def _listing_rows(conn, leaf_ids: tuple[str, ...], prices: dict, f: Filters) -> list[dict]:
-    """A leaf's product list: every active offer in it, with the fair price (and so the discount
-    note and "jen výhodné") applied per listing from its own features, and the GET filters applied.
-    Price and source are filtered in SQL (repo.listings_in_categories); distance and "deals only"
-    need the fair price first, so they are filtered here."""
-    from deal_hunter.db import repository as repo
+def _resolve_place(town: str | None, home: tuple[float, float]) -> tuple[tuple[float, float], bool, str]:
+    """(point to measure distance from, whether "do km" may be applied, a "not found" notice or "").
 
-    rows = repo.listings_in_categories(
-        conn, list(leaf_ids), price_min=f.price_od, price_max=f.price_do, sources=f.sources or None
-    )
+    A blank "Místo" just means home, as before. A typed one that doesn't resolve to a known,
+    unambiguous town (`geo.locate_town`) shows "Místo nenalezeno" and disables the km filter rather
+    than silently measuring from home instead -- that is not the point the person asked for."""
+    if not town:
+        return home, True, ""
+    from deal_hunter import geo
+
+    point = geo.locate_town(town)
+    if point is None:
+        return home, False, '<p class="bad">Místo nenalezeno.</p>'
+    return point, True, ""
+
+
+def _apply_price_filters(
+    rows: list[dict], prices: dict, f: Filters, point: tuple[float, float], km_ok: bool
+) -> list[dict]:
+    """Attach each row's fair price (from its own features) and whether it ships, and recompute its
+    distance from `point` in Python from its own psc/location (`geo.distance_km`) -- never read off
+    the stored, home-relative `distance_km` column, so a chosen town is always right and a listing
+    isn't stuck showing "-" just because the worker's batch backfill (`geo.update_distances`) hasn't
+    reached it yet. Then apply the GET filters: "do km" only when `km_ok` (an unresolved "Místo"
+    disables it instead of silently falling back to home), "jen výhodné" and the sort order. An ad
+    with no resolvable town is kept either way (place_bits marks it "místo neznámé"); "do km" drops
+    it only when it also doesn't ship.
+    """
+    from deal_hunter import geo
+
     out = []
     for r in rows:
         fp = prices.get(r["model"]) if r.get("model") else None
         fair = fp.for_listing(r.get("features") or {}) if fp else None
-        out.append({**r, "fair": fair, "ships": ships_offer(r["title"], r.get("description"))})
-    if f.max_km is not None:
+        dist, _how = geo.distance_km(point, r.get("psc"), r.get("location"))
+        out.append(
+            {
+                **r,
+                "fair": fair,
+                "distance_km": dist,
+                "ships": ships_offer(r["title"], r.get("description")),
+            }
+        )
+    if km_ok and f.max_km is not None:
         out = [
             r for r in out if r["ships"] or (r["distance_km"] is not None and r["distance_km"] <= f.max_km)
         ]
@@ -466,6 +552,20 @@ def _listing_rows(conn, leaf_ids: tuple[str, ...], prices: dict, f: Filters) -> 
     else:
         out.sort(key=lambda r: r["first_seen"], reverse=True)
     return out
+
+
+def _listing_rows(
+    conn, leaf_ids: tuple[str, ...], prices: dict, f: Filters, point: tuple[float, float], km_ok: bool
+) -> list[dict]:
+    """A leaf's product list: every active offer in it, with the GET filters applied (`Filters`:
+    price and source in SQL via repo.listings_in_categories; distance/town, "deals only" and sort in
+    `_apply_price_filters`, once the fair price is known)."""
+    from deal_hunter.db import repository as repo
+
+    rows = repo.listings_in_categories(
+        conn, list(leaf_ids), price_min=f.price_od, price_max=f.price_do, sources=f.sources or None
+    )
+    return _apply_price_filters(rows, prices, f, point, km_ok)
 
 
 def render_category(conn, node_id: str | None = None, filters: Filters | None = None) -> str | None:
@@ -504,8 +604,9 @@ def render_category(conn, node_id: str | None = None, filters: Filters | None = 
     header = f'<p class="muted">Modely: {n_models} · Nabídky: {n_offers} · Výhodné: {n_deals}</p>'
 
     f = filters or Filters()
+    point, km_ok, place_msg = _resolve_place(f.town, settings.home)
     form = _filters_form(f"/category/{node_id}", f)
-    rows = _listing_rows(conn, leaf_ids, prices, f)
+    rows = _listing_rows(conn, leaf_ids, prices, f, point, km_ok)
     listing_html = (
         "".join(
             _row(
@@ -519,13 +620,144 @@ def render_category(conn, node_id: str | None = None, filters: Filters | None = 
                 ships=r["ships"],
                 source=r.get("source"),
                 first_seen=r["first_seen"],
+                town=r.get("location"),
             )
             for r in rows
         )
         if rows
         else '<p class="empty">Filtru neodpovídá žádná nabídka.</p>'
     )
-    return crumb + header + form + f'<p class="muted">Nalezeno: {len(rows)}</p>' + listing_html
+    return crumb + header + place_msg + form + f'<p class="muted">Nalezeno: {len(rows)}</p>' + listing_html
+
+
+# --- /hledat?q=... : free-text search --------------------------------------------------------------
+#
+# The query has no section of its own, so every normalizer is tried: the desktop GPU catalog
+# directly (first, so a bare GPU name like "rtx 3060" is never also read as a laptop GPU spec
+# bucket), then -- only when that found nothing -- one classify() call with a "notebook" section
+# guess, which covers office.py, apple.py and laptop_spec.py in a single pass (none of the three
+# actually need the real section to tell a ThinkPad from a MacBook from a gaming laptop; only
+# laptop_spec.py's *gate* -- is this ad a laptop at all -- cares, and "notebook" always passes it),
+# plus a "hdd" guess for disks. Nothing normalizing falls back to a plain title search.
+
+
+def _guess_models(query: str) -> list[str]:
+    """Candidate pricing-model keys for a free-text search query, from the existing normalizers --
+    no new parser. "rtx 3060" (no VRAM named) returns every size that model comes in plus the
+    ambiguous bare name ("rtx 3060 8gb", "rtx 3060 12gb", "rtx 3060"), so VRAM variants show up as
+    their own groups; "RTX3060 12GB" already names one, so just that key comes back. Empty when
+    nothing normalizes."""
+    from deal_hunter import normalize
+
+    prepared = normalize.prepare(query)
+    models = normalize.find_models(prepared)
+    if len(models) == 1:
+        model = models[0]
+        vram = normalize.pick_vram(prepared, model)
+        if vram is None and len(model.vram) > 1:
+            return [normalize.gpu_key(model, v) for v in model.vram] + [model.name]
+        return [normalize.gpu_key(model, vram)]
+
+    keys: list[str] = []
+    for section in ("notebook", "hdd"):
+        r = normalize.classify(query, section)
+        if r.model and r.model not in keys:
+            keys.append(r.model)
+    return keys
+
+
+def render_search(conn, query: str, f: Filters) -> str:
+    """`/hledat?q=...`: the query mapped to pricing models (`_guess_models`), one result group per
+    match (fair price, new price, a link to /model/<key>, then its live offers, same row and GET
+    filters as a category product list) -- or, when nothing normalizes, a plain, parameterized,
+    case-insensitive title match over active listings (repo.search_listings_title)."""
+    from deal_hunter import pricing
+    from deal_hunter.config import load_settings
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    point, km_ok, place_msg = _resolve_place(f.town, settings.home)
+    form = _filters_form("/hledat", f, query=query)
+    if not query:
+        return form + '<p class="empty">Zadejte, co hledáte, například "rtx 3060".</p>'
+
+    models = _guess_models(query)
+    parts = [form, place_msg]
+    if models:
+        prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+        rows = repo.listings_by_models(
+            conn, models, price_min=f.price_od, price_max=f.price_do, sources=f.sources or None
+        )
+        rows = _apply_price_filters(rows, prices, f, point, km_ok)
+        by_model: dict[str, list[dict]] = {key: [] for key in models}
+        for r in rows:
+            if r.get("model") in by_model:
+                by_model[r["model"]].append(r)
+        total = 0
+        for key in models:
+            fp = prices.get(key)
+            group = by_model[key]
+            if not group and fp is None:
+                continue  # nothing priced and nothing live for this variant: not worth a section
+            total += len(group)
+            parts.append(f'<h2><a href="/model/{esc(quote(key))}">{esc(key)}</a></h2>')
+            if fp is not None:
+                median = f"{kc(fp.median)}/TB" if fp.per_tb else kc(fp.median)
+                from deal_hunter.alerts import new_text
+
+                new = new_text(fp)
+                note = f"Férová cena {median}" + (f" · {esc(new)}" if new else "")
+                parts.append(f'<p class="muted">{note}</p>')
+            if group:
+                parts.append(
+                    "".join(
+                        _row(
+                            listing_id=r["id"],
+                            url=r["url"],
+                            title=r["title"],
+                            price=r["price_czk"],
+                            fair=r["fair"],
+                            images=r.get("images"),
+                            distance_km=r.get("distance_km"),
+                            ships=r["ships"],
+                            source=r.get("source"),
+                            first_seen=r["first_seen"],
+                            town=r.get("location"),
+                        )
+                        for r in group
+                    )
+                )
+            else:
+                parts.append('<p class="empty">Teď tu není žádná nabídka.</p>')
+        parts.insert(2, f'<p class="muted">Nalezeno: {total} nabídka(y).</p>')
+        return "".join(parts)
+
+    rows = repo.search_listings_title(conn, query)
+    rows = _apply_price_filters(rows, {}, f, point, km_ok)
+    parts.append('<p class="muted">Nenašel se žádný model, zobrazena shoda v názvu inzerátu.</p>')
+    parts.append(f'<p class="muted">Nalezeno: {len(rows)}</p>')
+    if rows:
+        parts.append(
+            "".join(
+                _row(
+                    listing_id=r["id"],
+                    url=r["url"],
+                    title=r["title"],
+                    price=r["price_czk"],
+                    fair=r.get("fair"),
+                    images=r.get("images"),
+                    distance_km=r.get("distance_km"),
+                    ships=r["ships"],
+                    source=r.get("source"),
+                    first_seen=r["first_seen"],
+                    town=r.get("location"),
+                )
+                for r in rows
+            )
+        )
+    else:
+        parts.append('<p class="empty">Nic nenalezeno.</p>')
+    return "".join(parts)
 
 
 # --- /model/<key> : one pricing model ---------------------------------------------------------------
@@ -1164,6 +1396,12 @@ class Handler(BaseHTTPRequestHandler):
                     min_discount = float(raw_disc) / 100 if raw_disc else None
                     body = render_index(conn, category, min_discount)
                     self._respond(200, page("Deals", body))
+                elif path == "/hledat":
+                    q = (query.get("q") or [""])[0].strip()
+                    f = parse_filters(query)
+                    if "sort" not in query:  # cheapest first by default here, newest everywhere else
+                        f = replace(f, sort="cheapest")
+                    self._respond(200, page("Hledat", render_search(conn, q, f)))
                 elif path == "/prices":
                     self._respond(200, page("Fair prices", render_prices(conn)))
                 elif path == "/category":
