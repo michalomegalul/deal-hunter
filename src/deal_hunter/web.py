@@ -111,9 +111,12 @@ CSS = """
 """
 
 NAV = (
-    '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/category">Categories</a>'
-    '<a href="/auctions">Auctions</a><a href="/flips">Flips</a><a href="/status">Status</a></nav>'
+    '<nav><a href="/">Výhodné</a><a href="/category">Kategorie</a><a href="/prices">Ceny</a>'
+    '<a href="/auctions">Aukce</a><a href="/flips">Nákupy</a><a href="/status">Stav</a></nav>'
 )
+
+
+LEVEL_CS = {"high": "vysoká", "medium": "střední", "low": "nízká"}
 
 
 def page(title: str, body: str) -> str:
@@ -409,7 +412,7 @@ def _breadcrumb(node_id: str) -> str:
         return esc(g.name) if g else esc(node_id)
     crumbs = [f'<a href="/category/{esc(n.id)}">{esc(n.name)}</a>' for n in chain[:-1]]
     crumbs.append(esc(chain[-1].name))
-    return '<p class="muted">' + " › ".join(['<a href="/category">Categories</a>', *crumbs]) + "</p>"
+    return '<p class="muted">' + " › ".join(['<a href="/category">Kategorie</a>', *crumbs]) + "</p>"
 
 
 def _category_grid(
@@ -498,9 +501,7 @@ def render_category(conn, node_id: str | None = None, filters: Filters | None = 
     n_models = sum(price_counts.get(s, 0) for s in leaf_ids)
     n_offers = sum(offer_counts.get(s, 0) for s in leaf_ids)
     n_deals = sum(deal_counts.get(s, 0) for s in leaf_ids)
-    header = (
-        f'<p class="muted">{n_models} ceněných modelů · {n_offers} aktivních nabídek · {n_deals} akcí.</p>'
-    )
+    header = f'<p class="muted">Modely: {n_models} · Nabídky: {n_offers} · Výhodné: {n_deals}</p>'
 
     f = filters or Filters()
     form = _filters_form(f"/category/{node_id}", f)
@@ -522,9 +523,9 @@ def render_category(conn, node_id: str | None = None, filters: Filters | None = 
             for r in rows
         )
         if rows
-        else '<p class="empty">No offers match this filter.</p>'
+        else '<p class="empty">Filtru neodpovídá žádná nabídka.</p>'
     )
-    return crumb + header + form + f'<p class="muted">{len(rows)} offer(s).</p>' + listing_html
+    return crumb + header + form + f'<p class="muted">Nalezeno: {len(rows)}</p>' + listing_html
 
 
 # --- /model/<key> : one pricing model ---------------------------------------------------------------
@@ -580,7 +581,7 @@ def _history_table(weeks: list[tuple]) -> str:
     if not weeks:
         return '<p class="empty">No price history yet.</p>'
     rows = [f"<tr><td>{wk:%Y-%m-%d}</td><td>{kc(median)}</td></tr>" for wk, median in weeks]
-    return _table(["Week", "Median"], rows)
+    return _table(["Týden", "Medián"], rows)
 
 
 def render_model(conn, model: str) -> str | None:
@@ -600,15 +601,15 @@ def render_model(conn, model: str) -> str | None:
     median = f"{kc(fp.median)}/TB" if fp.per_tb else kc(fp.median)
     iqr = kc_range(fp.q25, fp.q75, fp.per_tb)
     lines = [
-        f"<tr><th>Fair price</th><td>{median}</td></tr>",
-        f"<tr><th>IQR</th><td>{iqr}</td></tr>",
-        f"<tr><th>Confidence</th><td>{esc(fp.level)} ({fp.confidence:.2f})</td></tr>",
-        f"<tr><th>Samples</th><td>{fp.n} of {fp.n_listings} ads ({fp.sold} gone fast)</td></tr>",
+        f"<tr><th>Férová cena</th><td>{median}</td></tr>",
+        f"<tr><th>Běžné rozpětí</th><td>{iqr}</td></tr>",
+        f"<tr><th>Spolehlivost</th><td>{esc(LEVEL_CS.get(fp.level, fp.level))} ({fp.confidence:.2f})</td></tr>",
+        f"<tr><th>Vzorek</th><td>{fp.n} z {fp.n_listings} inzerátů ({fp.sold} rychle prodáno)</td></tr>",
     ]
     if fp.new_price:
         from deal_hunter.alerts import new_text
 
-        lines.append(f"<tr><th>New price</th><td>{esc(new_text(fp))}</td></tr>")
+        lines.append(f"<tr><th>Nová cena</th><td>{esc(new_text(fp))}</td></tr>")
     summary = "<table>" + "".join(lines) + "</table>"
 
     offers = repo.active_model_listings(conn, model)
@@ -631,16 +632,16 @@ def render_model(conn, model: str) -> str | None:
             for o in offers
         )
     else:
-        offers_html = '<p class="empty">No live offers right now.</p>'
+        offers_html = '<p class="empty">Teď tu není žádná nabídka.</p>'
 
     history_html = _history_table(repo.weekly_median_prices(conn, model))
     return (
         crumb
         + summary
         + price_bar
-        + f'<h2>Live offers</h2><p class="muted">{len(offers)} active ad(s).</p>'
+        + f'<h2>Aktuální nabídky</h2><p class="muted">Nabídky: {len(offers)}</p>'
         + offers_html
-        + "<h2>Price history</h2>"
+        + "<h2>Vývoj ceny</h2>"
         + history_html
     )
 

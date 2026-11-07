@@ -88,7 +88,7 @@ def test_category_page_leaf_lists_its_product_rows(conn):
     assert "/listing/999" in html
     assert "6 500 Kč" in html  # the deal's own price
     assert "Bazoš" in html
-    assert "21 offer(s)." in html  # 20 ordinary ads + the deal, all active
+    assert "Nalezeno: 21" in html  # 20 ordinary ads + the deal, all active
 
 
 def test_category_page_unknown_id_is_none(conn):
@@ -100,9 +100,9 @@ def test_category_page_office_group_has_no_members_seeded(conn):
     html = web.render_category(conn, "office")
     assert html is not None
     assert "Kancelářské (PC i notebooky)" in html
-    assert "0 ceněných modelů · 0 aktivních nabídek · 0 akcí." in html
-    assert "0 offer(s)." in html
-    assert "No offers match this filter." in html
+    assert "Modely: 0 · Nabídky: 0 · Výhodné: 0" in html
+    assert "Nalezeno: 0" in html
+    assert "Filtru neodpovídá žádná nabídka." in html
 
 
 def test_category_page_leaf_filters_by_price_and_distance(conn):
@@ -141,12 +141,12 @@ def test_render_model_shows_fair_price_and_live_offers_escapes_titles(conn):
     html = web.render_model(conn, "rtx 3080 10gb")
     assert html is not None
     assert "Grafické karty" in html  # breadcrumb to the category
-    assert "Fair price" in html
+    assert "Férová cena" in html
     assert "<script>bad</script>" not in html and "&lt;script&gt;bad&lt;/script&gt;" in html
-    assert "21 active ad(s)" in html  # 20 seeded + the deal ad, none gone
+    assert "Nabídky: 21" in html  # 20 seeded + the deal ad, none gone
     assert html.count("rtx 3080 10gb") == 0  # the model name is the <h1>, not repeated in the body
     assert '<svg class="pricebar"' in html  # the price bar: cheapest offer, fair price, new price
-    assert "Price history" in html
+    assert "Vývoj ceny" in html
 
 
 def test_render_model_unknown_model_is_none(conn):
@@ -158,7 +158,7 @@ def test_render_model_price_history_has_a_weekly_median_row(conn):
     seed(conn)
     conn.execute("UPDATE listings SET first_seen = now() - interval '10 days' WHERE id = 999")
     html = web.render_model(conn, "rtx 3080 10gb")
-    assert "<h2>Price history</h2>" in html
+    assert "<h2>Vývoj ceny</h2>" in html
     assert "No price history yet." not in html  # the 21 seeded ads fall inside the 12-week window
 
 
