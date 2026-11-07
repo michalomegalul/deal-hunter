@@ -1,21 +1,29 @@
 """A small, plain, read-only LAN website: `hunt web` (port 8080, stdlib only, no JS framework).
 
-Five pages plus a detail, a category tree and a model page, all server-rendered HTML with one
-inline CSS block:
+A plain shop catalogue look (square corners, no gradients/shadows, one link colour, dense
+information, bold prices), not an "AI-looking" dashboard. Server-rendered HTML with one inline CSS
+block; filters are plain GET forms, no client-side JS at all.
 
 - `/`              recent deals (would-alert or alerted listings), with `?category=` and
                     `?min_discount=` filters.
 - `/prices`         the fair price table (reuses `pricing.run`, the same estimate `hunt prices` shows).
-- `/category[/<id>]` the category tree (`categories.py`): a branch's children with subtree totals,
-                    or a leaf's (or a group's) own priced models and open deals.
-- `/model/<key>`    one pricing model: fair price, new price, and current live offers from every source.
+- `/category[/<id>]` the category tree (`categories.py`) as the shop's own department pages: a grid
+                    of square boxes (priced models / active offers / open deals per subtree) for
+                    the index and a branch node, or a leaf's (or a group's) own product list -
+                    every active offer, with GET filters (price, distance, source, "deals only",
+                    sort: see `Filters`/`parse_filters`).
+- `/model/<key>`    one pricing model: fair price, IQR, confidence, new price, a price bar (inline
+                    SVG: cheapest live offer, fair price, new price, every offer as a tick), the
+                    live offers (same row format as a category's product list) and a weekly price
+                    history.
 - `/auctions`       open nms.gov.cz lots with their valuation (reuses `auction_cycle.value`).
 - `/flips`          the flips log (buy, sell, fees, profit, days held, totals) and the `hunt eval` tables.
 - `/status`         what the LLM jobs and the scraper did lately, and whether anything looks stuck.
 - `/listing/<id>`   one ad: description, triage JSON, price history.
 
 Every value that comes from an ad (title, description, seller, location, the LLM's verdict) is
-untrusted input and is HTML-escaped before it goes on the page. All queries are parameterized
+untrusted input and is HTML-escaped before it goes on the page; a listing's own image is hotlinked
+(`loading="lazy"`), never downloaded or re-hosted. All queries are parameterized
 (`repository.py`/`pricing.py`/`auction_cycle.py`, no SQL built here). Read-only: nothing here ever
 writes to the database.
 """
@@ -23,6 +31,7 @@ writes to the database.
 import json
 import logging
 from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from html import escape as esc
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -33,35 +42,81 @@ from deal_hunter.text import kc
 
 log = logging.getLogger(__name__)
 
+# A plain catalogue look (square corners everywhere, no border-radius/shadow/gradient, one link
+# colour, a 1px light-grey border, dense information, bold prices), not a "framework" look.
 CSS = """
-  body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #fff; color: #111; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; margin: 0;
+         padding: 1rem; background: #fff; color: #111; font-size: 15px; }
   h1 { font-size: 1.3rem; margin: 0 0 .75rem; }
-  nav { margin-bottom: 1rem; }
-  nav a { margin-right: 1rem; color: #0a58ca; text-decoration: none; }
+  h2 { font-size: 1.05rem; margin: 1.25rem 0 .5rem; border-top: 1px solid #ddd; padding-top: .75rem; }
+  a { color: #0a4e9e; }
+  nav { margin-bottom: 1rem; border-bottom: 1px solid #ddd; padding-bottom: .6rem; }
+  nav a { margin-right: 1rem; color: #0a4e9e; text-decoration: none; }
   nav a:hover { text-decoration: underline; }
-  form.filters { margin-bottom: 1rem; }
-  form.filters label { margin-right: .5rem; }
-  form.filters input, form.filters select { margin-right: 1rem; }
+  form.filters { margin-bottom: 1rem; padding: .6rem .75rem; border: 1px solid #ddd; background: #fafafa; }
+  form.filters label { margin-right: .9rem; display: inline-block; margin-bottom: .4rem; }
+  form.filters input[type=number] { width: 6rem; padding: .3rem; border: 1px solid #bbb; background: #fff; }
+  form.filters select { padding: .3rem; border: 1px solid #bbb; background: #fff; }
+  form.filters button { padding: .4rem 1rem; border: 1px solid #888; background: #eee; cursor: pointer; }
+  .src-group { display: inline-block; margin-right: .9rem; }
   .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { border-collapse: collapse; width: 100%; min-width: 600px; }
+  table { border-collapse: collapse; width: 100%; min-width: 300px; }
   th, td { padding: .35rem .6rem; border-bottom: 1px solid #ddd; text-align: left; white-space: nowrap; }
-  th { background: #f3f3f3; position: sticky; top: 0; }
+  th { background: #f3f3f3; }
   td.wrap, th.wrap { white-space: normal; }
-  tr:hover { background: #f8f8f8; }
-  .muted { color: #777; }
+  .muted { color: #666; }
   .bad { color: #a30000; }
   .good { color: #146c2e; }
-  .empty { color: #777; padding: 1rem 0; }
-  pre { background: #f5f5f5; padding: .75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
-  a.ad { color: #0a58ca; text-decoration: none; }
+  .empty { color: #666; padding: 1rem 0; }
+  pre { background: #f5f5f5; padding: .75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+        border: 1px solid #ddd; }
+  a.ad { color: #0a4e9e; text-decoration: none; font-weight: 600; overflow-wrap: anywhere; }
   a.ad:hover { text-decoration: underline; }
-  footer { margin-top: 2rem; color: #999; font-size: .85rem; }
+  a.detail { margin-left: .6rem; font-size: .85rem; }
+  footer { margin-top: 2rem; color: #888; font-size: .85rem; }
+
+  .catgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .6rem;
+             margin: .5rem 0 1rem; }
+  .catbox { border: 1px solid #ccc; padding: .75rem; background: #fff; }
+  .catbox a { font-weight: 600; text-decoration: none; }
+  .catbox a:hover { text-decoration: underline; }
+  .catbox-stats { color: #666; font-size: .85rem; margin-top: .35rem; }
+
+  .row { display: flex; gap: .75rem; padding: .6rem 0; border-bottom: 1px solid #ddd; align-items: flex-start; }
+  .thumb { width: 72px; height: 72px; object-fit: cover; border: 1px solid #ddd; flex-shrink: 0; }
+  .thumb.empty { background: #eee; }
+  .row-body { flex: 1; min-width: 0; }
+  .row-meta { margin-top: .3rem; color: #333; font-size: .9rem; }
+  .row-meta span { margin-right: 1rem; }
+  .price { font-weight: 700; }
+  .disc { color: #a30000; font-size: .9rem; margin-top: .15rem; }
+
+  .pricebar { width: 100%; height: 76px; display: block; margin: .75rem 0; }
+  .axis { stroke: #bbb; stroke-width: 1; }
+  .tick-offer { stroke: #999; stroke-width: 1; }
+  .mark-fair { stroke: #0a4e9e; stroke-width: 2; }
+  .mark-new { stroke: #a30000; stroke-width: 2; }
+  .mark-cheapest { fill: #146c2e; }
+  .mark-label { font-size: 10px; fill: #333; text-anchor: middle; }
+
+  @media (max-width: 700px) {
+    body { padding: .6rem; font-size: 16px; }
+    nav a { margin-right: .7rem; display: inline-block; padding: .2rem 0; }
+    .catgrid { grid-template-columns: 1fr 1fr; }
+    .row { flex-wrap: wrap; }
+    form.filters input[type=number], form.filters select, form.filters button { min-height: 2.3rem; }
+    table { min-width: 0; }
+  }
 """
 
 NAV = (
-    '<nav><a href="/">Deals</a><a href="/prices">Prices</a><a href="/category">Categories</a>'
-    '<a href="/auctions">Auctions</a><a href="/flips">Flips</a><a href="/status">Status</a></nav>'
+    '<nav><a href="/">Výhodné</a><a href="/category">Kategorie</a><a href="/prices">Ceny</a>'
+    '<a href="/auctions">Aukce</a><a href="/flips">Nákupy</a><a href="/status">Stav</a></nav>'
 )
+
+
+LEVEL_CS = {"high": "vysoká", "medium": "střední", "low": "nízká"}
 
 
 def page(title: str, body: str) -> str:
@@ -81,12 +136,160 @@ def km(x) -> str:
     return f"{x:.0f} km" if x is not None else "-"
 
 
+def kc_range(lo: int, hi: int, per_tb: bool = False) -> str:
+    """'5 112 - 6 933 Kč' (a hyphen with spaces around it, never an en/em dash)."""
+    unit = "/TB" if per_tb else ""
+    return f"{lo:,} - {hi:,} Kč{unit}".replace(",", " ")
+
+
 def when(dt: datetime | None) -> str:
     if dt is None:
         return "-"
     from deal_hunter.alerts import PRAGUE
 
     return f"{dt.astimezone(PRAGUE):%Y-%m-%d %H:%M}"
+
+
+# --- shared catalogue bits: source names, thumbnails, one product row --------------------------------
+
+# One display name per source, in one place (categories.yaml's icon is an ntfy tag, never rendered
+# here as an emoji; this is the only source -> label mapping the UI uses).
+SOURCE_NAMES = {
+    "bazos": "Bazoš",
+    "aukro": "Aukro",
+    "mironet": "Mironet",
+    "fb": "Facebook",
+    "sbazar": "Sbazar",
+}
+
+
+def source_name(code: str | None) -> str:
+    return SOURCE_NAMES.get(code or "", (code or "-").capitalize())
+
+
+def thumb(images: list | None) -> str:
+    """Hotlinked thumbnail of the listing's own first image, or a plain grey box. Never downloaded
+    or re-hosted."""
+    url = (images or [None])[0]
+    if url:
+        return f'<img class="thumb" src="{esc(url)}" loading="lazy" alt="">'
+    return '<div class="thumb empty"></div>'
+
+
+def ships_offer(title: str, description: str | None) -> bool:
+    from deal_hunter import geo
+
+    return bool(geo.shipping_offer(f"{title}\n{description or ''}"))
+
+
+def _row(
+    *,
+    listing_id: int,
+    url: str,
+    title: str,
+    price,
+    fair,
+    images,
+    distance_km,
+    ships: bool,
+    source,
+    first_seen,
+    extra: str = "",
+) -> str:
+    """One catalogue product row: thumbnail, the ad's own title (linking out), price, the discount
+    note when it is cheaper than fair, distance (or "posílá" when it ships), source and first seen."""
+    disc = ""
+    if price and fair and price < fair:
+        disc_pct = round((1 - price / fair) * 100)
+        disc = f'<div class="disc">-{disc_pct} % pod férovou cenou</div>'
+    dist = "posílá" if ships else km(distance_km)
+    return (
+        '<div class="row">'
+        f"{thumb(images)}"
+        '<div class="row-body">'
+        f'<a class="ad" href="{esc(url)}" target="_blank" rel="noopener">{esc(title)}</a>'
+        f'<a class="detail" href="/listing/{listing_id}">detail</a>'
+        '<div class="row-meta">'
+        f'<span class="price">{kc(price)}</span>'
+        f"<span>{esc(dist)}</span>"
+        f"<span>{esc(source_name(source))}</span>"
+        f"<span>{when(first_seen)}</span>"
+        "</div>"
+        f"{disc}{extra}"
+        "</div></div>"
+    )
+
+
+# --- GET filters: price range, max distance, source, "deals only" and sort ---------------------------
+
+FILTER_SOURCES = ("bazos", "aukro", "mironet", "fb")
+SORTS = (("newest", "nejnovější"), ("cheapest", "nejlevnější"), ("discount", "největší sleva"))
+
+
+@dataclass(frozen=True)
+class Filters:
+    price_od: int | None = None
+    price_do: int | None = None
+    max_km: float | None = None
+    sources: tuple[str, ...] = ()
+    deals_only: bool = False
+    sort: str = "newest"
+
+
+def _num(raw: str | None, kind):
+    if raw is None or not raw.strip():
+        return None
+    try:
+        v = kind(raw)
+    except ValueError:
+        return None
+    return v if v >= 0 else None
+
+
+def parse_filters(query: dict[str, list[str]]) -> Filters:
+    """GET params -> Filters, ignoring anything that doesn't parse (a bad number, an unknown source
+    or sort) instead of raising."""
+
+    def first(name: str) -> str | None:
+        vals = query.get(name)
+        return vals[0] if vals else None
+
+    sort = first("sort")
+    sources = tuple(s for s in query.get("source", []) if s in FILTER_SOURCES)
+    return Filters(
+        price_od=_num(first("price_od"), int),
+        price_do=_num(first("price_do"), int),
+        max_km=_num(first("max_km"), float),
+        sources=sources,
+        deals_only=first("deals") == "1",
+        sort=sort if sort in dict(SORTS) else "newest",
+    )
+
+
+def _filters_form(action: str, f: Filters) -> str:
+    source_boxes = "".join(
+        f'<label><input type="checkbox" name="source" value="{s}"'
+        f"{' checked' if s in f.sources else ''}> {esc(source_name(s))}</label>"
+        for s in FILTER_SOURCES
+    )
+    sort_opts = "".join(
+        f'<option value="{s}"{" selected" if f.sort == s else ""}>{esc(label)}</option>' for s, label in SORTS
+    )
+    return (
+        f'<form class="filters" method="get" action="{esc(action)}">'
+        f'<label>Cena od <input type="number" name="price_od" min="0" step="100" '
+        f'value="{f.price_od if f.price_od is not None else ""}"></label>'
+        f'<label>do <input type="number" name="price_do" min="0" step="100" '
+        f'value="{f.price_do if f.price_do is not None else ""}"></label>'
+        f'<label>Vzdálenost do (km) <input type="number" name="max_km" min="0" step="10" '
+        f'value="{f.max_km if f.max_km is not None else ""}"></label>'
+        f'<span class="src-group">{source_boxes}</span>'
+        f'<label><input type="checkbox" name="deals" value="1"{" checked" if f.deals_only else ""}> '
+        "jen výhodné</label>"
+        f'<label>Seřadit <select name="sort">{sort_opts}</select></label>'
+        '<button type="submit">Filtrovat</button>'
+        "</form>"
+    )
 
 
 # --- / : recent deals -------------------------------------------------------------------------------
@@ -102,24 +305,24 @@ def _matches_category(row_category: str, wanted: str) -> bool:
 
 
 def _deal_row(d: dict) -> str:
-    state_cls = "good" if d["state"] == "alerted" else "muted"
-    return (
-        "<tr>"
-        f'<td class="wrap"><a class="ad" href="{esc(d["url"])}" target="_blank" rel="noopener">'
-        f'{esc(d["title"])}</a><br><a href="/listing/{d["listing_id"]}">details</a></td>'
-        f"<td>{kc(d['price'])}</td>"
-        f"<td>{kc(d['fair'])}</td>"
-        f'<td class="bad">{pct(d["discount"])}</td>'
-        f"<td>{km(d['distance_km'])}</td>"
-        f'<td class="wrap">{esc(d["verdict"] or "")}</td>'
-        f'<td><a href="/category/{esc(d["category"])}">{esc(d["category"])}</a></td>'
-        f'<td class="{state_cls}">{esc(d["state"])}</td>'
-        f"<td>{when(d['alerted_at'] or d['first_flagged'])}</td>"
-        "</tr>"
+    cat = categories.node(d["category"])
+    cat_name = esc(cat.name) if cat else esc(d["category"])
+    note = f'<a href="/category/{esc(d["category"])}">{cat_name}</a> · {esc(d["state"])}'
+    if d.get("verdict"):
+        note += f" - {esc(d['verdict'])}"
+    return _row(
+        listing_id=d["listing_id"],
+        url=d["url"],
+        title=d["title"],
+        price=d["price"],
+        fair=d["fair"],
+        images=d.get("images"),
+        distance_km=d.get("distance_km"),
+        ships=ships_offer(d["title"], d.get("description")),
+        source=d.get("source"),
+        first_seen=d["alerted_at"] or d["first_flagged"],
+        extra=f'<div class="muted">{note}</div>',
     )
-
-
-DEAL_HEADERS = ["Ad", "Price", "Fair", "Discount", "Distance", "LLM verdict", "Category", "State", "Seen"]
 
 
 def render_index(conn, category: str | None = None, min_discount: float | None = None) -> str:
@@ -147,8 +350,8 @@ def render_index(conn, category: str | None = None, min_discount: float | None =
     if not deals:
         return filters + '<p class="empty">No deals in this view yet.</p>'
 
-    table = _table(DEAL_HEADERS, [_deal_row(d) for d in deals])
-    return filters + f'<p class="muted">{len(deals)} deal(s).</p>' + table
+    rows = "".join(_deal_row(d) for d in deals)
+    return filters + f'<p class="muted">{len(deals)} deal(s).</p>' + rows
 
 
 # --- /prices : fair price table ---------------------------------------------------------------------
@@ -193,12 +396,13 @@ def render_prices(conn) -> str:
     return f'<p class="muted">{len(rows)} model(s). Asking prices of the last 60 days.</p>' + table
 
 
-# --- /category/<id> : the category tree -------------------------------------------------------------
+# --- /category and /category/<id> : the category tree, as a shop's own department pages ------------
 #
-# categories.py (categories.yaml) is the single source of the tree; this just walks it. A branch node
-# (pocitace, notebooky, komponenty, ...) lists its children with how many open deals and priced
-# models fall under each (summed over its whole subtree); a leaf (or the "office" group alias) lists
-# its own priced models and open deals directly.
+# categories.py (categories.yaml) is the single source of the tree; this just walks it. The index
+# (node_id=None) and a branch node (pocitace, notebooky, komponenty, ...) both show a grid of square
+# boxes, one per child (or per root), each with how many priced models, active offers and open deals
+# fall under it (summed over its whole subtree). A leaf (or the "office" group alias) shows its own
+# product list instead: every active offer, with the GET filters from `Filters`/`parse_filters`.
 
 
 def _breadcrumb(node_id: str) -> str:
@@ -208,25 +412,71 @@ def _breadcrumb(node_id: str) -> str:
         return esc(g.name) if g else esc(node_id)
     crumbs = [f'<a href="/category/{esc(n.id)}">{esc(n.name)}</a>' for n in chain[:-1]]
     crumbs.append(esc(chain[-1].name))
-    return '<p class="muted">' + " › ".join(['<a href="/category">Categories</a>', *crumbs]) + "</p>"
+    return '<p class="muted">' + " › ".join(['<a href="/category">Kategorie</a>', *crumbs]) + "</p>"
 
 
-def render_category_index() -> str:
-    """`/category`: the top-level roots, as a starting point into the tree."""
-    rows = [
-        f'<tr><td><a href="/category/{esc(n.id)}">{esc(n.name)}</a></td></tr>' for n in categories.roots()
-    ]
-    return _table(["Category"], rows)
+def _category_grid(
+    ids: tuple[str, ...], deal_counts: Counter, price_counts: Counter, offer_counts: dict[str, int]
+) -> str:
+    boxes = []
+    for cid in ids:
+        node = categories.node(cid)
+        name = node.name if node else cid
+        sub = categories.subtree(cid)
+        models = sum(price_counts.get(s, 0) for s in sub)
+        offers = sum(offer_counts.get(s, 0) for s in sub)
+        deals = sum(deal_counts.get(s, 0) for s in sub)
+        boxes.append(
+            '<div class="catbox">'
+            f'<a href="/category/{esc(cid)}">{esc(name)}</a>'
+            f'<div class="catbox-stats">{models} modelů · {offers} nabídek · {deals} akcí</div>'
+            "</div>"
+        )
+    return f'<div class="catgrid">{"".join(boxes)}</div>'
 
 
-def render_category(conn, node_id: str) -> str | None:
-    """`/category/<id>`: a branch node's children (with subtree totals) or a leaf's own models and
-    deals. None for an id this module doesn't know (404)."""
+def _listing_rows(conn, leaf_ids: tuple[str, ...], prices: dict, f: Filters) -> list[dict]:
+    """A leaf's product list: every active offer in it, with the fair price (and so the discount
+    note and "jen výhodné") applied per listing from its own features, and the GET filters applied.
+    Price and source are filtered in SQL (repo.listings_in_categories); distance and "deals only"
+    need the fair price first, so they are filtered here."""
+    from deal_hunter.db import repository as repo
+
+    rows = repo.listings_in_categories(
+        conn, list(leaf_ids), price_min=f.price_od, price_max=f.price_do, sources=f.sources or None
+    )
+    out = []
+    for r in rows:
+        fp = prices.get(r["model"]) if r.get("model") else None
+        fair = fp.for_listing(r.get("features") or {}) if fp else None
+        out.append({**r, "fair": fair, "ships": ships_offer(r["title"], r.get("description"))})
+    if f.max_km is not None:
+        out = [
+            r for r in out if r["ships"] or (r["distance_km"] is not None and r["distance_km"] <= f.max_km)
+        ]
+    if f.deals_only:
+        out = [r for r in out if r["price_czk"] and r["fair"] and r["price_czk"] < r["fair"]]
+    if f.sort == "cheapest":
+        out.sort(key=lambda r: r["price_czk"] or 10**9)
+    elif f.sort == "discount":
+        out.sort(
+            key=lambda r: (1 - r["price_czk"] / r["fair"]) if r["price_czk"] and r["fair"] else -1,
+            reverse=True,
+        )
+    else:
+        out.sort(key=lambda r: r["first_seen"], reverse=True)
+    return out
+
+
+def render_category(conn, node_id: str | None = None, filters: Filters | None = None) -> str | None:
+    """`/category` (node_id=None) and `/category/<id>`: a grid of square boxes for a branch (or the
+    roots), or a leaf's (or the "office" group's) own product list. None for an id this module
+    doesn't know (404)."""
     from deal_hunter import pricing
     from deal_hunter.config import load_settings
     from deal_hunter.db import repository as repo
 
-    if not categories.is_known(node_id):
+    if node_id is not None and not categories.is_known(node_id):
         return None
 
     deals = repo.deals_in_state(conn, *DEAL_STATES)
@@ -234,68 +484,109 @@ def render_category(conn, node_id: str) -> str | None:
     settings = load_settings()
     prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
     price_counts = Counter(p.category for p in prices.values())
+    offer_counts = repo.active_offer_counts(conn)
+
+    if node_id is None:
+        roots = tuple(n.id for n in categories.roots())
+        return _category_grid(roots, deal_counts, price_counts, offer_counts)
 
     crumb = _breadcrumb(node_id)
     kids = categories.children(node_id)
     if kids:
-        rows = []
-        for cid in kids:
-            child = categories.node(cid)
-            sub = categories.subtree(cid)
-            rows.append(
-                "<tr>"
-                f'<td><a href="/category/{esc(cid)}">{esc(child.name)}</a></td>'
-                f"<td>{sum(deal_counts.get(s, 0) for s in sub)}</td>"
-                f"<td>{sum(price_counts.get(s, 0) for s in sub)}</td>"
-                "</tr>"
-            )
-        return crumb + _table(["Category", "Open deals", "Priced models"], rows)
+        return crumb + _category_grid(kids, deal_counts, price_counts, offer_counts)
 
-    # a leaf, or the "office" group: its own models and deals, directly (subtree() of a leaf is
+    # a leaf, or the "office" group: its own product list, directly (subtree() of a leaf is
     # itself; of "office" is office_pc + office_laptop).
     leaf_ids = categories.subtree(node_id)
-    rows_models = sorted(
-        (p for p in prices.values() if p.category in leaf_ids), key=lambda p: (-p.n, p.model)
-    )
-    if rows_models:
-        model_rows = []
-        for p in rows_models:
-            median = f"{kc(p.median)}/TB" if p.per_tb else kc(p.median)
-            model_rows.append(
-                "<tr>"
-                f'<td><a href="/model/{esc(quote(p.model))}">{esc(p.model)}</a></td>'
-                f"<td>{p.n}</td><td>{median}</td><td>{esc(p.level)}</td>"
-                "</tr>"
-            )
-        models = _table(["Model", "n", "Median", "Level"], model_rows)
-    else:
-        models = '<p class="empty">No priced models in this category yet.</p>'
+    n_models = sum(price_counts.get(s, 0) for s in leaf_ids)
+    n_offers = sum(offer_counts.get(s, 0) for s in leaf_ids)
+    n_deals = sum(deal_counts.get(s, 0) for s in leaf_ids)
+    header = f'<p class="muted">Modely: {n_models} · Nabídky: {n_offers} · Výhodné: {n_deals}</p>'
 
-    own_deals = sorted(
-        (d for d in deals if d["category"] in leaf_ids),
-        key=lambda d: d["alerted_at"] or d["first_flagged"],
-        reverse=True,
+    f = filters or Filters()
+    form = _filters_form(f"/category/{node_id}", f)
+    rows = _listing_rows(conn, leaf_ids, prices, f)
+    listing_html = (
+        "".join(
+            _row(
+                listing_id=r["id"],
+                url=r["url"],
+                title=r["title"],
+                price=r["price_czk"],
+                fair=r["fair"],
+                images=r.get("images"),
+                distance_km=r.get("distance_km"),
+                ships=r["ships"],
+                source=r.get("source"),
+                first_seen=r["first_seen"],
+            )
+            for r in rows
+        )
+        if rows
+        else '<p class="empty">Filtru neodpovídá žádná nabídka.</p>'
     )
-    deals_html = (
-        _table(DEAL_HEADERS, [_deal_row(d) for d in own_deals])
-        if own_deals
-        else '<p class="empty">No open deals in this category.</p>'
-    )
-    return (
-        crumb
-        + f'<p class="muted">{len(rows_models)} priced model(s).</p>'
-        + models
-        + f'<h2>Open deals</h2><p class="muted">{len(own_deals)} deal(s).</p>'
-        + deals_html
-    )
+    return crumb + header + form + f'<p class="muted">Nalezeno: {len(rows)}</p>' + listing_html
 
 
 # --- /model/<key> : one pricing model ---------------------------------------------------------------
 
 
+def _price_bar(offer_prices: list[int], fair_median: int, new_price: int | None) -> str:
+    """A plain horizontal price bar (inline SVG, no library): the cheapest live offer, the fair
+    price and the new price marked on one axis, with every live offer as a small tick."""
+    values = [p for p in offer_prices if p] + [fair_median] + ([new_price] if new_price else [])
+    if not values:
+        return ""
+    lo, hi = min(values), max(values)
+    if hi == lo:
+        hi = lo + 1
+    pad = (hi - lo) * 0.08
+    lo, hi = lo - pad, hi + pad
+    width, x0, x1 = 640, 20, 620
+
+    def x(v: float) -> float:
+        return x0 + (v - lo) / (hi - lo) * (x1 - x0)
+
+    ticks = "".join(
+        f'<line x1="{x(p):.1f}" y1="22" x2="{x(p):.1f}" y2="38" class="tick-offer"></line>'
+        for p in offer_prices
+        if p
+    )
+    cheapest = min((p for p in offer_prices if p), default=None)
+    cheapest_mark = (
+        f'<circle cx="{x(cheapest):.1f}" cy="30" r="4" class="mark-cheapest"></circle>' if cheapest else ""
+    )
+    fair_mark = (
+        f'<line x1="{x(fair_median):.1f}" y1="12" x2="{x(fair_median):.1f}" y2="48" class="mark-fair"></line>'
+        f'<text x="{x(fair_median):.1f}" y="64" class="mark-label">fér {kc(fair_median)}</text>'
+    )
+    new_mark = ""
+    if new_price:
+        new_mark = (
+            f'<line x1="{x(new_price):.1f}" y1="12" x2="{x(new_price):.1f}" y2="48" class="mark-new"></line>'
+            f'<text x="{x(new_price):.1f}" y="10" class="mark-label">nové {kc(new_price)}</text>'
+        )
+    return (
+        f'<svg class="pricebar" viewBox="0 0 {width} 74" xmlns="http://www.w3.org/2000/svg" '
+        'role="img" aria-label="cenové rozpětí">'
+        f'<line x1="{x0}" y1="30" x2="{x1}" y2="30" class="axis"></line>'
+        f"{ticks}{cheapest_mark}{fair_mark}{new_mark}"
+        "</svg>"
+    )
+
+
+def _history_table(weeks: list[tuple]) -> str:
+    """A small weekly-median price history table, from samples already in the database (no new
+    table: repo.weekly_median_prices groups listings/normalized by week)."""
+    if not weeks:
+        return '<p class="empty">No price history yet.</p>'
+    rows = [f"<tr><td>{wk:%Y-%m-%d}</td><td>{kc(median)}</td></tr>" for wk, median in weeks]
+    return _table(["Týden", "Medián"], rows)
+
+
 def render_model(conn, model: str) -> str | None:
-    """`/model/<key>`: the fair price, the new price (if any) and current live offers from every
-    source. None if the model has no fair price yet (404)."""
+    """`/model/<key>`: the fair price, the new price (if any), a price bar, current live offers
+    from every source and a weekly price history. None if the model has no fair price yet (404)."""
     from deal_hunter import pricing
     from deal_hunter.config import load_settings
     from deal_hunter.db import repository as repo
@@ -306,41 +597,52 @@ def render_model(conn, model: str) -> str | None:
     if fp is None:
         return None
 
-    crumb = _breadcrumb(fp.category) + f"<p>{esc(model)}</p>"
+    crumb = _breadcrumb(fp.category)  # the model name is the page's <h1>, not repeated here
     median = f"{kc(fp.median)}/TB" if fp.per_tb else kc(fp.median)
-    iqr = f"{kc(fp.q25)}-{kc(fp.q75)}" + ("/TB" if fp.per_tb else "")
+    iqr = kc_range(fp.q25, fp.q75, fp.per_tb)
     lines = [
-        f"<tr><th>Fair price</th><td>{median}</td></tr>",
-        f"<tr><th>IQR</th><td>{iqr}</td></tr>",
-        f"<tr><th>Confidence</th><td>{esc(fp.level)} ({fp.confidence:.2f})</td></tr>",
-        f"<tr><th>Samples</th><td>{fp.n} of {fp.n_listings} ads ({fp.sold} gone fast)</td></tr>",
+        f"<tr><th>Férová cena</th><td>{median}</td></tr>",
+        f"<tr><th>Běžné rozpětí</th><td>{iqr}</td></tr>",
+        f"<tr><th>Spolehlivost</th><td>{esc(LEVEL_CS.get(fp.level, fp.level))} ({fp.confidence:.2f})</td></tr>",
+        f"<tr><th>Vzorek</th><td>{fp.n} z {fp.n_listings} inzerátů ({fp.sold} rychle prodáno)</td></tr>",
     ]
     if fp.new_price:
         from deal_hunter.alerts import new_text
 
-        lines.append(f"<tr><th>New price</th><td>{esc(new_text(fp))}</td></tr>")
+        lines.append(f"<tr><th>Nová cena</th><td>{esc(new_text(fp))}</td></tr>")
     summary = "<table>" + "".join(lines) + "</table>"
 
     offers = repo.active_model_listings(conn, model)
+    offer_prices = [o["price_czk"] for o in offers if o.get("price_czk")]
+    price_bar = _price_bar(offer_prices, fp.median, fp.new_price)
     if offers:
-        rows = [
-            "<tr>"
-            f"<td>{esc(o['source'])}</td>"
-            f"<td>{kc(o['price_czk']) if o['price_czk'] else esc(o['price_kind'] or '-')}</td>"
-            f'<td class="wrap"><a class="ad" href="{esc(o["url"])}" target="_blank" rel="noopener">'
-            f'{esc(o["title"])}</a><br><a href="/listing/{o["id"]}">details</a></td>'
-            f"<td>{when(o['first_seen'])}</td>"
-            "</tr>"
+        offers_html = "".join(
+            _row(
+                listing_id=o["id"],
+                url=o["url"],
+                title=o["title"],
+                price=o.get("price_czk"),
+                fair=fp.for_listing(o.get("features") or {}),
+                images=o.get("images"),
+                distance_km=o.get("distance_km"),
+                ships=ships_offer(o["title"], o.get("description")),
+                source=o.get("source"),
+                first_seen=o["first_seen"],
+            )
             for o in offers
-        ]
-        offers_html = _table(["Source", "Price", "Ad", "First seen"], rows)
+        )
     else:
-        offers_html = '<p class="empty">No live offers right now.</p>'
+        offers_html = '<p class="empty">Teď tu není žádná nabídka.</p>'
+
+    history_html = _history_table(repo.weekly_median_prices(conn, model))
     return (
         crumb
         + summary
-        + f'<h2>Live offers</h2><p class="muted">{len(offers)} active ad(s).</p>'
+        + price_bar
+        + f'<h2>Aktuální nabídky</h2><p class="muted">Nabídky: {len(offers)}</p>'
         + offers_html
+        + "<h2>Vývoj ceny</h2>"
+        + history_html
     )
 
 
@@ -444,7 +746,7 @@ def render_flips(conn, now: datetime | None = None) -> str:
         headers = ["Ad", "Category", "Bought", "Buy", "Sold", "Sell", "Fees", "Profit", "Days held"]
         table = _table(headers, rows)
     else:
-        table = '<p class="empty">No flips yet (tap Bought on a 👍 follow-up, or `hunt flip add`).</p>'
+        table = '<p class="empty">No flips yet (tap Bought on a liked follow-up, or `hunt flip add`).</p>'
     t = evaluation.flip_totals(flips)
     roi = pct(t["roi"])
     totals = (
@@ -865,10 +1167,10 @@ class Handler(BaseHTTPRequestHandler):
                 elif path == "/prices":
                     self._respond(200, page("Fair prices", render_prices(conn)))
                 elif path == "/category":
-                    self._respond(200, page("Categories", render_category_index()))
+                    self._respond(200, page("Categories", render_category(conn)))
                 elif path.startswith("/category/"):
                     node_id = unquote(path.removeprefix("/category/"))
-                    body = render_category(conn, node_id)
+                    body = render_category(conn, node_id, parse_filters(query))
                     if body is None:
                         self._respond(404, _not_found())
                     else:

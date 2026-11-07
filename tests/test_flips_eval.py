@@ -385,4 +385,4 @@ def test_flips_page_empty(conn):
 
 
 def test_flips_route_and_nav():
-    assert '<a href="/flips">Flips</a>' in web.NAV
+    assert '<a href="/flips">Nákupy</a>' in web.NAV

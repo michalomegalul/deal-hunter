@@ -413,14 +413,76 @@ def model_listings(conn: psycopg.Connection, model: str, limit: int) -> list[tup
 
 def active_model_listings(conn: psycopg.Connection, model: str, limit: int = 50) -> list[dict]:
     """Live (not gone) ads of one pricing model, newest first, across every source. For the web
-    model page's "current live offers" table (web.render_model)."""
+    model page's "current live offers" list (web.render_model): the catalogue row needs a
+    thumbnail, distance and a shipping guess on top of the price, so this also carries images,
+    distance_km and description (title+description feed geo.shipping_offer)."""
     cur = conn.execute(
-        "SELECT l.id, l.source, l.price_czk, l.price_kind, l.title, l.url, l.first_seen, n.features "
+        "SELECT l.id, l.source, l.price_czk, l.price_kind, l.title, l.url, l.first_seen, l.images, "
+        "l.distance_km, l.description, n.features "
         "FROM listings l JOIN normalized n ON n.listing_id = l.id "
         "WHERE n.model = %s AND l.gone_at IS NULL ORDER BY l.first_seen DESC LIMIT %s",
         (model, limit),
     )
     return _dicts(cur)
+
+
+def active_offer_counts(conn: psycopg.Connection) -> dict[str, int]:
+    """{category: count of active (not gone), model-matched listings}. The catalogue's "active
+    offers" number per category box (web.render_category); a model-matched listing is a
+    recognised product offer, not just any ad the normalizer looked at."""
+    rows = conn.execute(
+        "SELECT n.category, count(*) FROM listings l JOIN normalized n ON n.listing_id = l.id "
+        "WHERE l.gone_at IS NULL AND n.model IS NOT NULL GROUP BY 1"
+    ).fetchall()
+    return dict(rows)
+
+
+def listings_in_categories(
+    conn: psycopg.Connection,
+    categories: list[str],
+    *,
+    price_min: int | None = None,
+    price_max: int | None = None,
+    sources: tuple[str, ...] | None = None,
+    limit: int = 1000,
+) -> list[dict]:
+    """Active, fixed-price ads normalized into one of `categories`: the catalogue's product list
+    for a leaf category (web.render_category). Price and source are filtered here (parameterized
+    SQL); distance and "deals only" are derived values the caller (web.py) filters in Python once
+    fair prices are applied per listing's features."""
+    cur = conn.execute(
+        "SELECT l.id, l.source, l.url, l.title, l.price_czk, l.images, l.distance_km, l.description, "
+        "l.first_seen, n.category, n.model, n.features "
+        "FROM listings l JOIN normalized n ON n.listing_id = l.id "
+        "WHERE l.gone_at IS NULL AND n.model IS NOT NULL AND n.category = ANY(%(categories)s) "
+        "AND l.price_kind = 'fixed' AND l.price_czk > 0 "
+        "AND (%(price_min)s::int IS NULL OR l.price_czk >= %(price_min)s) "
+        "AND (%(price_max)s::int IS NULL OR l.price_czk <= %(price_max)s) "
+        "AND (%(sources)s::text[] IS NULL OR l.source = ANY(%(sources)s)) "
+        "ORDER BY l.first_seen DESC LIMIT %(limit)s",
+        {
+            "categories": list(categories),
+            "price_min": price_min,
+            "price_max": price_max,
+            "sources": list(sources) if sources else None,
+            "limit": limit,
+        },
+    )
+    return _dicts(cur)
+
+
+def weekly_median_prices(conn: psycopg.Connection, model: str, weeks: int = 12) -> list[tuple]:
+    """(week start, median asking price) of a model's fixed-price ads, oldest first, over the last
+    `weeks` weeks. For the model page's price history (web.render_model); reuses listings/normalized,
+    no new table."""
+    return conn.execute(
+        "SELECT date_trunc('week', l.first_seen)::date AS wk, "
+        "percentile_cont(0.5) WITHIN GROUP (ORDER BY l.price_czk) AS median "
+        "FROM listings l JOIN normalized n ON n.listing_id = l.id "
+        "WHERE n.model = %s AND l.price_kind = 'fixed' AND l.price_czk > 0 "
+        "AND l.first_seen > now() - make_interval(weeks => %s) GROUP BY 1 ORDER BY 1",
+        (model, weeks),
+    ).fetchall()
 
 
 def data_since(conn: psycopg.Connection) -> dict[str, object]:

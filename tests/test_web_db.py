@@ -1,6 +1,7 @@
 """The web pages against a real (throwaway) database: filters, escaping, and the detail page."""
 
 import os
+import re
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
@@ -51,26 +52,43 @@ def test_prices_table_lists_a_priced_model(conn):
 # --- /category and /model ---------------------------------------------------------------------------
 
 
-def test_category_page_branch_lists_children_with_subtree_totals(conn):
+def test_category_page_branch_lists_boxes_with_subtree_totals(conn):
     seed(conn)
     work(conn, FakeNtfy())
     assert deal_state(conn) == ("alerted", None)
 
     html = web.render_category(conn, "komponenty")
-    # gpu's row: 1 open deal (listing 999, alerted), 1 priced model (rtx 3080 10gb)
-    assert '<td><a href="/category/gpu">Grafické karty</a></td><td>1</td><td>1</td>' in html
+    # gpu's box: 1 open deal (listing 999, alerted), 1 priced model, 21 active offers (20 + the deal)
+    assert '<a href="/category/gpu">Grafické karty</a>' in html
+    assert "1 modelů · 21 nabídek · 1 akcí" in html
     # a placeholder sibling with nothing in its subtree yet
-    assert '<td><a href="/category/procesory">Procesory</a></td><td>0</td><td>0</td>' in html
+    assert '<a href="/category/procesory">Procesory</a>' in html
+    assert "0 modelů · 0 nabídek · 0 akcí" in html
+    assert "border-radius" not in html
 
 
-def test_category_page_leaf_lists_its_models_and_deals(conn):
+def test_category_index_also_shows_boxes_with_counts(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+
+    html = web.render_category(conn)  # no node_id: /category itself
+    for name in ("Počítače", "Komponenty", "Úložiště", "Síťové prvky"):
+        assert name in html
+    assert '<a href="/category/pocitace">' in html
+    # Počítače's subtree has no GPU in it; Komponenty's does
+    assert "1 modelů · 21 nabídek · 1 akcí" in html
+
+
+def test_category_page_leaf_lists_its_product_rows(conn):
     seed(conn)
     work(conn, FakeNtfy())
 
     html = web.render_category(conn, "gpu")
     assert "Grafické karty" in html  # breadcrumb
-    assert '<a href="/model/rtx%203080%2010gb">rtx 3080 10gb</a>' in html
     assert "/listing/999" in html
+    assert "6 500 Kč" in html  # the deal's own price
+    assert "Bazoš" in html
+    assert "Nalezeno: 21" in html  # 20 ordinary ads + the deal, all active
 
 
 def test_category_page_unknown_id_is_none(conn):
@@ -82,7 +100,38 @@ def test_category_page_office_group_has_no_members_seeded(conn):
     html = web.render_category(conn, "office")
     assert html is not None
     assert "Kancelářské (PC i notebooky)" in html
-    assert "No priced models in this category yet." in html
+    assert "Modely: 0 · Nabídky: 0 · Výhodné: 0" in html
+    assert "Nalezeno: 0" in html
+    assert "Filtru neodpovídá žádná nabídka." in html
+
+
+def test_category_page_leaf_filters_by_price_and_distance(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+    conn.execute("UPDATE listings SET distance_km = 500 WHERE id = 999")  # far away, no shipping words
+
+    cheap_only = web.render_category(conn, "gpu", web.Filters(price_do=7000))
+    assert "/listing/999" in cheap_only  # 6500, kept
+    assert "/listing/100" not in cheap_only  # ~9500+, dropped
+
+    near_only = web.render_category(conn, "gpu", web.Filters(max_km=50))
+    assert "/listing/999" not in near_only  # 500 km away and not marked as shipping
+
+    deals_only = web.render_category(conn, "gpu", web.Filters(deals_only=True))
+    assert "/listing/999" in deals_only  # well below fair
+    assert "/listing/119" not in deals_only  # the priciest ordinary ad: at/above fair, not a deal
+
+    cheapest_first = web.render_category(conn, "gpu", web.Filters(sort="cheapest"))
+    assert cheapest_first.index("listing/999") < cheapest_first.index("listing/100")
+
+
+def test_category_page_leaf_source_filter_and_checkbox_state(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+    f = web.Filters(sources=("aukro",))
+    html = web.render_category(conn, "gpu", f)
+    assert "/listing/999" not in html and "/listing/100" not in html  # everything seeded is bazos
+    assert 'name="source" value="aukro" checked' in html
 
 
 def test_render_model_shows_fair_price_and_live_offers_escapes_titles(conn):
@@ -92,14 +141,25 @@ def test_render_model_shows_fair_price_and_live_offers_escapes_titles(conn):
     html = web.render_model(conn, "rtx 3080 10gb")
     assert html is not None
     assert "Grafické karty" in html  # breadcrumb to the category
-    assert "Fair price" in html
+    assert "Férová cena" in html
     assert "<script>bad</script>" not in html and "&lt;script&gt;bad&lt;/script&gt;" in html
-    assert "21 active ad(s)" in html  # 20 seeded + the deal ad, none gone
+    assert "Nabídky: 21" in html  # 20 seeded + the deal ad, none gone
+    assert html.count("rtx 3080 10gb") == 0  # the model name is the <h1>, not repeated in the body
+    assert '<svg class="pricebar"' in html  # the price bar: cheapest offer, fair price, new price
+    assert "Vývoj ceny" in html
 
 
 def test_render_model_unknown_model_is_none(conn):
     seed(conn)
     assert web.render_model(conn, "nonexistent model") is None
+
+
+def test_render_model_price_history_has_a_weekly_median_row(conn):
+    seed(conn)
+    conn.execute("UPDATE listings SET first_seen = now() - interval '10 days' WHERE id = 999")
+    html = web.render_model(conn, "rtx 3080 10gb")
+    assert "<h2>Vývoj ceny</h2>" in html
+    assert "No price history yet." not in html  # the 21 seeded ads fall inside the 12-week window
 
 
 def test_listing_page_has_description_and_price_history_unknown_id_is_none(conn):
@@ -440,3 +500,52 @@ def test_status_sources_enabled_follows_config_both_ways(conn, monkeypatch):
     states = _states(conn, load_settings())
     assert states["Sbazar"] == "blocked" and states["Zboží.cz"] == states["nms.gov.cz"] == "off"
     assert states["Facebook Marketplace"] == states["Aukro"] == "never ran"
+
+
+# --- the plain-shop style rules, on every page at once -----------------------------------------------
+#
+# The owner's rules are checked mechanically here instead of by eye on every change: no border-radius
+# anywhere, no emoji (categories.yaml's "icon" is an ntfy tag and must never be rendered as one), and
+# no em/en dashes in text this module writes. seed()/work() use titles and verdicts with no dashes so
+# this stays clean; ad titles are otherwise exempt (they are the seller's own words, never rewritten).
+
+EMOJI_RE = re.compile(
+    "[\U0001f300-\U0001faff\U00002600-\U000027bf\U00002300-\U000023ff\U00002b00-\U00002bff"
+    "\U0001f1e6-\U0001f1ff️]"
+)
+DASH_RE = re.compile("[–—]")  # en dash, em dash (a plain hyphen "-" is fine)
+
+
+def _every_page_html(conn, now) -> str:
+    from deal_hunter import pricing
+    from deal_hunter.config import load_settings
+
+    settings = load_settings()
+    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    model = next(iter(prices), None)
+    pages = [
+        web.page("Deals", web.render_index(conn)),
+        web.page("Fair prices", web.render_prices(conn)),
+        web.page("Categories", web.render_category(conn)),
+        web.page("Grafické karty", web.render_category(conn, "gpu")),
+        web.page("Komponenty", web.render_category(conn, "komponenty")),
+        web.page("Open auctions", web.render_auctions(conn)),
+        web.page("Flips", web.render_flips(conn, now)),
+        web.page("Status", web.render_status(conn, now)),
+    ]
+    if model:
+        pages.append(web.page(model, web.render_model(conn, model)))
+    listing_id = conn.execute("SELECT id FROM listings LIMIT 1").fetchone()
+    if listing_id:
+        pages.append(web.page("Listing", web.render_listing(conn, listing_id[0])))
+    return "".join(pages)
+
+
+def test_every_page_has_no_border_radius_emoji_or_dashes(conn):
+    seed(conn)
+    work(conn, FakeNtfy())
+    html = _every_page_html(conn, datetime.now(UTC))
+    assert html  # sanity: actually rendered something on every page
+    assert "border-radius" not in html
+    assert not EMOJI_RE.search(html), EMOJI_RE.search(html)
+    assert not DASH_RE.search(html), DASH_RE.search(html)
