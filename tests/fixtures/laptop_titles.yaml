@@ -35,8 +35,12 @@
 - {title: Lenovo V320-17ISK Iron Grey, section: notebook}
 - {title: ASUS-X509•i5-8265U•NVIDIA MX250•NVME SSD OSC-512GB•12GB-RAM, section: notebook, model: laptop i5 g8 igpu, ram_gb: 12,
   ssd_gb: 512, cpu: i5-8265u, category: ostatni}
-- {title: ACER A315-51 /i5-7200/8GB/SSD256GB/1920x1080/WIN11/ZÁRUKA, section: notebook, model: laptop i5 g7 gtx 1080,
-  ram_gb: 8, ssd_gb: 256, cpu: i5-7200, category: herni}
+- {title: ACER A315-51 /i5-7200/8GB/SSD256GB/1920x1080/WIN11/ZÁRUKA, section: notebook, model: laptop i5 g7 igpu,
+  ram_gb: 8, ssd_gb: 256, cpu: i5-7200, category: ostatni}
+- {title: 'Lenovo IdeaPad 5 15,6" 1920 x 1080 i5-1135G7 16GB 512GB', section: notebook, model: laptop i5 g11 igpu,
+  ram_gb: 16, ssd_gb: 512, cpu: i5-1135g7, category: ostatni}
+- {title: 'Herní notebook 2560x1440 165Hz RTX 3070 Ryzen 7 5800H 16GB', section: notebook, model: laptop r7 5000 rtx
+    3070, ram_gb: 16, cpu: ryzen 7 5800h, category: herni}
 - {title: ASUS X540L /i3-4005/8GB/SSD512GB/FULLHD/WIN11/ZÁRUKA, section: notebook, model: laptop i3 g4 igpu, ram_gb: 8,
   ssd_gb: 512, cpu: i3-4005, category: ostatni}
 - {title: Huawei MateBook 14" 2K Ryzen7 4800H 5000B SSD TOPSTAV, section: notebook, model: laptop r7 4000 igpu, cpu: ryzen

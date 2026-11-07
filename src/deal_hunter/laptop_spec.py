@@ -52,7 +52,9 @@ from deal_hunter.office import features
 from deal_hunter.text import fold
 
 # Bump whenever the rules change, so `hunt normalize` re-processes old listings.
-VERSION = 2  # v2: mask legacy '<number>M' mobile GPU suffixes, recognise 'víko' as an accessory word
+VERSION = (
+    3  # v3: screen resolutions ('1920x1080') no longer read as a GPU; v2: mobile '<number>M' suffixes, 'víko'
+)
 
 
 @dataclass(frozen=True)
@@ -169,6 +171,10 @@ GAMING_LINE = re.compile(
 # matching the chip number as-is ('RTX 3060 Laptop GPU' already finds 'rtx 3060' with no help).
 MOBILE_SUFFIX_GPU = re.compile(r"\b(\d{4}) m\b")
 
+# A screen resolution ('1920x1080', '2560 x 1440', after prepare() splits it) holds a 4-digit number
+# that looks like a GPU ('gtx 1080'): mask it out before catalog lookup.
+RESOLUTION = re.compile(r"\b\d{3,4} x \d{3,4}\b")
+
 
 def gpu_bucket(title: str) -> tuple[str, bool]:
     """(GPU component of the key, whether a gaming-line brand name is in the title)."""
@@ -178,6 +184,7 @@ def gpu_bucket(title: str) -> tuple[str, bool]:
         if pattern.search(gt):
             return name, gaming_line
     gt = MOBILE_SUFFIX_GPU.sub("", gt)
+    gt = RESOLUTION.sub(" ", gt)
     models = _gpu_find_models(gt)
     if models:
         return models[0].name, gaming_line
