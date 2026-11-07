@@ -29,8 +29,18 @@ def test_matches_category_groups_office():
     assert web._matches_category("gpu", "gpu")
 
 
-def test_categories_tuple_has_the_four_priced_leaves_and_the_office_group():
-    assert set(web.CATEGORIES) == {"gpu", "office_pc", "office_laptop", "hdd", "office"}
+def test_categories_tuple_has_the_priced_leaves_and_the_office_group():
+    assert set(web.CATEGORIES) == {
+        "gpu",
+        "office_pc",
+        "office_laptop",
+        "hdd",
+        "apple",
+        "apple_desktop",
+        "herni",
+        "ostatni",
+        "office",
+    }
 
 
 def test_breadcrumb_links_every_ancestor_but_the_last():

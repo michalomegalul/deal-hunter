@@ -152,6 +152,47 @@ def office_name(title: str, key: str) -> str:
     return " ".join([brand, *words] if brand else words)
 
 
+APPLE_LINE = re.compile(
+    r"\bmac\s*book(?:\s*(?:air|pro))?\b|\bimac\b|\bmac\s*mini\b|\bmac\s*studio\b", re.IGNORECASE
+)
+APPLE_CHIP = re.compile(r"\bm[1-4]\s?(?:pro|max|ultra)?\b", re.IGNORECASE)
+
+LAPTOP_BRANDS = "lenovo|asus|acer|hp|msi|dell|gigabyte|alienware|razer|huawei|microsoft|apple"
+LAPTOP_LINES = (
+    "legion|rog|tuf|nitro|predator|omen|victus|zephyrus|katana|vector|titan|stealth|raider|sword"
+    "|crosshair|aorus|loq|ideapad|vivobook|zenbook|aspire|pavilion|thinkbook|yoga|matebook|swift"
+)
+
+
+def apple_name(title: str, key: str) -> str:
+    """'Apple MacBook Air 13" M2 2024' + 'macbook air m2 13' -> 'MacBook Air M2'."""
+    line_m = APPLE_LINE.search(title)
+    line = " ".join(line_m.group(0).split()) if line_m else key.split()[0].capitalize()
+    chip_m = APPLE_CHIP.search(title)
+    chip = ""
+    if chip_m:
+        words = chip_m.group(0).split()
+        chip = " ".join([words[0].upper(), *(w.capitalize() for w in words[1:])])
+    return " ".join(p for p in (line, chip) if p)
+
+
+def laptop_name(title: str, key: str) -> str:
+    """'Lenovo Legion 5, i7, RTX 4060' + 'laptop i7 g12 rtx 4060' -> 'Lenovo Legion'; falls back to
+    the GPU name ('RTX 4060') when no line name is recognised, since that's usually the one word a
+    gaming-laptop ad and the pricing key agree on."""
+    brand = _brand(title, LAPTOP_BRANDS)
+    line_m = re.search(rf"\b({LAPTOP_LINES})\w*\b", title, re.IGNORECASE)
+    line = line_m.group(0) if line_m else None
+    if brand or line:
+        return " ".join(p for p in (brand, line) if p)
+    parts = key.split()[1:]  # drop the leading 'laptop'
+    gpu = next((p for p in parts if p in ("rtx", "gtx", "rx")), None)
+    if gpu:
+        i = parts.index(gpu)
+        return gpu_name(title, " ".join(parts[i:])) or ""
+    return ""
+
+
 def item_name(listing: dict) -> tuple[str, str]:
     """(noun, item) for the message to the seller."""
     category = listing.get("category") or categories.for_section(listing.get("section") or "") or "gpu"
@@ -167,6 +208,10 @@ def item_name(listing: dict) -> tuple[str, str]:
     if key and category in ("office_pc", "office_laptop"):
         noun = AIO_NOUN if key.startswith(("eliteone", "proone")) else NOUNS[category]
         return noun, office_name(title, key)
+    if key and category in ("apple", "apple_desktop"):
+        return NOUNS[category], apple_name(title, key)
+    if key and category in ("herni", "ostatni"):
+        return NOUNS[category], laptop_name(title, key)
     return NOUNS.get(category, NOUNS["gpu"]), ""  # no model: "... o grafickou kartu z vašeho inzerátu"
 
 

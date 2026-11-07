@@ -38,18 +38,24 @@ def test_out_of_scope_is_not_a_known_category():
     assert not c.is_known("out_of_scope")
 
 
-def test_the_four_priced_leaves_keep_their_existing_ids():
+def test_the_priced_leaves_keep_their_existing_ids():
     priced = {n.id for n in c.leaves(priced=True)}
-    assert priced == {"gpu", "office_pc", "office_laptop", "hdd"}
+    assert priced == {
+        "gpu",
+        "office_pc",
+        "office_laptop",
+        "hdd",
+        "apple",
+        "apple_desktop",
+        "herni",
+        "ostatni",
+    }
 
 
 def test_placeholder_leaves_are_not_priced():
+    # herni_pc (gaming desktops) and components/network are still Phase-3 placeholders.
     for leaf_id in (
-        "herni",
-        "apple",
-        "ostatni",
         "herni_pc",
-        "apple_desktop",
         "procesory",
         "pameti",
         "zakladni_desky",
@@ -154,18 +160,30 @@ def test_nouns_triage_labels_icons_match_the_old_hard_coded_tables():
         "office_pc": "počítač",
         "office_laptop": "notebook",
         "hdd": "disk",
+        "apple": "Apple notebook",
+        "apple_desktop": "Apple počítač",
+        "herni": "herní notebook",
+        "ostatni": "notebook",
     }
     assert c.triage_labels(priced=True) == {
         "gpu": "graphics card",
         "office_pc": "ex-office PC",
         "office_laptop": "business laptop",
         "hdd": "hard disk / SSD",
+        "apple": "Apple laptop",
+        "apple_desktop": "Apple desktop",
+        "herni": "gaming laptop",
+        "ostatni": "consumer laptop",
     }
     assert c.icons(priced=True) == {
         "gpu": "video_game",
         "office_pc": "desktop_computer",
         "office_laptop": "computer",
         "hdd": "floppy_disk",
+        "apple": "apple",
+        "apple_desktop": "apple",
+        "herni": "joystick",
+        "ostatni": "laptop",
     }
 
 

@@ -47,20 +47,32 @@ nodes:
   - id: herni
     parent: notebooky
     name: "Herní"
+    noun: "herní notebook"
     icon: joystick
-    priced: false
+    triage_label: "gaming laptop"
+    priced: true
+    spec_adjust: true
+    sections: [notebook, pc]
 
   - id: apple
     parent: notebooky
     name: "Apple"
+    noun: "Apple notebook"
     icon: apple
-    priced: false
+    triage_label: "Apple laptop"
+    priced: true
+    spec_adjust: true
+    sections: [notebook, pc]
 
   - id: ostatni
     parent: notebooky
     name: "Ostatní"
+    noun: notebook
     icon: laptop
-    priced: false
+    triage_label: "consumer laptop"
+    priced: true
+    spec_adjust: true
+    sections: [notebook, pc]
 
   - id: stolni
     parent: pocitace
@@ -86,8 +98,12 @@ nodes:
   - id: apple_desktop
     parent: stolni
     name: "Apple"
+    noun: "Apple počítač"
     icon: apple
-    priced: false
+    triage_label: "Apple desktop"
+    priced: true
+    spec_adjust: true
+    sections: [pc, notebook]
 
   - id: komponenty
     parent: null
