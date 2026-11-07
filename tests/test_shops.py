@@ -100,7 +100,7 @@ def test_how_each_outlet_item_is_normalized(fixture):
     assert seen["809984"] == ("hdd", "hdd35 enterprise sas 22tb", None)  # a 22 TB SAS disk
     assert seen["800538"] == ("hdd", None, "accessory")  # an M.2 enclosure in the disk category
     assert seen["894722"][0] == "office" and seen["894722"][2] is None  # a ProBook
-    assert seen["848917"][2] == "out_of_scope"  # a MacBook
+    assert seen["848917"] == ("apple", "macbook air m2 13", None)  # a MacBook: apple.py now prices it
 
 
 @pytest.mark.parametrize(

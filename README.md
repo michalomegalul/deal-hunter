@@ -4,8 +4,9 @@ A personal tool that finds underpriced second-hand computer hardware in Czechia 
 finds to my phone.
 
 It watches [Bazoš.cz](https://pc.bazos.cz/) and [Aukro](https://aukro.cz/) for graphics cards,
-ex-office PCs and business laptops, and big hard disks for a home server. For every model it works out
-what it normally sells for. When an ad is clearly cheaper, a local LLM reads it to catch broken items,
+ex-office PCs and business laptops, Apple computers, consumer and gaming laptops, and big hard disks
+for a home server. For every model it works out what it normally sells for. When an ad is clearly
+cheaper, a local LLM reads it to catch broken items,
 scams and misleading prices, and only the deals that survive are pushed to the phone via
 [ntfy](https://ntfy.sh/), with the photo, the price against the usual one, the distance from home and
 👍/👎 buttons. A 👍 brings the full details and a ready-to-send message to the seller.

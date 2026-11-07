@@ -254,7 +254,7 @@ def test_normalize_run_and_review(conn, monkeypatch):
     ]
     assert [r[1] for r in repo.unmatched(conn, 10)] == ["Grafická karta"]
 
-    monkeypatch.setattr(normalize, "version", lambda: 999_999)  # a catalog bump redoes everything
+    monkeypatch.setattr(normalize, "version", lambda: 999_999_999)  # a catalog bump redoes everything
     assert normalize.run(conn) == 3
 
 
@@ -277,7 +277,8 @@ def test_office_sections_fetch_details_only_in_scope(conn):
         for i, (title, section) in titles.items()
         if normalize.classify(title, section).excluded_reason is None
     }
-    assert detailed == in_scope and 5 < len(detailed) < len(rows) / 3
+    # Apple and consumer/gaming laptop ads widen in-scope well past the old office-only ~1/3 share.
+    assert detailed == in_scope and 5 < len(detailed) < len(rows) * 2 / 3
     assert sum("/inzerat/" in p for p in site.paths) == len(detailed)
     list_requests = [p for p in site.paths if "/inzerat/" not in p]
     assert len(list_requests) == 4  # 2 RSS feeds + 2 category pages
@@ -286,7 +287,15 @@ def test_office_sections_fetch_details_only_in_scope(conn):
     matched = conn.execute(
         "SELECT n.category, count(*) FROM normalized n WHERE n.model IS NOT NULL GROUP BY 1 ORDER BY 1"
     ).fetchall()
-    assert matched and {c for c, _ in matched} <= {"office_laptop", "office_pc"}  # (all details are a T14s)
+    # (the mocked detail page is always a T14s; these categories come from the RSS/category titles)
+    assert matched and {c for c, _ in matched} <= {
+        "office_laptop",
+        "office_pc",
+        "apple",
+        "apple_desktop",
+        "herni",
+        "ostatni",
+    }
     # out-of-scope office ads (gaming PCs, MacBooks) are never re-checked for removal
     conn.execute("UPDATE listings SET last_seen = now() - interval '1 day'")
     assert {r[0] for r in repo.due_for_recheck(conn, 6, 10_000)} == in_scope
