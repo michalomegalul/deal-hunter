@@ -4,7 +4,7 @@ They run in a separate throwaway database (`<name>_test`), never the one in DATA
 """
 
 import os
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -452,3 +452,76 @@ def test_non_bazos_source_persists_and_is_unique_per_source(conn):
     repo.save_listing(conn, bazos_item, detail=False)
     row = conn.execute("SELECT source, external_id FROM listings WHERE id = 999").fetchone()
     assert row == ("bazos", "999")
+
+
+def test_prune_deletes_old_rows_and_trims_only_long_gone_listings(conn):
+    now = datetime.now(UTC)
+
+    conn.execute(
+        "INSERT INTO scrape_runs (kind, started_at) VALUES ('scrape', %s), ('scrape', %s)",
+        (now - timedelta(days=100), now - timedelta(days=10)),
+    )
+    conn.execute(
+        "INSERT INTO new_prices (model, url, fetched_at) VALUES "
+        "('rtx 3060', 'https://zbozi.cz/a', %s), ('rtx 3060', 'https://zbozi.cz/a', %s)",
+        (now - timedelta(days=400), now - timedelta(days=10)),
+    )
+    conn.execute(
+        "INSERT INTO fair_prices (model, day, category, n, n_listings, median, q25, q75, confidence, "
+        "level, computed_at) VALUES "
+        "('rtx 3060', %s, 'gpu', 5, 5, 5000, 4000, 6000, 0.9, 'high', %s), "
+        "('rtx 3060', %s, 'gpu', 5, 5, 5000, 4000, 6000, 0.9, 'high', %s)",
+        (
+            (now - timedelta(days=400)).date(),
+            now - timedelta(days=400),
+            (now - timedelta(days=10)).date(),
+            now - timedelta(days=10),
+        ),
+    )
+
+    # Listings at every gone_at age that matters: active, just-gone, gone past the raw-clearing
+    # threshold only, and gone past both thresholds.
+    for listing_id, gone_days in [(9001, None), (9002, 10), (9003, 100), (9004, 200)]:
+        repo.save_listing(conn, ad(id=listing_id, description="Popis inzerátu"), detail=True)
+        if gone_days is not None:
+            conn.execute(
+                "UPDATE listings SET gone_at = %s WHERE id = %s",
+                (now - timedelta(days=gone_days), listing_id),
+            )
+        conn.execute(
+            "INSERT INTO triage (listing_id, llm_model, prompt_version, raw) VALUES (%s, 'm', 1, 'raw text')",
+            (listing_id,),
+        )
+
+    watch_id = conn.execute("INSERT INTO watches (query) VALUES ('rtx 3060') RETURNING id").fetchone()[0]
+    conn.execute(
+        "INSERT INTO watch_hits (watch_id, listing_id, matched, created_at) VALUES "
+        "(%s, 9001, true, %s), (%s, 9002, true, %s)",
+        (watch_id, now - timedelta(days=100), watch_id, now - timedelta(days=10)),
+    )
+
+    counts = repo.prune(conn, now)
+
+    assert counts == {
+        "scrape_runs": 1,
+        "new_prices": 1,
+        "fair_prices": 1,
+        "triage_raw": 2,  # listings 9003 (100d gone) and 9004 (200d gone)
+        "watch_hits": 1,
+        "descriptions": 1,  # only listing 9004 (200d gone, past the 180d description threshold)
+    }
+    assert conn.execute("SELECT count(*) FROM scrape_runs").fetchone()[0] == 1
+    assert conn.execute("SELECT count(*) FROM new_prices").fetchone()[0] == 1
+    assert conn.execute("SELECT count(*) FROM fair_prices").fetchone()[0] == 1
+    assert conn.execute("SELECT count(*) FROM watch_hits").fetchone()[0] == 1
+
+    raw_by_id = dict(conn.execute("SELECT listing_id, raw FROM triage ORDER BY listing_id").fetchall())
+    assert raw_by_id == {9001: "raw text", 9002: "raw text", 9003: None, 9004: None}
+    desc_by_id = dict(conn.execute("SELECT id, description FROM listings ORDER BY id").fetchall())
+    assert desc_by_id[9001] == "Popis inzerátu"  # active: never touched
+    assert desc_by_id[9002] == "Popis inzerátu"  # gone 10d: not old enough
+    assert desc_by_id[9003] == "Popis inzerátu"  # gone 100d: raw cleared, description isn't yet
+    assert desc_by_id[9004] is None  # gone 200d: past both thresholds
+
+    # Running it again the same day is idempotent: nothing left to remove.
+    assert repo.prune(conn, now) == {k: 0 for k in counts}

@@ -17,3 +17,4 @@ data/
 # local agent notes and worktrees
 CLAUDE.md
 .claude/
+graphify-out/

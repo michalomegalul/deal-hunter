@@ -239,6 +239,21 @@ def chat_cached(
     return raw, stats, False
 
 
+def prune_cache(cache_dir: Path | None, now: float, max_age_days: int = 90) -> int:
+    """Deletes cached answers older than `max_age_days` (by file mtime, `now` an epoch timestamp).
+    Safe to run any time: a pruned answer is simply recomputed and re-cached next time the same
+    model + prompt comes up."""
+    if not cache_dir or not cache_dir.is_dir():
+        return 0
+    cutoff = now - max_age_days * 86400
+    removed = 0
+    for path in cache_dir.glob("*.json"):
+        if path.stat().st_mtime < cutoff:
+            path.unlink()
+            removed += 1
+    return removed
+
+
 def build_prompt(deal: dict) -> str:
     """The user message: what we know about the ad, then the ad itself."""
     price = f"{deal['price']:,} Kč".replace(",", " ")

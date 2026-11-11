@@ -174,6 +174,29 @@ def test_triage_caches_answers(tmp_path):
     assert "Bazos.cz" in llm.calls[0][0] and "RTX 3080 Gigabyte Vision" in llm.calls[0][1]
 
 
+def test_prune_cache_removes_only_files_older_than_max_age(tmp_path):
+    import os
+    import time
+
+    now = time.time()
+    old = tmp_path / "old.json"
+    fresh = tmp_path / "fresh.json"
+    old.write_text("{}")
+    fresh.write_text("{}")
+    os.utime(old, (now - 100 * 86400, now - 100 * 86400))
+    os.utime(fresh, (now - 10 * 86400, now - 10 * 86400))
+
+    removed = triage.prune_cache(tmp_path, now, max_age_days=90)
+
+    assert removed == 1
+    assert not old.exists()
+    assert fresh.exists()
+
+
+def test_prune_cache_with_no_dir_or_none_is_a_no_op():
+    assert triage.prune_cache(None, 0) == 0
+
+
 def test_triage_retries_then_falls_back():
     llm = FakeLLM("not json", json.dumps(GOOD))
     assert triage.triage(llm, DEAL, None).status == "done" and len(llm.calls) == 2

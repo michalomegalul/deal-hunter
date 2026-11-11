@@ -164,35 +164,48 @@ Not done / needs the owner:
 - Run the DB tests with Docker up (`docker compose up -d && DATABASE_URL=... uv run pytest -q`) before
   releasing; new DB tests in test_db.py, test_web_db.py, test_health_db.py are unverified.
 
-## Feature backlog for the next session (ordered; one PR each; start here)
+## Feature backlog (audited 2026-11-11 -- most of this list was already shipped in the
+## 2026-11-10 batch and this file just hadn't been updated; re-verify with grep/graphify before
+## trusting this list again rather than assuming it's current)
 
-Prereq: commit the 2026-11-10 working tree, run DB tests with Docker up, release (restarts the db
-container, clears the leaked swap).
+Confirmed DONE, code + passing tests:
+1. **Carry over capped deals**: `carry_over_capped()` (`alerts.py:566`), wired into `send_alerts()`.
+   Tests `test_carry_over_capped_*` in test_alerts.py.
+2. **"Why not alerted"**: `alerts.explain()` (`alerts.py:674`), used by `web.py:1431` on
+   `/listing/<id>` and `cli/worker.py:167 cmd_why` as `hunt why <id>`. Tests
+   `test_explain_before/after_candidacy` (test_alerts.py), `test_why_command_...` (test_worker.py).
+3. **Watch pushes get actions**: `mute`/`start`/`stop`/exclude-term (`-slovo`) parsing in
+   `watchlist.py` (`MUTE_WORDS`, `parse_mute`), ntfy action buttons via `watch_hit_actions()`
+   (`watchlist.py:525`), used in `push_matches`.
+4. **Web usability**: `lang="cs"` (`web.py:226`), dark mode via `@media (prefers-color-scheme: dark)`
+   (`web.py:109`), paging with `PAGE_SIZE`/`?page=`/SQL offset (`web.py:369-463`) -- the "sort in
+   Python past 1000 rows" bug this was meant to fix is gone. Not reverified: tap targets >= 44px,
+   tables-as-cards under 600px, and whether all ~80 Czech strings are actually translated (no count
+   taken, just spot-checked lang/dark mode/paging).
+6. **Price-drop alerts**: `price_drop_step()` (`alerts.py:841`), wired into the worker cycle
+   (`alerts.py:970`), `format_price_drop()` for the push text.
+9. **LLM-extracted RAM/SSD in office pricing**: `triage.py` extracts `ram_gb`/`ssd_gb`
+   (`triage.py:100-101, 417-418`); `pricing.py`'s `SPEC_KEYS`/`estimate_adjustment` already consumes
+   them for `spec_adjust: true` categories (`pricing.py:31-246, 314`).
 
-1. **Carry over capped deals** (`alerts.py:~579`): deals that miss the 5-per-day push cap stay `queued`
-   with a `carried_over` flag and go first next day instead of being dropped. Test in test_alerts.py.
-2. **"Why not alerted"**: `alerts.gate_status`-style explanation per listing (no model, no fair price,
-   discount below threshold, triage rejected, capped, gone). Show on `/listing/<id>` and add `hunt why
-   <id>`. Pure function in alerts.py + web template + cli/worker.py; tests in test_alerts.py/test_web.py.
-3. **Watch pushes get actions** (`watchlist.py`, `followup.py`): ntfy action buttons Stop / thumbs on
-   watch hits, `start` command, exclude terms (`-slovo`), `mute <model> 7d`. Parser tests first.
-4. **Web usability**: finish the ~80 Czech strings, `lang="cs"`, dark mode via `prefers-color-scheme`,
-   tap targets >= 44 px, tables as cards under 600 px. Keep the no-JS and no-border-radius/emoji/dash
-   rules (tests/test_web_db.py:595ff). Add paging to `/` and `/category` (sort in SQL, `LIMIT/OFFSET`,
-   fixes the wrong order past 1000 rows in `db/repository.py:440-505`).
-5. **Retention**: `hunt db prune` (scrape_runs > 90 d, new_prices > 1 y, fair_prices history > 1 y,
-   triage.raw for gone listings > 30 d, watch_hits > 90 d, gone listings' description > 180 d, LLM cache
-   files > 90 d) run daily from the worker (optional step) and documented in docs/operations.md.
-6. **Price-drop alerts** after day 3 (`price_changes` table exists): push when a watched/candidate ad
-   drops >= 15 % below its first seen price. Worker step, guarded like the others.
-7. **Resale-profit line** in pushes and `/listing`: fair price minus ask minus pickup cost; **flips CSV
-   export** at `/flips.csv`.
-8. **Cross-source duplicate detection**: same title+price within 7 days across bazos/aukro/fb -> link
-   as one deal, push once. Needs a `listing_groups` migration.
-9. **Use LLM-extracted RAM/SSD** in office PC/laptop fair price (spec-adjust flag in categories.yaml);
-   `laptop_spec.py` already parses specs from titles, extend to triage output.
-10. **Off-disk backup copy**: `deploy/backup.sh` rsync/rclone the newest dump to another host; alert
-    from the watchdog if the newest off-disk copy is > 2 days old.
+5. **Retention** -- DONE 2026-11-11: `repo.prune()` (`db/repository.py`, "retention" section) deletes
+   `scrape_runs` > 90 d, `new_prices`/`fair_prices` history > 1 y, `watch_hits` > 90 d; clears
+   `triage.raw` for ads gone > 30 d and `listings.description` for ads gone > 180 d (never for a still-
+   active ad); `triage.prune_cache()` deletes LLM cache files > 90 d. Runs once a day from the worker
+   (`alerts.maybe_prune`, gated through `kv` like the digest) and by hand via `hunt db prune`.
+   Documented in `docs/operations.md`. Tests: `test_prune_deletes_old_rows_and_trims_only_long_gone_listings`
+   (test_db.py, DB-gated -- not run locally, Docker inactive), `test_maybe_prune_runs_once_per_prague_day`
+   (test_alerts.py), `test_prune_cache_*` (test_triage.py); non-DB suite + ruff pass (2241 passed, 10 skipped).
+
+Confirmed NOT done (genuinely open, pick from these):
+7b. **Resale-profit line + flips CSV**: the manual flip-tracking log (`hunt flip`, `/flips`, cost/fee/
+   profit/ROI) already exists and is unrelated to this -- what's still missing is a profit-after-
+   pickup-cost line on *regular* deal pushes/`format_alert()` and `/listing/<id>` (today's push only
+   shows ask vs. fair price and discount %, no pickup-cost-adjusted number), and a `/flips.csv` export
+   route (no CSV content-type or `/flips.csv` path found in web.py).
+8. **Cross-source duplicate detection**: no `listing_groups` table or same-title-across-sources
+   linking found anywhere.
+10. **Off-disk backup copy**: `deploy/backup.sh` has no `rsync`/`rclone`; only the local dump exists.
 
 Perf/index follow-ups (verify with EXPLAIN on the server, `psql` over SSH is read-only safe):
 `listings(last_seen)`, `normalized(category)`, `scrape_runs(kind, started_at DESC)`, pg_trgm on
@@ -200,3 +213,56 @@ Perf/index follow-ups (verify with EXPLAIN on the server, `psql` over SSH is rea
 Remaining `text.thousands` call sites: storage.py, triage.py, geo.py, auctions.py, watchlist.py,
 cli/common.py, cli/scrape.py. CI: separate gha cache scopes per image in release.yml, build the
 runtime image on PRs.
+
+## Owner wishlist, 2026-11-11 (not scoped into PRs yet, needs triage against the backlog above)
+
+- **"Procesory"/"Paměti"/"Základní desky"/"Skříně" show 0/0/0 on the home page** -- not a bug. Those
+  are `priced: false` placeholder leaves in `categories.yaml` (along with `herni_pc` and `sit`): no
+  normalizer/catalog exists for them yet, so `{models} modelů · {offers} nabídek · {deals} akcí`
+  (`web.py:646`) is always zero. Same for the "Síťové prvky" (`sit`) category the owner reports as
+  empty -- it has `sections: [sit, wifi]` so Bazoš ads are scraped into it, but nothing normalizes or
+  prices them. Building these catalogs is already P3 scope; this just prioritizes which one goes
+  first (see next point).
+- **Networking catalog (switches/routers) with a brand filter**: would need a `networking_catalog.yaml`
+  + normalizer, same shape as `storage_catalog.yaml`/`storage.py` (brand regexes, product class). New
+  work, not started.
+- **Size/speed sliders for HDD/SSD and VRAM for GPUs**: the underlying data already exists --
+  `storage_catalog.yaml` capacity/interface/SMR fields and `gpu_catalog.yaml` `vram` lists both land in
+  `normalized.features` (confirmed). A slider is a `/category` filter-UI addition reading that JSON
+  column; no new scraping or catalog work needed for GPU/HDD specifically, just a web-layer filter.
+- **Map view** of listings: `listings.psc`/`distance_km` and `geo.py` (town resolution for `/hledat`'s
+  "Místo" filter) are the only geo data today -- no lat/lon stored, no map rendering anywhere. Would
+  need geocoding postcodes to coordinates and a map widget; the "no client-side JS" rule below applies
+  (a real map needs a JS map library, which is a bigger exception than the one `thumb()` already makes
+  for `onerror`).
+- **Remove the "Filtrovat" button, make filtering live as you type/slide**: `/category`'s and
+  `/hledat`'s filter forms (`web.py:485-499, 555-559`) are plain `<form method="get">` with a submit
+  button -- deliberate, per the no-client-side-JS design rule (`CLAUDE.md`, enforced by
+  `tests/test_web_db.py:595ff`). True live filtering needs JS (either `onchange="this.form.submit()"`
+  reload-per-change, or a JS-driven fetch). **Decision needed from the owner**: keep the no-JS rule and
+  settle for auto-submit-on-change (still a full page reload per click/slider-release, no typing-level
+  live search), or carve out a scoped exception (e.g. a single small vanilla-JS progressive enhancement
+  file, feature-detected, page still works with JS off) for this one page. Don't build either until
+  that's decided -- it changes a rule several tests assert on.
+- **Images**: confirmed by design (`web.py:265-276`, `thumb()`) -- hotlinked from the source site's own
+  URL, never downloaded or re-hosted. Bazoš thumbnails 404 once an ad is renewed/removed; `onerror`
+  just removes the broken `<img>` rather than proxying. No change proposed here unless the owner wants
+  to start caching thumbnails (storage cost + a new "re-host" responsibility, not requested yet).
+- **Dynamic categories** (LLM decides a novel product type, e.g. "washing machine", warrants its own
+  category and creates it automatically): a real architecture change, not a small PR. Today
+  `categories.yaml` is a hand-maintained static tree that `alerts.py`/`pricing.py`/`normalize.py`/
+  `web.py`/`triage.py` all read as ground truth; a category can't exist without a normalizer and (to be
+  priced) a catalog + pricing logic behind it. An LLM could plausibly *propose* a new leaf from
+  recurring unmatched titles, but turning that into something normalize.py can actually price safely
+  (model matching, spec rules) is itself the hard part, not the category-tree entry. Needs its own
+  design pass before scoping; flagging here as a research item, not backlog-ready.
+- **Codebase "agent-safety"/modularity**: this is the existing P3c item ("Big-module split (web.py,
+  repository.py, storage.py, alerts.py) is optional, lowest priority") -- the owner is now asking to
+  raise its priority because large modules make feature PRs expensive in agent context budget. Worth
+  revisiting that priority call. Separately, **done 2026-11-11**: installed
+  [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) (`uv tool install graphifyy`),
+  project-scoped (`graphify install --project`, `graphify extract . --code-only`), so an AI assistant
+  can query the codebase's structure instead of grepping. Local AST only, no API key, no cost; graph
+  lives in `graphify-out/` (gitignored, like `.claude/`/`CLAUDE.md` already were -- regenerate with
+  `graphify update .` after code changes rather than committing it). This is a dev-tooling aid, not a
+  deal-hunter code change -- orthogonal to, and doesn't replace, actually splitting up `web.py` etc.

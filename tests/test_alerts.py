@@ -326,6 +326,29 @@ def test_carry_over_capped_skips_gone_and_stale_ads(monkeypatch):
     assert not calls
 
 
+def test_maybe_prune_runs_once_per_prague_day(monkeypatch):
+    from deal_hunter.db import repository
+
+    kv: dict[str, str] = {}
+    prune_calls = []
+    monkeypatch.setattr(repository, "kv_get", lambda conn, key, default=None: kv.get(key, default))
+    monkeypatch.setattr(repository, "kv_set", lambda conn, key, value: kv.__setitem__(key, value))
+    monkeypatch.setattr(repository, "prune", lambda conn, now: prune_calls.append(now) or {"scrape_runs": 3})
+    monkeypatch.setattr("deal_hunter.triage.prune_cache", lambda cache_dir, now: 2)
+
+    first = datetime(2026, 10, 20, 9, 0, tzinfo=alerts.PRAGUE)
+    assert alerts.maybe_prune(object(), None, first) == "pruned 5 old row(s)/file(s)"
+    assert len(prune_calls) == 1
+
+    later_same_day = datetime(2026, 10, 20, 23, 0, tzinfo=alerts.PRAGUE)
+    assert alerts.maybe_prune(object(), None, later_same_day) == ""
+    assert len(prune_calls) == 1  # still gated: same Prague day
+
+    next_day = datetime(2026, 10, 21, 0, 5, tzinfo=alerts.PRAGUE)
+    assert alerts.maybe_prune(object(), None, next_day) == "pruned 5 old row(s)/file(s)"
+    assert len(prune_calls) == 2
+
+
 # --- explain: a plain-English (well, Czech) trace of the pipeline's verdict --------------------------
 
 

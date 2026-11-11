@@ -404,6 +404,7 @@ class CycleStats:
     new_prices: str = ""
     watches: str = ""
     price_drops: int = 0
+    pruned: str = ""
 
     def summary(self) -> str:
         return (
@@ -415,6 +416,7 @@ class CycleStats:
             + (f"; {self.new_prices}" if self.new_prices else "")
             + (f"; {self.watches}" if self.watches else "")
             + (f"; {self.price_drops} price drops" if self.price_drops else "")
+            + (f"; {self.pruned}" if self.pruned else "")
         )
 
 
@@ -838,6 +840,23 @@ def maybe_send_digest(conn, ntfy, prices, data_since, rules: Rules, now: datetim
     return True
 
 
+def maybe_prune(conn, cache_dir, now: datetime) -> str:
+    """Trims old `scrape_runs`/`new_prices`/`fair_prices` history, gone listings' `triage.raw` and
+    `description`, stale `watch_hits`, and LLM cache files -- once a day (any hour), gated through
+    `kv` so a 5-minute work cycle doesn't hit the database with these deletes every time."""
+    from deal_hunter import triage
+    from deal_hunter.db import repository as repo
+
+    today = now.astimezone(PRAGUE).date().isoformat()
+    if repo.kv_get(conn, "prune_last") == today:
+        return ""
+    counts = repo.prune(conn, now)
+    counts["llm_cache"] = triage.prune_cache(cache_dir, now.timestamp())
+    repo.kv_set(conn, "prune_last", today)
+    removed = sum(counts.values())
+    return f"pruned {removed} old row(s)/file(s)" if removed else ""
+
+
 def price_drop_step(conn, ntfy: Ntfy | None, rules: Rules, now: datetime, stats: CycleStats) -> None:
     """Catches ads that cooled off as candidates (first seen more than FRESH_DAYS ago, so
     find_candidates/active_priced stopped looking at them) but later dropped further: at least
@@ -910,8 +929,8 @@ def work_once(
 ) -> CycleStats:
     """One worker cycle. The optional steps are auction_cycle.tick, the Zboží/Datart new-price reads and
     watchlist.tick; the core steps (distances, pricing, candidates, disk screening, triage/scoring,
-    sending alerts, the digest, price-drop alerts) are guarded the same way. Any step failing is logged
-    and recorded in the heartbeat (`failed`), never fatal to the rest of the cycle."""
+    sending alerts, the digest, price-drop alerts, the daily prune) are guarded the same way. Any step
+    failing is logged and recorded in the heartbeat (`failed`), never fatal to the rest of the cycle."""
     from deal_hunter import health
     from deal_hunter.db import repository as repo
 
@@ -971,6 +990,11 @@ def work_once(
     except Exception:  # a price-comparison hiccup here must not stop auctions/watches
         log.exception("price drop step failed")
         failed.append("price_drop")
+    try:
+        stats.pruned = maybe_prune(conn, cache_dir, now)
+    except Exception:  # a prune hiccup must not stop auctions/watches
+        log.exception("prune failed")
+        failed.append("prune")
     if auction_step is not None:
         try:
             stats.auctions = auction_step(conn, prices, in_quiet_hours(now, rules), now).summary()

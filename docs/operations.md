@@ -49,3 +49,10 @@ topic), next to settings such as `HUNTER_ALERTS_ENABLED` and `HUNTER_SOURCES`. O
   per hour (state under `/run/deal-hunter-notify`, falling back to `/var/tmp`); the first occurrence
   always pushes immediately. Each of these oneshot units also has a `TimeoutStartSec` (backup 15 min,
   deploy 20 min, watchdog 5 min) so a hung run can't block the next one forever.
+- **Retention**: the worker prunes old data once a day on its own (`alerts.maybe_prune`, gated through
+  `kv` so it only runs once per Prague day, logged in the cycle summary as e.g. "pruned 42 old
+  row(s)/file(s)"). It deletes `scrape_runs` after 90 days, `new_prices` and `fair_prices` history
+  after a year, and `watch_hits` after 90 days; it clears `triage.raw` and a listing's `description`
+  once that ad has been gone for 30 / 180 days respectively (a still-active ad keeps both); and it
+  deletes LLM cache files (`HUNTER_LLM_CACHE`) older than 90 days. Run it by hand with
+  `hunt db prune` (same code path, prints what it removed).

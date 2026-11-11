@@ -1739,3 +1739,54 @@ def status_sources(conn: psycopg.Connection, now, window: dt.timedelta = dt.time
         "prices": prices,
         "nms": {"last_seen": last_seen, "open": open_lots, "total": total},
     }
+
+
+# --- retention (hunt db prune) -------------------------------------------------------------------------
+
+
+def prune(
+    conn: psycopg.Connection,
+    now: dt.datetime,
+    *,
+    scrape_runs_days: int = 90,
+    new_prices_days: int = 365,
+    fair_prices_days: int = 365,
+    triage_raw_gone_days: int = 30,
+    watch_hits_days: int = 90,
+    description_gone_days: int = 180,
+) -> dict[str, int]:
+    """Deletes or trims the tables nothing else ever ages out of. `scrape_runs`, `new_prices` and
+    `fair_prices` history are dropped by age alone; `triage.raw` and a gone listing's `description`
+    are only cleared once the ad has been gone long enough that the raw text can't matter any more
+    (a still-active ad keeps both, however old); `watch_hits` is dropped by age. Returns the row count
+    changed per table, for `hunt db prune` to print and the worker's daily step to log.
+    """
+    counts: dict[str, int] = {}
+    with conn.transaction():
+        counts["scrape_runs"] = conn.execute(
+            "DELETE FROM scrape_runs WHERE started_at < %s",
+            (now - dt.timedelta(days=scrape_runs_days),),
+        ).rowcount
+        counts["new_prices"] = conn.execute(
+            "DELETE FROM new_prices WHERE fetched_at < %s",
+            (now - dt.timedelta(days=new_prices_days),),
+        ).rowcount
+        counts["fair_prices"] = conn.execute(
+            "DELETE FROM fair_prices WHERE computed_at < %s",
+            (now - dt.timedelta(days=fair_prices_days),),
+        ).rowcount
+        counts["triage_raw"] = conn.execute(
+            "UPDATE triage SET raw = NULL FROM listings l WHERE l.id = triage.listing_id "
+            "AND triage.raw IS NOT NULL AND l.gone_at IS NOT NULL AND l.gone_at < %s",
+            (now - dt.timedelta(days=triage_raw_gone_days),),
+        ).rowcount
+        counts["watch_hits"] = conn.execute(
+            "DELETE FROM watch_hits WHERE created_at < %s",
+            (now - dt.timedelta(days=watch_hits_days),),
+        ).rowcount
+        counts["descriptions"] = conn.execute(
+            "UPDATE listings SET description = NULL WHERE description IS NOT NULL "
+            "AND gone_at IS NOT NULL AND gone_at < %s",
+            (now - dt.timedelta(days=description_gone_days),),
+        ).rowcount
+    return counts
