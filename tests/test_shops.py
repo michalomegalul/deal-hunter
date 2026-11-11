@@ -1,4 +1,6 @@
-"""Mironet outlet parser tests against listing pages saved from mironet.cz on 2026-10-12
+"""Mironet outlet parser tests against listing pages saved from mironet.cz on 2026-10-12, plus
+`mironet_rozbaleno_graficka_2026_11.html` saved 2026-11-11 after a markup change (no more hidden
+`NameItem` field)
 (tests/fixtures/mironet_*.html, trimmed to a few products; the unfiltered page is the plain GPU category)."""
 
 import pytest
@@ -27,6 +29,20 @@ def test_unboxed_graphics_cards(fixture):
     assert quadro.description.startswith("NVIDIA Quadro T - T1000 @ 1065MHz")
     assert quadro.description.endswith(shops.SHIPPING_NOTE)
     assert arc.price_czk == 6433 and "Arc A750" in arc.title
+
+
+def test_name_read_from_the_photo_alt_text_since_mironet_dropped_nameitem(fixture):
+    """Mironet removed the hidden `name="NameItem" value="..."` form field from product blocks
+    (seen live 2026-11-11, which silently broke every "rozbaleno" category -- NAME stopped matching,
+    so every item was dropped and the caller saw "products, but none of the outlet"). The full name
+    is still printed as the product photo's alt text; this fixture has no NameItem field at all."""
+    page = fixture("mironet_rozbaleno_graficka_2026_11.html")
+    assert "NameItem" not in page
+    items = shops.parse_page(page, GRAFICKA)
+    assert [i.external_id for i in items] == ["839754", "1100639"]
+    assert items[0].title.startswith("Rozbaleno - PNY NVIDIA Quadro T1000")
+    assert items[1].title.startswith("Rozbaleno - GIGABYTE GeForce RTX 3050")
+    assert items[0].price_czk == 9999 and items[1].price_czk == 9491
 
 
 def test_titles_are_unescaped_and_prices_read_with_non_breaking_spaces(fixture):
@@ -74,7 +90,7 @@ def test_item_without_price_is_kept_as_unknown(fixture):
 
 def test_item_without_name_or_link_is_skipped(fixture):
     page = fixture("mironet_bazar_pc.html")
-    assert shops.parse_page(page.replace('name="NameItem"', 'name="Other"'), PC_BAZAR) == []
+    assert shops.parse_page(page.replace('alt="Bazar', 'alt_x="Bazar'), PC_BAZAR) == []
     assert shops.parse_page(page.replace("+dp805529/", "/"), PC_BAZAR) == []
 
 

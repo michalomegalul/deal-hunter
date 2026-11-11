@@ -87,7 +87,10 @@ def allowed(url: str) -> bool:
 
 
 BLOCK = re.compile(r'class="item_b\b[^"]*"\s+id="item_b_(\d+)"')
-NAME = re.compile(r'name="NameItem" value="([^"]*)"')
+# The full name used to live in a hidden `name="NameItem" value="..."` form input; Mironet dropped
+# that field (seen 2026-11-11) but still prints the same text as the product photo's alt attribute.
+# Not tied to IMAGE's own src pattern, so a missing/mangled photo doesn't also hide the name.
+NAME = re.compile(r'<img[^>]*?\s+alt="([^"]*)"')
 PRICE = re.compile(r'class="item_b_cena">\s*([\d\s&;a-z]*?)\s*Kč')
 HREF = re.compile(r'href="(/[^"]*\+dp\d+/)"')
 SPEC = re.compile(r'class="item_b_popis"[^>]*>(.*?)</a>', re.DOTALL)
