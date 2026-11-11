@@ -35,6 +35,7 @@ def _fab_deal(conn, listing_id: int, state: str, *, gone: bool = False, discount
             price_kind="fixed",
             seller="s",
         ),
+        detail=False,
     )
     if gone:
         conn.execute("UPDATE listings SET gone_at = now() WHERE id = %s", (listing_id,))
