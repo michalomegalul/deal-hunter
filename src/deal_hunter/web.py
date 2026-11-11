@@ -453,7 +453,7 @@ def _filters_query(f: Filters, *, query: str | None = None, page: int | None = N
 
 
 def _pager(action: str, f: Filters, page: int, total_pages: int, *, query: str | None = None) -> str:
-    """"Strana N z M" plus prev/next links that keep every filter (and the search term) set --
+    """ "Strana N z M" plus prev/next links that keep every filter (and the search term) set --
     shared by a category product list and the search page's plain title-match fallback, the two
     flat, `PAGE_SIZE`-at-a-time lists."""
     bits = [f"Strana {page} z {total_pages}"]
