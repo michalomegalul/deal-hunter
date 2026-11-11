@@ -106,6 +106,26 @@ def test_parse_is_case_insensitive_and_tolerant_of_order():
     assert c.kind == "add" and c.query == "rtx 3060" and c.max_price == 8000 and c.radius_km == 40.0
 
 
+def test_parse_do_radius_is_distance_not_price():
+    # "do 50 km" is Czech for "within 50 km" -- a radius, even though "do" alone (as in "do 1500")
+    # means "up to" for a price. Must not be misread as max_price=50 with "km" left dangling in the
+    # query (the old bug).
+    c = parse_command("watch ddr4 16gb do 50 km")
+    assert c == Command("add", query="ddr4 16gb", max_price=None, radius_km=50.0, tag=None)
+
+
+def test_parse_max_price_with_kc_strips_the_currency_from_the_query():
+    # "max 1500 Kč" must set max_price=1500 *and* not leave a stray "Kč" in the search query (Kč's
+    # diacritic wasn't matched by the old currency group, so it leaked into keywords_from_query).
+    c = parse_command("watch ddr4 16gb max 1500 Kč")
+    assert c == Command("add", query="ddr4 16gb", max_price=1500, radius_km=None, tag=None)
+
+
+def test_parse_do_radius_and_max_price_together():
+    c = parse_command("watch ddr4 16gb do 50 km max 1500 Kč")
+    assert c == Command("add", query="ddr4 16gb", max_price=1500, radius_km=50.0, tag=None)
+
+
 @pytest.mark.parametrize("verb", ["sleduj", "add", "pridej", "WATCH"])
 def test_add_synonyms(verb):
     assert parse_command(f"{verb} ddr4 16gb").kind == "add"
@@ -149,6 +169,112 @@ def test_empty_message_is_unknown():
 def test_czech_query_text_is_preserved():
     c = parse_command("sleduj rozvaděč 12u")
     assert c.kind == "add" and c.query == "rozvaděč 12u"
+
+
+# --- exclude terms in `add` ---------------------------------------------------------------------------
+
+
+def test_add_with_exclude_terms():
+    c = parse_command("watch rtx 3060 -notebook -vadna")
+    assert c.kind == "add" and c.query == "rtx 3060" and c.excludes == ("notebook", "vadna")
+
+
+def test_exclude_terms_combined_with_price_and_radius():
+    c = parse_command("watch ddr4 16gb -ecc do 50 km max 1500 Kč -sodimm")
+    assert c.kind == "add"
+    assert c.query == "ddr4 16gb"
+    assert c.excludes == ("ecc", "sodimm")
+    assert c.max_price == 1500 and c.radius_km == 50.0
+
+
+def test_exclude_term_does_not_eat_a_hyphenated_word():
+    # "SO-DIMM" has no space before its "-DIMM", so it is not mistaken for an exclude token.
+    c = parse_command("watch Kingston SO-DIMM DDR4")
+    assert c.kind == "add" and c.excludes == () and "SO-DIMM" in c.query
+
+
+def test_resulting_keywords_apply_the_exclude_terms():
+    c = parse_command("watch rtx 3060 -notebook")
+    kw = watchlist.keywords_from_query(c.query)
+    kw["exclude"] = list(kw.get("exclude") or []) + list(c.excludes)
+    assert prefilter(kw, "RTX 3060 notebook GPU") is False
+    assert prefilter(kw, "RTX 3060 desktop GPU") is True
+
+
+# --- start / mute / vote ------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("verb", ["start", "obnov", "spustit", "START"])
+def test_start_synonyms(verb):
+    assert parse_command(f"{verb} 3") == Command("start", watch_id=3)
+
+
+def test_start_without_id_is_unknown():
+    c = parse_command("start")
+    assert c.kind == "unknown" and "id" in c.error
+
+
+@pytest.mark.parametrize("verb", ["mute", "ztlum", "ztlumit", "MUTE"])
+def test_mute_by_watch_id(verb):
+    c = parse_command(f"{verb} 3 7d")
+    assert c == Command("mute", watch_id=3, mute_days=7.0)
+
+
+def test_mute_by_free_text_query():
+    c = parse_command("mute ddr4 16gb 2w")
+    assert c.kind == "mute" and c.query == "ddr4 16gb" and c.watch_id is None
+    assert c.mute_days == 14.0
+
+
+def test_mute_hours():
+    c = parse_command("mute 3 12h")
+    assert c.watch_id == 3 and c.mute_days == 0.5
+
+
+def test_mute_without_duration_is_unknown():
+    c = parse_command("mute ddr4 16gb")
+    assert c.kind == "unknown" and "duration" in c.error
+
+
+def test_mute_without_target_is_unknown():
+    c = parse_command("mute 7d")
+    assert c.kind == "unknown"
+
+
+def test_vote_parses_hit_id_and_direction():
+    assert parse_command("vote 3-501 up") == Command("vote", watch_id=3, listing_id=501, vote="up")
+    assert parse_command("vote 3-501 down") == Command("vote", watch_id=3, listing_id=501, vote="down")
+
+
+def test_vote_malformed_is_unknown():
+    assert parse_command("vote banana up").kind == "unknown"
+    assert parse_command("vote 3-501 sideways").kind == "unknown"
+    assert parse_command("vote 3-501").kind == "unknown"
+
+
+# --- watch-hit push action buttons --------------------------------------------------------------------
+
+
+class _FakeNtfyAttrs:
+    public_url = "https://ntfy.example"
+    watch_topic = "watch"
+    watch_write_token = ""
+
+
+def test_watch_hit_actions_empty_without_a_write_token():
+    assert watchlist.watch_hit_actions(_FakeNtfyAttrs(), 3, 501) == []
+
+
+def test_watch_hit_actions_posts_commands_to_the_watch_topic():
+    ntfy = _FakeNtfyAttrs()
+    ntfy.watch_write_token = "tk_watch_write"
+    actions = watchlist.watch_hit_actions(ntfy, 3, 501)
+    labels = {a["label"]: a["body"] for a in actions}
+    assert labels["Stop"] == "stop 3"
+    assert labels["👍"] == "vote 3-501 up"
+    assert labels["👎"] == "vote 3-501 down"
+    assert all(a["url"] == "https://ntfy.example/watch" for a in actions)
+    assert all(a["headers"]["Authorization"] == "Bearer tk_watch_write" for a in actions)
 
 
 # --- the LLM check -----------------------------------------------------------------------------------

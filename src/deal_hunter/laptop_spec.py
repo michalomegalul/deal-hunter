@@ -50,6 +50,7 @@ from deal_hunter.normalize import find_models as _gpu_find_models
 from deal_hunter.normalize import prepare as _gpu_prepare
 from deal_hunter.office import features
 from deal_hunter.text import fold
+from deal_hunter.title_filters import WANTED
 
 # Bump whenever the rules change, so `hunt normalize` re-processes old listings.
 VERSION = (
@@ -80,9 +81,6 @@ def prepare(title: str) -> str:
 
 # --- exclusions -----------------------------------------------------------------------------------
 
-WANTED = re.compile(
-    r"\b(koupim|kupim|shanim|hledam|vykup|vykupuji|vykupujeme|vykoupim|poptavam|sezenu|koupime)\b"
-)
 ACCESSORY = re.compile(
     r"\b(nabijec\w*|adapter\w*|zdroj\w*|napajec\w*|baterie|baterk\w*|akumulator\w*|dok|dokovac\w*|docking"
     r"|dock|replikator\w*|klavesnic\w*|displej\w*|display|lcd|matrice|panel|kryt\w*|palmrest|pant\w*"

@@ -16,10 +16,20 @@ Two independent pieces:
 
 Commands (Czech or English, case-insensitive; see `parse_command`):
 
-    watch ddr4 2x16gb max 1500 km 50 #homelab   (also: sleduj, add, přidej)
+    watch ddr4 2x16gb -notebook -vadna max 1500 km 50 #homelab   (also: sleduj, add, přidej)
     list                                        (also: seznam, ls)
     stop 3                                       (also: zastav, smazat, delete, remove)
+    start 3                                      (also: obnov, spustit)
+    mute ddr4 7d                                 (also: mute <watch id> <N>d; also: ztlum, ztlumit)
+    vote 3-501 up                                (also: vote 3-501 down; tapped from the push buttons)
     help                                         (also: nápověda, ?)
+
+A `-word` token anywhere in an `add` query is an exclude term (`rtx 3060 -notebook -vadna`), checked
+by `prefilter` the same way the seeded watches' own exclude lists are. `mute` snoozes a watch: still
+matched and recorded, just not pushed, until the given number of days (`d`), hours (`h`) or weeks
+(`w`) from now. A watch-hit push carries "Stop"/"👍"/"👎" action buttons that post `stop <id>` /
+`vote <watch_id>-<listing_id> up|down` back to this same topic (see `push_matches`), the same
+HTTP-action mechanism as the deals feedback buttons (`alerts.Ntfy.feedback_action`).
 """
 
 import json
@@ -96,26 +106,47 @@ def keywords_from_query(query: str) -> dict:
 ADD_WORDS = {"watch", "sleduj", "add", "pridej", "pridat"}
 LIST_WORDS = {"list", "seznam", "ls"}
 STOP_WORDS = {"stop", "zastav", "smaz", "smazat", "delete", "remove", "odstran"}
+START_WORDS = {"start", "obnov", "spustit"}
+MUTE_WORDS = {"mute", "ztlum", "ztlumit"}
+VOTE_WORDS = {"vote"}
 HELP_WORDS = {"help", "napoveda", "?"}
 
-PRICE_RE = re.compile(r"\b(?:max|do)\s*(\d[\d\s]*)\s*(?:kc|czk|korun)?\b", re.IGNORECASE)
-KM_RE = re.compile(r"\b(?:km|radius|okruh)\s*(\d+)\b", re.IGNORECASE)
+PRICE_RE = re.compile(r"\b(?:max|do)\s*(\d[\d\s]*)\s*(?:kc|kč|czk|korun)?\b", re.IGNORECASE)
+# The usual form: "km 50" / "radius 50" / "okruh 50" (checked first -- a model number like "3060"
+# that happens to sit right before an unrelated "km 40" must not be mistaken for the radius itself).
+KM_PREFIX_RE = re.compile(r"\b(?:km|radius|okruh)\s*(\d+)\b", re.IGNORECASE)
+# The number-first form: "50 km", optionally led by "do" ("do 50 km" means a radius, not a price,
+# even though PRICE_RE also treats a leading "do" as "up to"). Only used when KM_PREFIX_RE found
+# nothing, and only when "km" isn't itself immediately followed by another number (which would mean
+# it was actually introducing a *different* radius in prefix form).
+KM_SUFFIX_RE = re.compile(r"\b(?:do\s*)?(\d+)\s*(?:km|kilometr\w*)\b(?!\s*\d)", re.IGNORECASE)
 TAG_RE = re.compile(r"#(\w+)")
+# "mute ddr4 7d" / "mute 3 2w" / "mute rozvadec 12h" -- the duration always trails the target.
+MUTE_DURATION_RE = re.compile(r"\b(\d+)\s*([dhw])\b", re.IGNORECASE)
+MUTE_UNIT_DAYS = {"d": 1.0, "h": 1.0 / 24, "w": 7.0}
+# "vote 3-501 up" -- the hit id is "<watch_id>-<listing_id>" (watch_hits has no surrogate key of
+# its own; this is the pair that already uniquely identifies a hit, see record_watch_hit).
+VOTE_RE = re.compile(r"\b(\d+)-(\d+)\s+(up|down)\b", re.IGNORECASE)
 
 HELP_TEXT = (
-    "Commands: 'watch <words> [max <price>] [km <radius>] [#tag]' (sleduj/add/přidej also work), "
-    "'list' (seznam), 'stop <id>' (zastav/smazat), 'help' (nápověda)."
+    "Commands: 'watch <words> [-exclude] [max <price>] [km <radius>] [#tag]' "
+    "(sleduj/add/přidej also work), 'list' (seznam), 'stop <id>' (zastav/smazat), "
+    "'start <id>' (obnov), 'mute <words or id> <N>d|h|w' (ztlum), 'help' (nápověda)."
 )
 
 
 @dataclass
 class Command:
-    kind: str  # add | list | stop | help | unknown
+    kind: str  # add | list | stop | start | mute | vote | help | unknown
     query: str | None = None
     max_price: int | None = None
     radius_km: float | None = None
     tag: str | None = None
+    excludes: tuple[str, ...] = ()
     watch_id: int | None = None
+    listing_id: int | None = None
+    vote: str | None = None
+    mute_days: float | None = None
     error: str | None = None
 
 
@@ -123,18 +154,47 @@ def parse_add(rest: str) -> Command:
     tag_m = TAG_RE.search(rest)
     tag = tag_m.group(1).lower() if tag_m else None
     rest = TAG_RE.sub("", rest)
+    # Distance first: "do 50 km" is a radius, not a price, even though it starts with "do" (which
+    # PRICE_RE also treats as "up to"); extracting km first keeps PRICE_RE from swallowing the "do".
+    km_m, km_re = KM_PREFIX_RE.search(rest), KM_PREFIX_RE
+    if km_m is None:
+        km_m, km_re = KM_SUFFIX_RE.search(rest), KM_SUFFIX_RE
+    radius_km = float(km_m.group(1)) if km_m else None
+    if km_m:
+        rest = km_re.sub(" ", rest)
     price_m = PRICE_RE.search(rest)
     max_price = int(re.sub(r"\s", "", price_m.group(1))) if price_m else None
     if price_m:
         rest = PRICE_RE.sub(" ", rest)
-    km_m = KM_RE.search(rest)
-    radius_km = float(km_m.group(1)) if km_m else None
-    if km_m:
-        rest = KM_RE.sub(" ", rest)
+    # Exclude terms: any "-word" token (not a hyphen inside a word, e.g. "SO-DIMM" survives since
+    # there is no space before its "-DIMM").
+    words = rest.split()
+    excludes = tuple(normalize_text(w[1:]) for w in words if w.startswith("-") and len(w) > 1)
+    rest = " ".join(w for w in words if not (w.startswith("-") and len(w) > 1))
     query = " ".join(rest.split())
     if not query:
         return Command("unknown", error="watch needs some words to search for, e.g. 'watch ddr4 16gb'")
-    return Command("add", query=query, max_price=max_price, radius_km=radius_km, tag=tag)
+    return Command("add", query=query, max_price=max_price, radius_km=radius_km, tag=tag, excludes=excludes)
+
+
+def parse_mute(rest: str) -> Command:
+    dur_m = MUTE_DURATION_RE.search(rest)
+    if not dur_m:
+        return Command("unknown", error="mute needs a duration, e.g. 'mute ddr4 7d'")
+    days = int(dur_m.group(1)) * MUTE_UNIT_DAYS[dur_m.group(2).lower()]
+    target = " ".join(MUTE_DURATION_RE.sub(" ", rest).split())
+    if not target:
+        return Command("unknown", error="mute needs a watch id or words, e.g. 'mute ddr4 7d'")
+    if target.isdigit():
+        return Command("mute", watch_id=int(target), mute_days=days)
+    return Command("mute", query=target, mute_days=days)
+
+
+def parse_vote(rest: str) -> Command:
+    m = VOTE_RE.match(rest.strip())
+    if not m:
+        return Command("unknown", error="vote needs a hit id and up/down, e.g. 'vote 3-501 up'")
+    return Command("vote", watch_id=int(m.group(1)), listing_id=int(m.group(2)), vote=m.group(3).lower())
 
 
 def parse_command(text: str) -> Command:
@@ -153,6 +213,15 @@ def parse_command(text: str) -> Command:
         if not m:
             return Command("unknown", error="stop needs a watch id, e.g. 'stop 3'")
         return Command("stop", watch_id=int(m.group()))
+    if word in START_WORDS:
+        m = re.search(r"\d+", rest)
+        if not m:
+            return Command("unknown", error="start needs a watch id, e.g. 'start 3'")
+        return Command("start", watch_id=int(m.group()))
+    if word in MUTE_WORDS:
+        return parse_mute(rest)
+    if word in VOTE_WORDS:
+        return parse_vote(rest)
     if word in ADD_WORDS:
         return parse_add(rest)
     return Command("unknown", error=f"didn't understand {text[:60]!r}")
@@ -453,10 +522,42 @@ def format_watch_push(hit: dict) -> tuple[str, str]:
     return title, "\n".join(lines)
 
 
+def watch_hit_actions(ntfy, watch_id: int, listing_id: int) -> list[dict]:
+    """ "Stop"/👍/👎 buttons on a watch-hit push: same HTTP-action mechanism as the deals feedback
+    buttons (`alerts.Ntfy.feedback_action`), but posting a plain-text command back to the watch
+    topic instead of a JSON body to the feedback topic -- the listener (`handle`) reads it like any
+    other message. Needs a write-capable token for that topic (`ntfy.watch_write_token`, separate
+    from the read-only `watch_token` the listener subscribes with); no token, no buttons.
+    """
+    token = getattr(ntfy, "watch_write_token", "")
+    if not token or not ntfy.watch_topic:
+        return []
+    url = f"{ntfy.public_url}/{ntfy.watch_topic}"
+    hit_id = f"{watch_id}-{listing_id}"
+
+    def action(label: str, command: str) -> dict:
+        return {
+            "action": "http",
+            "label": label,
+            "url": url,
+            "method": "POST",
+            "headers": {"Authorization": f"Bearer {token}"},
+            "body": command,
+            "clear": True,
+        }
+
+    return [
+        action("Stop", f"stop {watch_id}"),
+        action("👍", f"vote {hit_id} up"),
+        action("👎", f"vote {hit_id} down"),
+    ]
+
+
 def push_matches(conn, ntfy, now: datetime, quiet_start: int, quiet_end: int, max_per_day: int) -> int:
     """Push matched-but-not-pushed hits on the deals topic: quiet hours, a separate daily cap."""
     from deal_hunter.alerts import PRAGUE, first_image, is_quiet
     from deal_hunter.db import repository as repo
+    from deal_hunter.db import watch_repo
 
     if ntfy is None:
         return 0
@@ -464,18 +565,23 @@ def push_matches(conn, ntfy, now: datetime, quiet_start: int, quiet_end: int, ma
         return 0
     day_start = now.astimezone(PRAGUE).replace(hour=0, minute=0, second=0, microsecond=0)
     sent_today = repo.watch_pushes_since(conn, day_start)
+    muted = watch_repo.muted_watch_ids(conn)
     pushed = 0
     for hit in repo.pending_watch_matches(conn):
         if sent_today >= max_per_day:
             break
+        if hit["watch_id"] in muted:
+            # still matched, just snoozed -- left pending so it is pushed once the mute lapses
+            continue
         # matched earlier, but the price may have gone up since (or the match predates the limits)
         skipped = within_limits(hit, hit)
         if skipped:
             repo.unmatch_watch_hit(conn, hit["watch_id"], hit["listing_id"], skipped)
             continue
         title, message = format_watch_push(hit)
+        actions = watch_hit_actions(ntfy, hit["watch_id"], hit["listing_id"])
         try:
-            ntfy.publish(title, message, 3, ["eyes"], hit["url"], attach=first_image(hit))
+            ntfy.publish(title, message, 3, ["eyes"], hit["url"], actions=actions, attach=first_image(hit))
         except httpx.HTTPError as exc:
             log.warning(
                 "watch push failed for %s/%s: %s (will retry)", hit["watch_id"], hit["listing_id"], exc
@@ -508,9 +614,20 @@ def tick(
 # --- command listener (ntfy topic `watch`) ------------------------------------------------------------
 
 
+def _find_watch(rows: list[dict], command: Command) -> dict | None:
+    """The watch a `mute` command targets: by id, or the first whose query contains the words
+    (case-/accent-insensitive). Ambiguous free-text targets just hit the first match -- good enough
+    for a handful of personal watches, not worth a disambiguation round-trip over ntfy."""
+    if command.watch_id is not None:
+        return next((w for w in rows if w["id"] == command.watch_id), None)
+    target = fold(command.query or "")
+    return next((w for w in rows if target in fold(w["query"])), None)
+
+
 def execute(conn, command: Command, created_by: str | None = None) -> str:
     """Run a parsed command against the database. Returns the reply text (sent on the deals topic)."""
     from deal_hunter.db import repository as repo
+    from deal_hunter.db import watch_repo
 
     if command.kind == "help":
         return HELP_TEXT
@@ -518,6 +635,7 @@ def execute(conn, command: Command, created_by: str | None = None) -> str:
         rows = repo.list_watches(conn)
         if not rows:
             return "No watches yet. " + HELP_TEXT
+        muted = watch_repo.muted_watch_ids(conn)
         lines = []
         for w in rows:
             bits = [f"#{w['id']}", w["query"]]
@@ -525,17 +643,35 @@ def execute(conn, command: Command, created_by: str | None = None) -> str:
                 bits.append(f"max {w['max_price']} Kč")
             if w["radius_km"]:
                 bits.append(f"{w['radius_km']:g} km")
+            if (w.get("keywords") or {}).get("exclude"):
+                bits.append("-" + " -".join(w["keywords"]["exclude"]))
             if w["tag"]:
                 bits.append(f"#{w['tag']}")
             if not w["active"]:
                 bits.append("(stopped)")
+            elif w["id"] in muted:
+                bits.append("(muted)")
             lines.append(" · ".join(bits))
         return "\n".join(lines)
     if command.kind == "stop":
         ok = repo.set_watch_active(conn, command.watch_id, False)
         return f"Stopped watch #{command.watch_id}." if ok else f"No watch #{command.watch_id}."
+    if command.kind == "start":
+        ok = repo.set_watch_active(conn, command.watch_id, True)
+        return f"Resumed watch #{command.watch_id}." if ok else f"No watch #{command.watch_id}."
+    if command.kind == "mute":
+        watch = _find_watch(repo.list_watches(conn), command)
+        if watch is None:
+            return f"No watch matching {command.query or command.watch_id!r}."
+        watch_repo.set_watch_muted(conn, watch["id"], command.mute_days)
+        return f"Muted watch #{watch['id']} for {command.mute_days:g} day(s): {watch['query']}."
+    if command.kind == "vote":
+        ok = watch_repo.record_vote(conn, command.watch_id, command.listing_id, command.vote)
+        return "Thanks for the feedback." if ok else f"No watch hit {command.watch_id}-{command.listing_id}."
     if command.kind == "add":
         keywords = keywords_from_query(command.query)
+        if command.excludes:
+            keywords["exclude"] = list(keywords.get("exclude") or []) + list(command.excludes)
         watch_id = repo.insert_watch(
             conn,
             command.query,
@@ -551,13 +687,15 @@ def execute(conn, command: Command, created_by: str | None = None) -> str:
             bits.append(f"max {command.max_price} Kč")
         if command.radius_km:
             bits.append(f"{command.radius_km:g} km")
+        if command.excludes:
+            bits.append("-" + " -".join(command.excludes))
         if command.tag:
             bits.append(f"#{command.tag}")
         return " · ".join(bits)
     return f"Didn't understand that ({command.error}). {HELP_TEXT}"
 
 
-def handle(ctx, event: dict, now: datetime | None = None) -> str | None:
+def handle(ctx, event: dict) -> str | None:
     """One event from the watch topic. `ctx` needs `.conn` and `.ntfy`. None for non-messages."""
     if event.get("event") != "message":
         return None

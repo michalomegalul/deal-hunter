@@ -5,4 +5,7 @@ OnFailure=hunter-notify-failure@%n.service
 
 [Service]
 Type=oneshot
+# A hung pg_dump (e.g. the db stuck under load) must not block forever; kill it and let
+# OnFailure notify instead.
+TimeoutStartSec=15min
 ExecStart=/opt/deal-hunter/backup.sh daily

@@ -37,6 +37,17 @@ def test_migrate_is_idempotent(conn):
     assert {"listings", "price_changes", "normalized", "scrape_runs", "http_throttle"} <= tables
 
 
+def test_connect_sets_statement_timeout_and_migrate_restores_it(test_url):
+    """connect() must bound runaway queries, but migrate() must not let that timeout kill a slow
+    (e.g. backfill) migration -- it lifts the timeout while applying files, then restores it."""
+    with repo.connect(test_url, autocommit=True, statement_timeout=1) as c:
+        before = c.execute("SHOW statement_timeout").fetchone()[0]
+        assert before != "0"  # connect() set a real timeout, not "disabled"
+        repo.migrate(c)
+        after = c.execute("SHOW statement_timeout").fetchone()[0]
+        assert after == before  # restored to what connect() configured, not left at 0
+
+
 def test_save_new_then_update_records_price_change(conn):
     assert repo.save_listing(conn, ad(price=5000, seller="Pepa", views=3), detail=False) == (True, False)
     assert repo.save_listing(conn, ad(price=5000, views=10), detail=False) == (False, False)
@@ -83,6 +94,32 @@ def test_due_for_recheck(conn):
     conn.execute("UPDATE listings SET last_seen = now() - interval '9 hours' WHERE id = 2")
     repo.mark_gone(conn, 1, "http_404")
     assert [r[0] for r in repo.due_for_recheck(conn, 6, 10)] == [2]
+
+
+def test_due_for_recheck_excludes_non_bazos_sources(conn):
+    """Aukro/Facebook/Mironet ads must never come back here: the recheck re-fetches the ad's own
+    page with the Bazoš parser (scraper.fetch_ad), which would misread their page as "gone" and
+    corrupt the sold-fast pricing signal (the bug this test guards against)."""
+    from deal_hunter.sources import make_id
+
+    repo.save_listing(conn, ad(1), detail=True)
+    for source in ("aukro", "fb", "mironet"):
+        repo.save_listing(
+            conn,
+            Listing(
+                id=make_id(source, f"native-{source}"),
+                source=source,
+                external_id=f"native-{source}",
+                url=f"https://example.invalid/{source}/1",
+                title="RTX 3060",
+                price_czk=1000,
+                price_kind="fixed",
+                section="graficka",
+            ),
+            detail=True,
+        )
+    conn.execute("UPDATE listings SET last_seen = now() - interval '7 hours'")
+    assert [r[0] for r in repo.due_for_recheck(conn, 6, 10)] == [1]
 
 
 # --- the search page's two queries: by model and the plain title fallback ----------------------------
@@ -163,7 +200,7 @@ class FakeBazos:
     def __call__(self, request: httpx.Request) -> httpx.Response:
         url = str(request.url)
         self.paths.append(url)
-        if url == bazos.RSS_URL:
+        if url == bazos.rss_url():
             return httpx.Response(200, text=fixture_text("rss.xml"))
         if url == bazos.category_url(0):
             return httpx.Response(200, text=fixture_text("category_0.html"))

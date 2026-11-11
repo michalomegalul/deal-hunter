@@ -11,10 +11,12 @@ see alerts.Ntfy): {"ad": id, "vote": "up"|"down"|"bought"} for Bazoš ads, {"lot
 - remembers the id of the last message it handled (kv `feedback_last_id`), so a restart resumes
   where it stopped. ntfy keeps messages ~12 h, so a shorter outage loses nothing.
 
-If the connection drops it reconnects with backoff (2 s doubling to 2 min).
+If the ntfy connection drops, or the database connection does (e.g. a Postgres restart), it
+reconnects with backoff (2 s doubling to 2 min; see listener.py).
 
-Before a listing follow-up the ad page is read once more (Bazoš budget, shared throttle), so the
-follow-up quotes the current price and views, or says the ad is gone.
+Before a listing follow-up, a Bazoš ad's page is read once more (Bazoš budget, shared throttle), so
+the follow-up quotes the current price and views, or says the ad is gone. Ads from other sources
+(Aukro, Facebook, Mironet) skip that re-check: fetch_ad's parser only understands Bazoš pages.
 """
 
 import logging
@@ -64,7 +66,11 @@ def listing_followup(ctx: Context, listing_id: int, source_id: str, now: datetim
     row = repo.listing_for_followup(conn, listing_id)
     if row is None:
         return f"ad {listing_id} not in the database, nothing sent"
-    if row["gone_at"] is None and ctx.bazos is not None:  # is it still there? (one polite request)
+    # Only Bazoš ads can be re-checked here: fetch_ad's parser is Bazoš-specific, so pointing it at
+    # an Aukro/Facebook/Mironet URL would read a page it doesn't understand as "gone" and corrupt
+    # that listing's sold-fast pricing signal. Other sources just skip the re-check and fall back to
+    # whatever the database already has (gone_at from their own retirement path, if any).
+    if row["gone_at"] is None and ctx.bazos is not None and row.get("source", "bazos") == "bazos":
         try:
             fresh, gone, _ = scraper.fetch_ad(ctx.bazos, row["url"])
             if fresh is not None:
@@ -201,5 +207,16 @@ def listen_once(ctx: Context, stop=lambda: False) -> int:
     )
 
 
+def reconnect(ctx: Context) -> None:
+    """Replace ctx.conn with a fresh connection (the old one is dead, e.g. after a Postgres restart)."""
+    from deal_hunter.db import repository as repo
+
+    try:
+        ctx.conn.close()
+    except Exception:  # noqa: S110, BLE001 - it's already broken; closing is best-effort
+        pass
+    ctx.conn = repo.connect(autocommit=True)
+
+
 def forever(ctx: Context, sleep=time.sleep) -> None:
-    listener.forever(lambda: listen_once(ctx), "feedback", sleep)
+    listener.forever(lambda: listen_once(ctx), "feedback", sleep, reconnect=lambda: reconnect(ctx))

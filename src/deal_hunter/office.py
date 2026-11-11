@@ -21,6 +21,7 @@ import re
 from dataclasses import dataclass, field
 
 from deal_hunter.text import fold
+from deal_hunter.title_filters import WANTED
 
 # Bump whenever the rules change, so `hunt normalize` re-processes old listings.
 VERSION = 3  # v3: Fujitsu Esprimo, HP EliteOne/ProOne all-in-ones
@@ -54,9 +55,6 @@ def prepare(title: str) -> str:
 
 # --- exclusions -----------------------------------------------------------------------------------
 
-WANTED = re.compile(
-    r"\b(koupim|kupim|shanim|hledam|vykup|vykupuji|vykupujeme|vykoupim|poptavam|sezenu|koupime)\b"
-)
 # Parts and accessories, when they come before the machine in the title: 'dokovaci stanice thinkpad'
 # is a dock, 'thinkpad t480 + dokovaci stanice' is a laptop that comes with one.
 ACCESSORY = re.compile(

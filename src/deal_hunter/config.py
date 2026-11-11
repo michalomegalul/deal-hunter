@@ -64,6 +64,7 @@ class Settings:
     # --- watchlists ---
     ntfy_watch_topic: str  # ntfy topic read for watch add/list/stop/help commands
     ntfy_watch_token: str  # read-only token for that topic
+    ntfy_watch_write_token: str  # write-only token for that topic, embedded in a watch push's buttons
     watch_scan_hours: float  # how far back `hunt work` looks for listings to match against watches
     watch_max_per_day: int  # watch-hit pushes per day, separate from HUNTER_ALERT_MAX_PER_DAY
     alerts_enabled: bool
@@ -74,6 +75,7 @@ class Settings:
     quiet_hours: str  # '23-7', Europe/Prague
     quiet_bypass_score: float
     candidate_discount: float
+    price_drop_pct: float  # HUNTER_PRICE_DROP_PCT, e.g. 15 -> 0.15: alerts.price_drop_step's own threshold
     # --- auctions (nms.gov.cz), run inside the worker ---
     auctions_enabled: bool
     auction_min_delay: float  # seconds between requests to the auction site (never below 5)
@@ -104,6 +106,9 @@ class Settings:
     shipping_czk: int  # added to the price of an out-of-range ad that ships
     travel_czk_per_km: float  # shown next to the distance (there and back); 0 = not shown
     hdd_min_tb: float  # server fit: smallest disk worth alerting
+    # --- watchdog (hunt watchdog) ---
+    watchdog_disk_path: str  # filesystem checked for free space (the one holding Postgres' data)
+    watchdog_disk_min_mb: int  # push a warning once free space on it drops below this
 
 
 def _float_or_none(name: str) -> float | None:
@@ -148,6 +153,18 @@ def _flag(name: str, default: str) -> bool:
     return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
+def _validate_sources(sources: tuple[str, ...]) -> None:
+    """Fail fast on a typo'd or made-up HUNTER_SOURCES entry, instead of silently scraping nothing
+    for it (see cli/scrape.py, which only ever checked this for `hunt scrape` itself)."""
+    from deal_hunter.sources import KNOWN_SOURCES
+
+    unknown = set(sources) - set(KNOWN_SOURCES)
+    if unknown:
+        raise SystemExit(
+            f"Unknown HUNTER_SOURCES: {', '.join(sorted(unknown))} (known: {', '.join(KNOWN_SOURCES)})"
+        )
+
+
 def fb_queries(env=None) -> tuple[tuple[str, str], ...]:
     """HUNTER_FB_QUERIES='rtx 3060:graficka,thinkpad t480:notebook' -> (('rtx 3060', 'graficka'), ...).
 
@@ -167,6 +184,8 @@ def fb_queries(env=None) -> tuple[tuple[str, str], ...]:
 
 def load_settings() -> Settings:
     load_dotenv()
+    sources = tuple(s.strip() for s in os.getenv("HUNTER_SOURCES", "bazos").split(",") if s.strip())
+    _validate_sources(sources)
     return Settings(
         user_agent=os.getenv("HUNTER_USER_AGENT", USER_AGENT),
         min_delay=max(3.0, float(os.getenv("HUNTER_MIN_DELAY", "3.5"))),
@@ -181,7 +200,7 @@ def load_settings() -> Settings:
         loop_minutes=float(os.getenv("HUNTER_LOOP_MINUTES", "10")),
         recheck_hours=float(os.getenv("HUNTER_RECHECK_HOURS", "6")),
         recheck_limit=int(os.getenv("HUNTER_RECHECK_LIMIT", "1500")),
-        sources=tuple(s.strip() for s in os.getenv("HUNTER_SOURCES", "bazos").split(",") if s.strip()),
+        sources=sources,
         aukro_pages=int(os.getenv("HUNTER_AUKRO_PAGES", "1")),
         shop_pages=int(os.getenv("HUNTER_SHOP_PAGES", "2")),
         shop_hours=float(os.getenv("HUNTER_SHOP_HOURS", "6")),
@@ -207,6 +226,7 @@ def load_settings() -> Settings:
         ntfy_feedback_token=os.getenv("NTFY_FEEDBACK_TOKEN", ""),
         ntfy_watch_topic=os.getenv("HUNTER_WATCH_TOPIC", "watch"),
         ntfy_watch_token=os.getenv("NTFY_WATCH_TOKEN", ""),
+        ntfy_watch_write_token=os.getenv("NTFY_WATCH_WRITE_TOKEN", ""),
         watch_scan_hours=float(os.getenv("HUNTER_WATCH_SCAN_HOURS", "48")),
         watch_max_per_day=int(os.getenv("HUNTER_WATCH_MAX_PER_DAY", "10")),
         alerts_enabled=_flag("HUNTER_ALERTS_ENABLED", "false"),
@@ -217,6 +237,7 @@ def load_settings() -> Settings:
         quiet_hours=os.getenv("HUNTER_QUIET_HOURS", "23-7"),
         quiet_bypass_score=float(os.getenv("HUNTER_QUIET_BYPASS_SCORE", "0.3")),
         candidate_discount=float(os.getenv("HUNTER_CANDIDATE_DISCOUNT", "0.2")),
+        price_drop_pct=float(os.getenv("HUNTER_PRICE_DROP_PCT", "15")) / 100,
         auctions_enabled=_flag("HUNTER_AUCTIONS", "true"),
         auction_min_delay=max(5.0, float(os.getenv("HUNTER_AUCTION_MIN_DELAY", "6"))),
         auction_list_hours=float(os.getenv("HUNTER_AUCTION_LIST_HOURS", "2.5")),
@@ -246,4 +267,6 @@ def load_settings() -> Settings:
         shipping_czk=int(os.getenv("HUNTER_SHIPPING_CZK", "150")),
         travel_czk_per_km=float(os.getenv("HUNTER_TRAVEL_CZK_PER_KM", "0")),
         hdd_min_tb=float(os.getenv("HUNTER_HDD_MIN_TB", "8")),
+        watchdog_disk_path=os.getenv("HUNTER_WATCHDOG_DISK_PATH", "/"),
+        watchdog_disk_min_mb=int(os.getenv("HUNTER_WATCHDOG_DISK_MIN_MB", "1024")),
     )

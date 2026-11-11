@@ -30,14 +30,7 @@ def _sections(settings, gpu_pages: int) -> dict[str, int]:
 
 
 def cmd_scrape(args: argparse.Namespace) -> None:
-    from deal_hunter.sources import KNOWN_SOURCES
-
-    settings = load_settings()
-    unknown = set(settings.sources) - set(KNOWN_SOURCES)
-    if unknown:
-        raise SystemExit(
-            f"Unknown HUNTER_SOURCES: {', '.join(sorted(unknown))} (known: {', '.join(KNOWN_SOURCES)})"
-        )
+    settings = load_settings()  # validates HUNTER_SOURCES
     pages = args.pages or settings.pages
     sections = _sections(settings, pages)
     if args.dry_run:

@@ -37,6 +37,27 @@ def cmd_watch_stop(args: argparse.Namespace) -> None:
         print(watchlist.execute(conn, watchlist.Command("stop", watch_id=args.id)))
 
 
+def cmd_watch_start(args: argparse.Namespace) -> None:
+    from deal_hunter import watchlist
+    from deal_hunter.db import repository as repo
+
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        print(watchlist.execute(conn, watchlist.Command("start", watch_id=args.id)))
+
+
+def cmd_watch_mute(args: argparse.Namespace) -> None:
+    from deal_hunter import watchlist
+    from deal_hunter.db import repository as repo
+
+    command = watchlist.parse_command("mute " + " ".join(args.text))
+    if command.kind != "mute":
+        raise SystemExit(command.error or "could not parse that mute")
+    with repo.connect(autocommit=True) as conn:
+        repo.migrate(conn)
+        print(watchlist.execute(conn, command))
+
+
 def cmd_watch_seed(args: argparse.Namespace) -> None:
     from deal_hunter import watchlist
     from deal_hunter.db import repository as repo
@@ -47,9 +68,25 @@ def cmd_watch_seed(args: argparse.Namespace) -> None:
     print(f"Seeded {added} new watch(es); {len(watchlist.SEEDS) - added} already existed.")
 
 
+def _reconnect_watch_ctx(ctx) -> None:
+    """Replace ctx.conn with a fresh connection (the old one is dead, e.g. after a Postgres restart).
+
+    watchlist.forever() itself has no way to do this (it only sees the `listen` closure), so the
+    --loop branch below drives listener.forever directly with this as its `reconnect` hook, instead
+    of going through watchlist.forever.
+    """
+    from deal_hunter.db import repository as repo
+
+    try:
+        ctx.conn.close()
+    except Exception:  # noqa: S110, BLE001 - it's already broken; closing is best-effort
+        pass
+    ctx.conn = repo.connect(autocommit=True)
+
+
 def cmd_watch_listen(args: argparse.Namespace) -> None:
     """Commands from the watch ntfy topic: live (--loop, the service) or what is cached now (once)."""
-    from deal_hunter import watchlist
+    from deal_hunter import listener, watchlist
     from deal_hunter.db import repository as repo
 
     settings = load_settings()
@@ -66,7 +103,12 @@ def cmd_watch_listen(args: argparse.Namespace) -> None:
         repo.migrate(conn)
         ctx = watchlist.Context(conn, ntfy)
         if args.loop:
-            watchlist.forever(ctx)
+            # Not watchlist.forever(ctx): that has no way to swap ctx.conn after a dropped database
+            # connection, so it would retry forever against a dead one. Drive the same listen_once
+            # through listener.forever directly, with a reconnect hook.
+            listener.forever(
+                lambda: watchlist.listen_once(ctx), "watch", reconnect=lambda: _reconnect_watch_ctx(ctx)
+            )
             return
         since = repo.kv_get(conn, watchlist.LAST_ID_KEY) or "all"
         events = ntfy.poll_watch(since)
@@ -89,6 +131,12 @@ def register(sub: argparse._SubParsersAction) -> None:
     w = wsub.add_parser("stop", help="deactivate a watch by id")
     w.add_argument("id", type=int)
     w.set_defaults(func=cmd_watch_stop)
+    w = wsub.add_parser("start", help="re-activate a watch `stop` had deactivated")
+    w.add_argument("id", type=int)
+    w.set_defaults(func=cmd_watch_start)
+    w = wsub.add_parser("mute", help="snooze a watch's pushes, e.g. `hunt watch mute ddr4 7d`")
+    w.add_argument("text", nargs="+")
+    w.set_defaults(func=cmd_watch_mute)
     w = wsub.add_parser("seed", help="add the default homelab watches (idempotent)")
     w.set_defaults(func=cmd_watch_seed)
     w = wsub.add_parser("listen", help="handle add/list/stop/help commands from the watch ntfy topic")

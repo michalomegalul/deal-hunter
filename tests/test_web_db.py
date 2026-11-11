@@ -1,10 +1,14 @@
 """The web pages against a real (throwaway) database: filters, escaping, and the detail page."""
 
+import http.client
 import os
 import re
+import threading
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from http.server import ThreadingHTTPServer
 
+import psycopg
 import pytest
 from psycopg.types.json import Jsonb
 
@@ -15,6 +19,35 @@ from deal_hunter import web
 from deal_hunter.bazos import Listing
 from deal_hunter.db import repository as repo
 from tests.test_worker import FakeNtfy, deal_state, seed, work
+
+
+def _fab_deal(conn, listing_id: int, state: str, *, gone: bool = False, discount: float = 0.3) -> None:
+    """A minimal deal (listing + normalized + deals rows), for exercising `deals_in_state`'s
+    `limit`/`exclude_gone` and `count_deals_in_state` directly, without going through the whole
+    worker cycle (`seed`/`work`) for every row."""
+    repo.save_listing(
+        conn,
+        Listing(
+            id=listing_id,
+            url=f"https://pc.bazos.cz/inzerat/{listing_id}/x.php",
+            title=f"RTX 3080 10GB #{listing_id}",
+            price_czk=5000,
+            price_kind="fixed",
+            seller="s",
+        ),
+    )
+    if gone:
+        conn.execute("UPDATE listings SET gone_at = now() WHERE id = %s", (listing_id,))
+    conn.execute(
+        "INSERT INTO normalized (listing_id, category, model, features, normalizer_version) "
+        "VALUES (%s, 'gpu', 'rtx 3080 10gb', '{}', 1)",
+        (listing_id,),
+    )
+    conn.execute(
+        "INSERT INTO deals (listing_id, model, category, price, fair, discount, confidence, state) "
+        "VALUES (%s, 'rtx 3080 10gb', 'gpu', 5000, 8000, %s, 0.9, %s)",
+        (listing_id, discount, state),
+    )
 
 
 def test_index_shows_an_alerted_deal_escapes_and_filters(conn):
@@ -38,6 +71,55 @@ def test_index_shows_an_alerted_deal_escapes_and_filters(conn):
     # min_discount filter: the deal is about 35% under fair
     assert "listing/999" in web.render_index(conn, min_discount=0.10)
     assert "No deals" in web.render_index(conn, min_discount=0.90)
+
+
+def test_index_hides_gone_ads_and_caps_at_home_limit(conn, monkeypatch):
+    _fab_deal(conn, 2001, "alerted")
+    _fab_deal(conn, 2002, "alerted", gone=True)
+    _fab_deal(conn, 2003, "queued")
+
+    html = web.render_index(conn)
+    assert "listing/2001" in html and "listing/2003" in html
+    assert "listing/2002" not in html  # gone: never shown on the home page
+    assert "zobrazeno" not in html  # under HOME_LIMIT: no truncation note
+
+    monkeypatch.setattr(web, "HOME_LIMIT", 1)
+    html = web.render_index(conn)
+    assert "zobrazeno 1 z 2" in html  # 2 active (non-gone) deals, only 1 fetched
+
+
+# --- repo.deals_in_state's optional limit/exclude_gone, and count_deals_in_state ----------------------
+# Untested against a real database in this session (no DATABASE_URL locally) -- these skip here the
+# same as every other *_db.py test, but are written against the real schema (deals/listings/
+# normalized) so they run as soon as one is available.
+
+
+def test_deals_in_state_limit_and_exclude_gone(conn):
+    _fab_deal(conn, 2101, "alerted")
+    _fab_deal(conn, 2102, "alerted", gone=True)
+    _fab_deal(conn, 2103, "queued")
+
+    unbounded = repo.deals_in_state(conn, "alerted", "queued")
+    assert len(unbounded) == 3  # old, default behaviour: unbounded, gone included
+
+    active = repo.deals_in_state(conn, "alerted", "queued", exclude_gone=True)
+    assert {r["listing_id"] for r in active} == {2101, 2103}
+
+    limited = repo.deals_in_state(conn, "alerted", "queued", limit=1)
+    assert len(limited) == 1
+
+    limited_active = repo.deals_in_state(conn, "alerted", "queued", limit=1, exclude_gone=True)
+    assert len(limited_active) == 1 and limited_active[0]["listing_id"] in (2101, 2103)
+
+
+def test_count_deals_in_state(conn):
+    _fab_deal(conn, 2201, "alerted")
+    _fab_deal(conn, 2202, "alerted", gone=True)
+    _fab_deal(conn, 2203, "queued")
+
+    assert repo.count_deals_in_state(conn, "alerted", "queued") == 3
+    assert repo.count_deals_in_state(conn, "alerted", "queued", exclude_gone=True) == 2
+    assert repo.count_deals_in_state(conn, "capped") == 0
 
 
 def test_prices_table_lists_a_priced_model(conn):
@@ -271,6 +353,21 @@ def test_listing_page_has_description_and_price_history_unknown_id_is_none(conn)
     assert "Prodám" in html  # the ad's own description
     assert "6 500 Kč" in html and "6 000 Kč" in html  # old -> new price in the history table
     assert web.render_listing(conn, 424242) is None
+
+
+def test_listing_page_explains_why_it_was_pushed(conn):
+    seed(conn)
+    work(conn, FakeNtfy())  # ad 999 ends up "alerted"
+    html = web.render_listing(conn, 999)
+    assert "Proč (ne)bylo odesláno" in html
+    assert "Odesláno " in html
+
+
+def test_listing_page_explains_a_gated_deal(conn):
+    seed(conn)
+    work(conn, FakeNtfy(), min_samples=50)  # not enough samples yet: stays "would_alert"
+    html = web.render_listing(conn, 999)
+    assert "Byl by to alert, ale: gated: n=" in html
 
 
 def test_auctions_page_lists_open_lot(conn):
@@ -640,3 +737,68 @@ def test_every_page_has_no_border_radius_emoji_or_dashes(conn):
     assert "border-radius" not in html
     assert not EMOJI_RE.search(html), EMOJI_RE.search(html)
     assert not DASH_RE.search(html), DASH_RE.search(html)
+
+
+# --- /healthz and a 503 (not a 500 traceback) when the database itself is unreachable ----------------
+#
+# These go through the real HTTP stack (Handler.do_GET), not a render_* function directly: that is
+# where the min_discount/listing id parsing and the DB-connection try/except actually live.
+
+
+def _running_server():
+    server = ThreadingHTTPServer(("127.0.0.1", 0), web.Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def _get(port, path):
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+    conn.request("GET", path)
+    resp = conn.getresponse()
+    body = resp.read()
+    conn.close()
+    return resp.status, body
+
+
+def test_healthz_ok_and_bad_query_params_do_not_500(test_url, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", test_url)
+    server = _running_server()
+    try:
+        port = server.server_address[1]
+        status, body = _get(port, "/healthz")
+        assert (status, body) == (200, b"ok")
+
+        status, _ = _get(port, "/?min_discount=abc")  # used to 500 (float("abc"))
+        assert status == 200
+
+        status, _ = _get(port, "/listing/12x")  # not a plain integer
+        assert status == 404
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_every_route_503s_instead_of_500ing_when_the_db_is_unreachable(test_url, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", test_url)
+    server = _running_server()
+    try:
+        port = server.server_address[1]
+
+        def boom(*a, **k):
+            raise psycopg.OperationalError("simulated outage")
+
+        monkeypatch.setattr(repo, "connect", boom)
+
+        status, body = _get(port, "/healthz")
+        assert status == 503 and body == b"database unreachable"
+
+        status, body = _get(port, "/")
+        assert status == 503
+        text = body.decode()
+        assert "nedostupn" in text.lower()
+        assert "border-radius" not in text
+        assert not EMOJI_RE.search(text)
+        assert not DASH_RE.search(text)
+    finally:
+        server.shutdown()
+        server.server_close()

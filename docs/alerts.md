@@ -17,6 +17,11 @@ Back to the [README](../README.md).
   which models are ready. `HUNTER_ALERTS_ENABLED` is the global switch on top.
 - At most 5 pushes a day (`HUNTER_ALERT_MAX_PER_DAY`). The same ad is never pushed twice, and
   reposts (same model + same seller or title, price within 5 %, within 14 days) are skipped.
+- **Price-drop alerts**: an ad that aged out of the normal candidate pipeline (first seen more
+  than 3 days ago) but whose price later fell at least `HUNTER_PRICE_DROP_PCT` (default 15 %)
+  below its first-seen price, with its current price still at least `HUNTER_CANDIDATE_DISCOUNT`
+  below the model's fair price, gets pushed once (`alerts.price_drop_step`, `price_drop_alerts`
+  table dedupes it). It shares the same daily cap and quiet hours as normal alerts.
 - **Quiet hours** 23:00-07:00 Europe/Prague: deals wait in `queued` and go out in the morning if
   the ad still exists (for up to 24 h). A score ≥ 0.3 goes through at night anyway.
 - **The photo**: a push attaches the ad's first photo (ntfy `attach` with the Bazoš image URL), so

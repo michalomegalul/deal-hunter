@@ -23,6 +23,18 @@ SHOP_SOURCES = ("mironet",)  # e-shops' outlet stock (shops.py): shelf prices, n
 # pricing.py and alerts.py don't need to know a listing's site of origin at all.
 CANONICAL_SECTIONS = ("graficka", "pc", "notebook", "hdd")
 
+# The short, display-ready name of each source, shared by every place that labels a listing by
+# where it came from (web.py's catalogue rows, alerts.py's push text). A caller that needs a longer
+# or different wording (e.g. alerts.py's "via Mironet (outlet, with warranty)") builds its own dict
+# from this one instead of re-typing the whole mapping.
+SOURCE_LABELS = {
+    "bazos": "Bazoš",
+    "aukro": "Aukro",
+    "mironet": "Mironet",
+    "fb": "Facebook",
+    "sbazar": "Sbazar",
+}
+
 _MASK = 0x7FFFFFFFFFFFFFFF  # fits a signed bigint
 
 

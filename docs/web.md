@@ -11,8 +11,9 @@ information, bold prices), on purpose, not a dashboard; filters are plain GET fo
 - `/` - recent deals (listings that would alert or were alerted: `would_alert`, `queued`, `alerted`,
   `capped`), as catalogue rows (thumbnail, title linking to the ad, price, fair price, discount %,
   distance or "posílá" when the ad ships, source, first seen), plus the category and deal state as
-  a small note. `?category=gpu|office_pc|office_laptop|hdd|office` and `?min_discount=30` filter the
-  list.
+  a small note. `?category=` (any priced leaf of the category tree - `gpu`, `office_pc`,
+  `office_laptop`, `herni`, `apple`, `ostatni`, `apple_desktop`, `hdd` - or the `office` alias for
+  office_pc + office_laptop) and `?min_discount=30` filter the list.
 - `/hledat?q=...` - free-text search, also a box in the nav on every page. The query is run through
   the existing normalizers (the GPU catalog directly, then one `normalize.classify` call per
   "notebook"/"hdd" section guess, which covers office.py/apple.py/laptop_spec.py/storage.py) to find
@@ -69,8 +70,18 @@ information, bold prices), on purpose, not a dashboard; filters are plain GET fo
   [Operations](operations.md#operations)). Not shown because it is not recorded: the model's reasoning (`think` is off) and
   when the watchlist filter last ran without producing a row. (The worker's heartbeat is recorded,
   for the watchdog, but not shown here.)
-- `/listing/<id>` - one ad: the description, the LLM's triage answer (pretty JSON) and its price
-  history.
+- `/listing/<id>` - one ad: the description, the LLM's triage answer (pretty JSON), a "Proč
+  (ne)bylo odesláno" block (`alerts.explain`: short Czech lines walking the pipeline - model/
+  category, fair price, discount and freshness if it never became a candidate, else its deal row's
+  own recorded state, quoting the triage verdict when the LLM dropped it, up to "pushed <when>";
+  the same text `hunt why <listing_id>` prints) and its price history.
+- `/healthz` - plain text "ok" (200) when the database answers `SELECT 1`, otherwise plain text
+  "database unreachable" (503); meant for a process supervisor/monitoring check, not a person. Every
+  other route also answers with a plain 503 page (not a 500 traceback) when the database connection
+  itself cannot be opened, so a Postgres outage shows a short page instead of an error dump.
+
+A bad `?min_discount=` or a malformed `/listing/<id>` (not a plain integer) is ignored rather than
+raising: the filter falls back to "no filter" and an unparseable id is a plain 404.
 
 Everything from an ad (title, description, seller, location, the LLM's verdict) is untrusted input
 and is HTML-escaped before it reaches the page; every query is parameterized (no SQL is built in

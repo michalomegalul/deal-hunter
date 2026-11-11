@@ -35,6 +35,7 @@ import httpx
 from deal_hunter import categories, geo, pricing, triage
 from deal_hunter.geo import DistanceRules
 from deal_hunter.pricing import LEVEL_RANK, FairPrice
+from deal_hunter.sources import SOURCE_LABELS
 from deal_hunter.text import kc
 
 log = logging.getLogger(__name__)
@@ -44,10 +45,13 @@ MAX_DISCOUNT = 0.9  # "price" under 10 % of fair is a typo or a placeholder, not
 FRESH_DAYS = 3  # only ads first seen this recently become candidates
 QUEUE_HOURS = 24  # a held (quiet hours) push older than this is dropped
 REPOST_DAYS = 14
+PRICE_DROP_WINDOW_HOURS = 24  # price_drop_step: how far back price_changes are scanned for a drop
 
+# Built from sources.SOURCE_LABELS (the short names web.py's catalogue also uses) instead of
+# re-typing sbazar/aukro's labels here; fb/mironet get a longer, push-notification-specific wording,
+# and bazos is left out on purpose (format_alert never shows a "via ..." line for it).
 SOURCE_LABEL = {
-    "sbazar": "Sbazar",
-    "aukro": "Aukro",
+    **{k: v for k, v in SOURCE_LABELS.items() if k != "bazos"},
     "fb": "FB Marketplace",
     "mironet": "Mironet (outlet, with warranty)",
 }
@@ -126,7 +130,7 @@ class Ntfy:
 
     def publish(
         self, title: str, message: str, priority: int = 3, tags=(), click=None, actions=(), attach=None
-    ) -> str:
+    ) -> str | None:
         body = {
             "topic": self.topic,
             "title": title,
@@ -141,8 +145,13 @@ class Ntfy:
         if attach:
             body["attach"] = attach  # an image URL: the phone shows it in the notification
         r = self.http.post(self.url, json=body)
-        r.raise_for_status()
-        return r.json().get("id", "")
+        r.raise_for_status()  # non-2xx/network errors are the only real failures
+        try:
+            return r.json().get("id")
+        except ValueError:
+            # ntfy accepted it (2xx) but the body wasn't parseable JSON: still delivered, just with
+            # no id to show for it -- treating this as a failure caused duplicate pushes next cycle.
+            return None
 
     def _poll(self, http: httpx.Client, topic: str, since: str) -> list[dict]:
         r = http.get(f"{self.url}/{topic}/json", params={"poll": "1", "since": since})
@@ -237,6 +246,7 @@ class Rules:
     usd_czk: float = 23.5  # launch MSRPs to Kč (display and the sanity check only)
     distance: DistanceRules | None = None  # None = no pickup rule (every distance is fine)
     hdd_min_tb: float = 8.0  # server fit: smaller disks are recorded, never pushed
+    price_drop_pct: float = 0.15  # price_drop_step: % below the first-seen price, on ads no longer fresh
 
 
 def category_days(data_since: dict, category: str, now: datetime) -> float:
@@ -364,6 +374,20 @@ def is_repost(deal: dict, recent: list[dict]) -> bool:
     return False
 
 
+def format_price_drop(row: dict) -> tuple[str, str, list[str]]:
+    """(title, message, tags) for a price-drop push: an ad no longer a fresh candidate whose price
+    fell by at least `Rules.price_drop_pct` since it was first seen. Mirrors `format_alert`'s style
+    (truncated ad title, kc()-formatted amounts, a category tag) but needs none of a scored deal's
+    fields (fair/confidence/verdict): this ad never went through triage."""
+    title = row["title"][:90]
+    old, new = row["old_price"], row["new_price"]
+    pct = 1 - new / old
+    message = f"Zlevněno: {kc(old)} -> {kc(new)} ({pct:.0%})"
+    node = categories.node(row.get("category"))
+    tags = [node.icon if node and node.icon else "shopping_cart", "chart_with_downwards_trend"]
+    return title, message, tags
+
+
 # --- the worker cycle ----------------------------------------------------------------------------------
 
 
@@ -379,6 +403,7 @@ class CycleStats:
     auctions: str = ""
     new_prices: str = ""
     watches: str = ""
+    price_drops: int = 0
 
     def summary(self) -> str:
         return (
@@ -389,6 +414,7 @@ class CycleStats:
             + (f"; {self.auctions}" if self.auctions else "")
             + (f"; {self.new_prices}" if self.new_prices else "")
             + (f"; {self.watches}" if self.watches else "")
+            + (f"; {self.price_drops} price drops" if self.price_drops else "")
         )
 
 
@@ -537,9 +563,40 @@ def pickup_check(deal: dict, rules: Rules) -> str | None:
     return None
 
 
+def carry_over_capped(conn, now: datetime) -> int:
+    """Capped deals wake up on the next Prague day instead of staying capped forever: still-fresh
+    (listing seen within FRESH_DAYS), still-live ones go back to 'queued' with a reason noting when
+    they were capped. `first_flagged` is reset so the QUEUE_HOURS "held too long" check gives them a
+    fresh day rather than expiring them on the spot. Yesterday's daily counter is unaffected: it is
+    always recomputed from `alerted_at`, never from how many deals are sitting in 'capped'."""
+    from deal_hunter.db import repository as repo
+
+    today = now.astimezone(PRAGUE).date()
+    n = 0
+    for deal in repo.deals_in_state(conn, "capped"):
+        if deal.get("gone_at") is not None:
+            continue
+        capped_on = deal["updated_at"].astimezone(PRAGUE).date()
+        if capped_on >= today:
+            continue  # same Prague day: the cap still stands
+        if now - deal["first_seen"] >= timedelta(days=FRESH_DAYS):
+            continue
+        repo.update_deal(
+            conn,
+            deal["listing_id"],
+            state="queued",
+            reason=f"carried over from {capped_on.isoformat()}",
+            first_flagged=now,
+        )
+        n += 1
+    return n
+
+
 def send_alerts(conn, ntfy: Ntfy | None, prices, data_since, rules: Rules, now: datetime, stats: CycleStats):
     """Pickup range, gate, quiet hours, daily cap, repost check, push. Best score first."""
     from deal_hunter.db import repository as repo
+
+    carry_over_capped(conn, now)
 
     for deal in repo.deals_in_state(conn, "ready"):
         fp = prices.get(deal["model"])
@@ -609,10 +666,108 @@ def gate_status(prices: dict[str, FairPrice], data_since: dict, rules: Rules, no
         else:
             waiting[model] = why
     days = {
-        name: round(category_days(data_since, c, now), 1)
-        for name, c in (("gpu", "gpu"), ("office", "office_pc"), ("hdd", "hdd"))
+        node.id: round(category_days(data_since, node.id, now), 1) for node in categories.leaves(priced=True)
     }
     return {"ready": ready, "waiting": waiting, "days": days}
+
+
+def explain(
+    listing_row: dict,
+    deal_row: dict | None,
+    triage_row: dict | None,
+    fp: FairPrice | None,
+    data_since: dict,
+    rules: Rules,
+    now: datetime,
+) -> list[str]:
+    """Why a listing was (not) alerted, in short Czech lines, in the order the pipeline decides.
+
+    `listing_row` is a `listings` row merged with its `normalized` model/category/features (what
+    `repository.listing_for_followup` returns). `deal_row` is the full `deals` row, or None if the ad
+    never became a candidate -- in that case this recomputes the candidacy checks (`gate`,
+    `pickup_check`'s thresholds aren't needed yet) to say why not. Once a deal row exists, its
+    recorded state/reason is trusted (it was written by exactly these same helpers) rather than
+    re-derived, so this never duplicates a threshold.
+    """
+    model = listing_row.get("model")
+    if not model:
+        return ["Inzerát ještě nemá přiřazený model (nenormalizováno)."]
+
+    category = listing_row.get("category")
+    node = categories.node(category) if category else None
+    if node is None or not node.priced:
+        return [f"Kategorie {category or '?'} se zatím neceňuje (chybí katalog)."]
+
+    if deal_row is None:
+        is_open, why = gate(fp, data_since, rules, now)
+        if not is_open:
+            return [f"Chybí fair price: {why}." if why else "Chybí fair price."]
+        from deal_hunter.storage import unit_price
+
+        features = listing_row.get("features") or {}
+        price = unit_price(listing_row.get("price_czk"), features)
+        if not price:
+            return ["Cenu z inzerátu nelze určit (víc kusů, nejasná cena)."]
+        fair = fp.for_listing(features)
+        discount = 1 - price / fair if fair else 0.0
+        if discount < rules.candidate_discount:
+            return [f"Sleva {discount:.0%} je pod prahem {rules.candidate_discount:.0%}."]
+        if discount > MAX_DISCOUNT:
+            return [f"Sleva {discount:.0%} vypadá jako chyba v ceně (nad {MAX_DISCOUNT:.0%})."]
+        first_seen = listing_row.get("first_seen")
+        if first_seen is not None and now - first_seen > timedelta(days=FRESH_DAYS):
+            return [f"Inzerát je starší než {FRESH_DAYS} dny, kandidátem už nebude."]
+        return ["Zatím nebyl zpracován jako kandidát (vyřeší další kolo workeru)."]
+
+    state = deal_row.get("state")
+    reason = deal_row.get("reason")
+    verdict = deal_row.get("verdict")
+    if not verdict and triage_row and triage_row.get("result"):
+        verdict = triage_row["result"].get("one_line_verdict")
+
+    if state == "triage":
+        if triage_row is None:
+            return ["Čeká na LLM triage."]
+        return [f"LLM triage ještě běží (pokus {triage_row.get('attempts', 0)})."]
+    if state == "dropped":
+        lines = [f"LLM inzerát zamítlo: {reason}." if reason else "LLM inzerát zamítlo."]
+        if verdict:
+            lines.append(f'Verdikt LLM: "{verdict}"')
+        return lines
+    if state == "low_score":
+        lines = [f"Skóre bylo příliš nízké ({reason})." if reason else "Skóre bylo příliš nízké."]
+        if verdict:
+            lines.append(f'Verdikt LLM: "{verdict}"')
+        return lines
+    if state == "would_alert":
+        why = reason or "podmínky nejsou splněny"
+        return [f"Byl by to alert, ale: {why}."]
+    if listing_row.get("gone_at") is not None and state in (
+        "triage",
+        "ready",
+        "queued",
+        "capped",
+        "duplicate",
+    ):
+        return ["Inzerát už zmizel, příští kolo workeru ho uzavře jako expired."]
+    if state == "queued":
+        if in_quiet_hours(now, rules) and (deal_row.get("score") or 0) < rules.quiet_bypass:
+            return ["Čeká na konec nočního klidu."]
+        return ["Čeká ve frontě na odeslání."]
+    if state == "capped":
+        return [f"Denní limit upozornění byl vyčerpán ({reason})." if reason else "Denní limit byl vyčerpán."]
+    if state == "duplicate":
+        why = reason or "repost už odeslaného inzerátu"
+        return [f"Repost už odeslaného inzerátu ({why})."]
+    if state == "expired":
+        return [f"Vypršelo: {reason}." if reason else "Vypršelo."]
+    if state == "ready":
+        return ["Čeká na vyhodnocení (gate, dosah) v dalším kole."]
+    if state == "alerted":
+        alerted_at = deal_row.get("alerted_at")
+        when_text = f"{alerted_at.astimezone(PRAGUE):%Y-%m-%d %H:%M}" if alerted_at else "?"
+        return [f"Odesláno {when_text}."]
+    return [f"Neznámý stav: {state}."]
 
 
 def digest_text(
@@ -683,6 +838,64 @@ def maybe_send_digest(conn, ntfy, prices, data_since, rules: Rules, now: datetim
     return True
 
 
+def price_drop_step(conn, ntfy: Ntfy | None, rules: Rules, now: datetime, stats: CycleStats) -> None:
+    """Catches ads that cooled off as candidates (first seen more than FRESH_DAYS ago, so
+    find_candidates/active_priced stopped looking at them) but later dropped further: at least
+    `rules.price_drop_pct` below their first-seen price, with the current price still at least
+    `rules.candidate_discount` below the model's latest fair-price snapshot. One push per ad, ever
+    (price_drop_alerts dedupes it); counts against the same `rules.max_per_day` as normal alerts.
+    """
+    from deal_hunter import storage
+    from deal_hunter.db import repository as repo
+
+    if ntfy is None or not rules.enabled or rules.price_drop_pct <= 0:
+        return
+    if in_quiet_hours(now, rules):
+        return  # no queue for these; a still-fresh price change is retried next cycle
+
+    candidates = repo.price_drop_candidates(conn, FRESH_DAYS, PRICE_DROP_WINDOW_HOURS, rules.price_drop_pct)
+    if not candidates:
+        return
+    fair = repo.fair_price_on(conn, 0)  # {model: (median, level)}, today's or the last snapshot
+    day_start = now.astimezone(PRAGUE).replace(hour=0, minute=0, second=0, microsecond=0)
+    sent_today = repo.alerts_since(conn, day_start) + repo.price_drop_alerts_since(conn, day_start)
+
+    for row in candidates:
+        if sent_today >= rules.max_per_day:
+            break
+        if row.get("gone_at") is not None:
+            continue  # defence in depth: the SQL query already excludes gone ads
+        old, new = row["old_price"], row["new_price"]
+        # round(..., 4): an exact-threshold drop (e.g. a 20.00 % drop against a 0.20 cutoff) must not
+        # be skipped over float imprecision (1 - 8000 / 10000 == 0.19999999999999996).
+        if not old or round(1 - new / old, 4) < rules.price_drop_pct:
+            continue  # defence in depth: the SQL query already applies this threshold
+        fp = fair.get(row["model"])
+        if fp is None or LEVEL_RANK[fp[1]] < LEVEL_RANK["medium"]:
+            continue
+        median, _level = fp
+        price = storage.unit_price(new, row.get("features"))
+        if not price or median <= 0 or round(1 - price / median, 4) < rules.candidate_discount:
+            continue
+        title, message, tags = format_price_drop(row)
+        try:
+            ntfy.publish(
+                title,
+                message,
+                3,
+                tags,
+                row["url"],
+                ntfy.vote_actions(row["listing_id"]),
+                attach=first_image(row),
+            )
+        except httpx.HTTPError as exc:
+            log.warning("price-drop push failed for %s: %s (will retry next cycle)", row["listing_id"], exc)
+            return
+        repo.record_price_drop_alert(conn, row["listing_id"], old, new, now)
+        sent_today += 1
+        stats.price_drops += 1
+
+
 def work_once(
     conn,
     rules: Rules,
@@ -696,7 +909,9 @@ def work_once(
     watch_step=None,
 ) -> CycleStats:
     """One worker cycle. The optional steps are auction_cycle.tick, the Zboží/Datart new-price reads and
-    watchlist.tick; each one failing is logged and recorded in the heartbeat, never fatal."""
+    watchlist.tick; the core steps (distances, pricing, candidates, disk screening, triage/scoring,
+    sending alerts, the digest, price-drop alerts) are guarded the same way. Any step failing is logged
+    and recorded in the heartbeat (`failed`), never fatal to the rest of the cycle."""
     from deal_hunter import health
     from deal_hunter.db import repository as repo
 
@@ -711,17 +926,51 @@ def work_once(
             log.exception("new price step failed")
             failed.append("new_prices")
             stats.new_prices = "new prices: failed (see log)"
-    geo.update_distances(conn, rules.distance.home if rules.distance else geo.PRAGUE_CENTRE)
-    prices = pricing.run(conn, rules.min_samples, rules.usd_czk)
+    try:
+        geo.update_distances(conn, rules.distance.home if rules.distance else geo.PRAGUE_CENTRE)
+    except Exception:  # a geocoding hiccup must not stop pricing/alerts
+        log.exception("distance update failed")
+        failed.append("distances")
+    try:
+        prices = pricing.run(conn, rules.min_samples, rules.usd_czk)
+    except Exception:  # bad data for one model must not stop the rest of the cycle
+        log.exception("pricing failed")
+        failed.append("pricing")
+        prices = {}
     stats.models = len(prices)
-    stats.candidates = find_candidates(conn, prices, rules)
-    screen_disks(conn, rules, stats)
+    try:
+        stats.candidates = find_candidates(conn, prices, rules)
+    except Exception:
+        log.exception("find_candidates failed")
+        failed.append("candidates")
+    try:
+        screen_disks(conn, rules, stats)
+    except Exception:
+        log.exception("disk screening failed")
+        failed.append("disks")
     if llm is not None:
-        run_triage(conn, llm, cache_dir, triage_limit, stats)
-        score_deals(conn, llm.model, rules)
+        try:
+            run_triage(conn, llm, cache_dir, triage_limit, stats)
+            score_deals(conn, llm.model, rules)
+        except Exception:  # Ollama being odd must not stop alerts for already-triaged deals
+            log.exception("triage/scoring failed")
+            failed.append("triage")
     data_since = repo.data_since(conn)
-    send_alerts(conn, ntfy, prices, data_since, rules, now, stats)
-    stats.digest = maybe_send_digest(conn, ntfy, prices, data_since, rules, now)
+    try:
+        send_alerts(conn, ntfy, prices, data_since, rules, now, stats)
+    except Exception:  # a push failure for one deal must not stop the digest/auctions/watches
+        log.exception("send_alerts failed")
+        failed.append("alerts")
+    try:
+        stats.digest = maybe_send_digest(conn, ntfy, prices, data_since, rules, now)
+    except Exception:
+        log.exception("digest failed")
+        failed.append("digest")
+    try:
+        price_drop_step(conn, ntfy, rules, now, stats)
+    except Exception:  # a price-comparison hiccup here must not stop auctions/watches
+        log.exception("price drop step failed")
+        failed.append("price_drop")
     if auction_step is not None:
         try:
             stats.auctions = auction_step(conn, prices, in_quiet_hours(now, rules), now).summary()

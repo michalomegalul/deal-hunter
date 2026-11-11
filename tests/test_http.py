@@ -53,6 +53,27 @@ def test_retries_429_with_backoff_and_retry_after():
     assert c.requests == 3
 
 
+def test_retry_after_is_capped():
+    calls = iter([httpx.Response(429, headers={"Retry-After": "99999"}), httpx.Response(200, text="ok")])
+    c, sleeps = client_for(lambda r: next(calls))
+    page = c.get("https://example.test/")
+    assert page.text == "ok"
+    from deal_hunter.http import MAX_RETRY_AFTER
+
+    assert max(sleeps) == MAX_RETRY_AFTER
+
+
+def test_retry_after_unparsable_is_ignored():
+    calls = iter([httpx.Response(429, headers={"Retry-After": "soon"}), httpx.Response(200, text="ok")])
+    c, sleeps = client_for(lambda r: next(calls))
+    page = c.get("https://example.test/")
+    assert page.text == "ok"
+    # Falls back to the plain backoff delay (1.0), not a wait derived from the unparsable "soon";
+    # the other sleep is the normal between-request spacing gap (min_delay), unrelated to the retry.
+    backoffs = [s for s in sleeps if s <= 2.0]
+    assert backoffs == [1.0]
+
+
 def test_gives_up_after_retries():
     c, _ = client_for(lambda r: httpx.Response(503), retries=2)
     with pytest.raises(httpx.HTTPStatusError):

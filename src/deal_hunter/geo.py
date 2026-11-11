@@ -14,6 +14,7 @@ Distances are straight-line (great circle) kilometres; by road it is typically 2
 
 import csv
 import io
+import logging
 import math
 import re
 from collections import defaultdict
@@ -22,6 +23,8 @@ from functools import cache
 from importlib import resources
 
 from deal_hunter.text import fold
+
+log = logging.getLogger(__name__)
 
 TABLE = "cz_postcodes.csv"
 PRAGUE_CENTRE = (50.0755, 14.4378)
@@ -164,6 +167,11 @@ def home_point(psc: str | None, lat: float | None, lon: float | None) -> tuple[f
     code = norm_psc(psc)
     if code and code in gazetteer().by_psc:
         return gazetteer().by_psc[code]
+    if psc and psc.strip():
+        fallback = (
+            "HUNTER_HOME_LAT/HUNTER_HOME_LON" if lat is not None and lon is not None else "Prague centre"
+        )
+        log.warning("HUNTER_HOME_PSC=%r is not a known Czech postcode; falling back to %s", psc, fallback)
     if lat is not None and lon is not None:
         return (lat, lon)
     return PRAGUE_CENTRE

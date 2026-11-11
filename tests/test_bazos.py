@@ -29,6 +29,26 @@ def test_parse_price(text, expected):
     assert bazos.parse_price(text) == expected
 
 
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        # A title/price blob with more than one number must pick the price-looking one (right
+        # before "Kč"), not join every digit run in the text into one bogus number that would
+        # overflow Postgres int4 -- the old bug would have produced 3080101 2000 (sic) here.
+        ("RTX 3080 10GB 12 000 Kč", (12000, "fixed")),
+        ("Telefon na číslo 777 123 456, cena 2 500 Kč", (2500, "fixed")),
+        # No currency marker at all: falls back to the first standalone price-looking group rather
+        # than concatenating everything (still not a model number read as a 6+ digit price).
+        ("RTX 3080 10GB", (10, "fixed")),
+        # A price above the sane maximum is treated as unparseable rather than inserted as-is.
+        (f"{bazos.MAX_PRICE_CZK + 1:,}".replace(",", " ") + " Kč", (None, "unknown")),
+        ("0 Kč", (None, "unknown")),
+    ],
+)
+def test_parse_price_is_conservative_about_which_digits_are_the_price(text, expected):
+    assert bazos.parse_price(text) == expected
+
+
 def test_parse_date():
     assert bazos.parse_date(" - TOP - [9.10. 2026]") == date(2026, 10, 9)
     assert bazos.parse_date(" - [31.12. 2025]") == date(2025, 12, 31)
@@ -129,7 +149,7 @@ def test_removed_ad_page(fixture):
 def test_section_urls():
     assert bazos.category_url(0, "pc") == "https://pc.bazos.cz/pc/"
     assert bazos.category_url(1, "notebook") == "https://pc.bazos.cz/notebook/20/"
-    assert bazos.rss_url() == bazos.RSS_URL
+    assert bazos.rss_url() == "https://www.bazos.cz/rss.php?rub=pc&cat=4"
     assert bazos.rss_url("pc") == "https://www.bazos.cz/rss.php?rub=pc&cat=12"
     assert bazos.rss_url("notebook") == "https://www.bazos.cz/rss.php?rub=pc&cat=10"
 

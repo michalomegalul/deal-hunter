@@ -34,6 +34,9 @@ block; filters are plain GET forms, no client-side JS at all.
 - `/flips`          the flips log (buy, sell, fees, profit, days held, totals) and the `hunt eval` tables.
 - `/status`         what the LLM jobs and the scraper did lately, and whether anything looks stuck.
 - `/listing/<id>`   one ad: description, triage JSON, price history.
+- `/healthz`        plain text "ok"/503 for a process supervisor: does the database answer `SELECT 1`.
+                    Every other route also answers 503 (a plain page, not a 500 traceback) when the
+                    database connection itself fails, instead of only when a query inside it does.
 
 Every value that comes from an ad (title, description, seller, location, the LLM's verdict) is
 untrusted input and is HTML-escaped before it goes on the page; a listing's own image is hotlinked
@@ -44,87 +47,165 @@ writes to the database.
 
 import json
 import logging
+import threading
+import time
 from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from html import escape as esc
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, quote, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 from deal_hunter import categories
-from deal_hunter.text import kc
+from deal_hunter.sources import SOURCE_LABELS
+from deal_hunter.text import ago, kc, thousands
 
 log = logging.getLogger(__name__)
+
+# `pricing.run` re-reads and recomputes every fair price from scratch; five different page views
+# (/, /prices, /category/<leaf>, /hledat, /model/<key>, /auctions) call it on every single request.
+# A short in-process TTL cache means a person clicking around the site within the same minute (or a
+# page that calls it more than once while rendering) reuses one result instead of paying for it
+# again -- the fair prices it computes don't meaningfully change inside a minute anyway. Keyed on
+# the two inputs that can change the result (not on `conn`, which is a fresh connection per request
+# but reads the same database); a lock makes it safe under `ThreadingHTTPServer`'s one-thread-per-
+# request model.
+PRICING_CACHE_TTL = 60  # seconds
+_pricing_cache: dict[tuple[int, float], tuple[float, dict]] = {}
+_pricing_lock = threading.Lock()
+
+
+def _cached_prices(conn, min_samples: int, usd_czk: float) -> dict:
+    from deal_hunter import pricing
+
+    key = (min_samples, usd_czk)
+    now = time.monotonic()
+    with _pricing_lock:
+        cached = _pricing_cache.get(key)
+        if cached is not None and now - cached[0] < PRICING_CACHE_TTL:
+            return cached[1]
+    prices = pricing.run(conn, min_samples, usd_czk, save=False)
+    with _pricing_lock:
+        _pricing_cache[key] = (now, prices)
+    return prices
+
+
+def reset_pricing_cache() -> None:
+    """Forces the next `_cached_prices` call to recompute. Tests call this between cases so one
+    test's seeded prices are never served, stale, to the next."""
+    with _pricing_lock:
+        _pricing_cache.clear()
+
 
 # A plain catalogue look (square corners everywhere, no border-radius/shadow/gradient, one link
 # colour, a 1px light-grey border, dense information, bold prices), not a "framework" look.
 CSS = """
+  :root {
+    --bg: #fff; --fg: #111; --row-meta: #333; --link: #0a4e9e; --border: #ddd; --border-strong: #ccc;
+    --muted: #666; --bg-alt: #fafafa; --bg-head: #f3f3f3; --bg-button: #eee; --border-input: #bbb;
+    --border-button: #888; --bad: #a30000; --good: #146c2e; --thumb-bg: #eee; --code-bg: #f5f5f5;
+    --footer: #888;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141414; --fg: #e8e8e8; --row-meta: #ccc; --link: #6fa8f2; --border: #3a3a3a;
+      --border-strong: #4a4a4a; --muted: #9a9a9a; --bg-alt: #1c1c1c; --bg-head: #1f1f1f;
+      --bg-button: #262626; --border-input: #555; --border-button: #666; --bad: #ff6b6b;
+      --good: #5fd186; --thumb-bg: #262626; --code-bg: #1c1c1c; --footer: #999;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141414; --fg: #e8e8e8; --row-meta: #ccc; --link: #6fa8f2; --border: #3a3a3a;
+    --border-strong: #4a4a4a; --muted: #9a9a9a; --bg-alt: #1c1c1c; --bg-head: #1f1f1f;
+    --bg-button: #262626; --border-input: #555; --border-button: #666; --bad: #ff6b6b;
+    --good: #5fd186; --thumb-bg: #262626; --code-bg: #1c1c1c; --footer: #999;
+  }
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; margin: 0;
-         padding: 1rem; background: #fff; color: #111; font-size: 15px; }
+         padding: 1rem; background: var(--bg); color: var(--fg); font-size: 15px; }
   h1 { font-size: 1.3rem; margin: 0 0 .75rem; }
-  h2 { font-size: 1.05rem; margin: 1.25rem 0 .5rem; border-top: 1px solid #ddd; padding-top: .75rem; }
-  a { color: #0a4e9e; }
-  nav { margin-bottom: 1rem; border-bottom: 1px solid #ddd; padding-bottom: .6rem;
+  h2 { font-size: 1.05rem; margin: 1.25rem 0 .5rem; border-top: 1px solid var(--border); padding-top: .75rem; }
+  a { color: var(--link); }
+  nav { margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: .6rem;
         display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
-  nav a { margin-right: 1rem; color: #0a4e9e; text-decoration: none; }
+  nav a { margin-right: 1rem; color: var(--link); text-decoration: none; }
   nav a:hover { text-decoration: underline; }
   nav form.search { margin-left: auto; display: flex; gap: .4rem; }
-  nav form.search input { padding: .3rem; border: 1px solid #bbb; background: #fff; }
-  nav form.search button { padding: .3rem .8rem; border: 1px solid #888; background: #eee; cursor: pointer; }
-  form.filters { margin-bottom: 1rem; padding: .6rem .75rem; border: 1px solid #ddd; background: #fafafa; }
+  nav form.search input { padding: .3rem; border: 1px solid var(--border-input); background: var(--bg); color: var(--fg); }
+  nav form.search button { padding: .3rem .8rem; border: 1px solid var(--border-button);
+                            background: var(--bg-button); color: var(--fg); cursor: pointer; }
+  form.filters { margin-bottom: 1rem; padding: .6rem .75rem; border: 1px solid var(--border); background: var(--bg-alt); }
   form.filters label { margin-right: .9rem; display: inline-block; margin-bottom: .4rem; }
-  form.filters input[type=number] { width: 6rem; padding: .3rem; border: 1px solid #bbb; background: #fff; }
-  form.filters select { padding: .3rem; border: 1px solid #bbb; background: #fff; }
-  form.filters button { padding: .4rem 1rem; border: 1px solid #888; background: #eee; cursor: pointer; }
+  form.filters input[type=number], form.filters input[type=text] { padding: .3rem; width: 6rem;
+                                     border: 1px solid var(--border-input); background: var(--bg); color: var(--fg); }
+  form.filters input[type=text] { width: 9rem; }
+  form.filters select { padding: .3rem; border: 1px solid var(--border-input); background: var(--bg); color: var(--fg); }
+  form.filters button { padding: .4rem 1rem; border: 1px solid var(--border-button);
+                         background: var(--bg-button); color: var(--fg); cursor: pointer; }
   .src-group { display: inline-block; margin-right: .9rem; }
   .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table { border-collapse: collapse; width: 100%; min-width: 300px; }
-  th, td { padding: .35rem .6rem; border-bottom: 1px solid #ddd; text-align: left; white-space: nowrap; }
-  th { background: #f3f3f3; }
+  th, td { padding: .35rem .6rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  th { background: var(--bg-head); }
   td.wrap, th.wrap { white-space: normal; }
-  .muted { color: #666; }
-  .bad { color: #a30000; }
-  .good { color: #146c2e; }
-  .empty { color: #666; padding: 1rem 0; }
-  pre { background: #f5f5f5; padding: .75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
-        border: 1px solid #ddd; }
-  a.ad { color: #0a4e9e; text-decoration: none; font-weight: 600; overflow-wrap: anywhere; }
+  .muted { color: var(--muted); }
+  .bad { color: var(--bad); }
+  .good { color: var(--good); }
+  .empty { color: var(--muted); padding: 1rem 0; }
+  pre { background: var(--code-bg); color: var(--fg); padding: .75rem; overflow-x: auto;
+        white-space: pre-wrap; word-break: break-word; border: 1px solid var(--border); }
+  a.ad { color: var(--link); text-decoration: none; font-weight: 600; overflow-wrap: anywhere; }
   a.ad:hover { text-decoration: underline; }
   a.detail { margin-left: .6rem; font-size: .85rem; }
-  footer { margin-top: 2rem; color: #888; font-size: .85rem; }
+  footer { margin-top: 2rem; color: var(--footer); font-size: .85rem; }
+  .pager { margin: 1rem 0; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
 
   .catgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .6rem;
              margin: .5rem 0 1rem; }
-  .catbox { border: 1px solid #ccc; padding: .75rem; background: #fff; }
+  .catbox { border: 1px solid var(--border-strong); padding: .75rem; background: var(--bg); }
   .catbox a { font-weight: 600; text-decoration: none; }
   .catbox a:hover { text-decoration: underline; }
-  .catbox-stats { color: #666; font-size: .85rem; margin-top: .35rem; }
+  .catbox-stats { color: var(--muted); font-size: .85rem; margin-top: .35rem; }
 
-  .row { display: flex; gap: .75rem; padding: .6rem 0; border-bottom: 1px solid #ddd; align-items: flex-start; }
-  .thumb { width: 72px; height: 72px; border: 1px solid #ddd; background: #eee; flex-shrink: 0; }
+  .row { display: flex; gap: .75rem; padding: .6rem 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .thumb { width: 72px; height: 72px; border: 1px solid var(--border); background: var(--thumb-bg); flex-shrink: 0; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .row-body { flex: 1; min-width: 0; }
-  .row-meta { margin-top: .3rem; color: #333; font-size: .9rem; }
+  .row-meta { margin-top: .3rem; color: var(--row-meta); font-size: .9rem; }
   .row-meta span { margin-right: 1rem; }
   .price { font-weight: 700; }
-  .disc { color: #a30000; font-size: .9rem; margin-top: .15rem; }
+  .disc { color: var(--bad); font-size: .9rem; margin-top: .15rem; }
 
   .pricebar { width: 100%; height: 76px; display: block; margin: .75rem 0; }
-  .axis { stroke: #bbb; stroke-width: 1; }
-  .tick-offer { stroke: #999; stroke-width: 1; }
-  .mark-fair { stroke: #0a4e9e; stroke-width: 2; }
-  .mark-new { stroke: #a30000; stroke-width: 2; }
-  .mark-cheapest { fill: #146c2e; }
-  .mark-label { font-size: 10px; fill: #333; text-anchor: middle; }
+  .axis { stroke: var(--border-strong); stroke-width: 1; }
+  .tick-offer { stroke: var(--muted); stroke-width: 1; }
+  .mark-fair { stroke: var(--link); stroke-width: 2; }
+  .mark-new { stroke: var(--bad); stroke-width: 2; }
+  .mark-cheapest { fill: var(--good); }
+  .mark-label { font-size: 10px; fill: var(--fg); text-anchor: middle; }
 
   @media (max-width: 700px) {
     body { padding: .6rem; font-size: 16px; }
-    nav a { margin-right: .7rem; display: inline-block; padding: .2rem 0; }
+    nav a { margin-right: .7rem; display: inline-flex; align-items: center; min-height: 44px; padding: .2rem 0; }
     .catgrid { grid-template-columns: 1fr 1fr; }
+    .catbox a { display: inline-flex; align-items: center; min-height: 44px; }
     .row { flex-wrap: wrap; }
-    form.filters input[type=number], form.filters select, form.filters button { min-height: 2.3rem; }
+    .row a.ad, .row a.detail { display: inline-flex; align-items: center; min-height: 44px; }
+    .pager a { display: inline-flex; align-items: center; min-height: 44px; }
+    form.filters input[type=number], form.filters input[type=text], form.filters select, form.filters button {
+      min-height: 2.3rem;
+    }
     table { min-width: 0; }
+  }
+
+  @media (max-width: 600px) {
+    .tablewrap table, .tablewrap thead, .tablewrap tbody, .tablewrap tr { display: block; width: 100%; }
+    .tablewrap thead tr { position: absolute; top: -9999px; left: -9999px; }
+    .tablewrap tbody tr { border: 1px solid var(--border); margin-bottom: .6rem; }
+    .tablewrap td, .tablewrap th { display: block; white-space: normal; border-bottom: 1px solid var(--border); }
+    .tablewrap td[data-label]::before, .tablewrap th[data-label]::before {
+      content: attr(data-label); display: block; font-weight: 600; color: var(--muted); font-size: .8rem;
+    }
   }
 """
 
@@ -142,7 +223,7 @@ LEVEL_CS = {"high": "vysoká", "medium": "střední", "low": "nízká"}
 
 def page(title: str, body: str) -> str:
     return (
-        '<!doctype html><html><head><meta charset="utf-8">'
+        '<!doctype html><html lang="cs"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         f"<title>{esc(title)}</title><style>{CSS}</style></head>"
         f"<body>{NAV}<h1>{esc(title)}</h1>{body}</body></html>"
@@ -160,7 +241,7 @@ def km(x) -> str:
 def kc_range(lo: int, hi: int, per_tb: bool = False) -> str:
     """'5 112 - 6 933 Kč' (a hyphen with spaces around it, never an en/em dash)."""
     unit = "/TB" if per_tb else ""
-    return f"{lo:,} - {hi:,} Kč{unit}".replace(",", " ")
+    return f"{thousands(lo)} - {thousands(hi)} Kč{unit}"
 
 
 def when(dt: datetime | None) -> str:
@@ -173,19 +254,12 @@ def when(dt: datetime | None) -> str:
 
 # --- shared catalogue bits: source names, thumbnails, one product row --------------------------------
 
-# One display name per source, in one place (categories.yaml's icon is an ntfy tag, never rendered
-# here as an emoji; this is the only source -> label mapping the UI uses).
-SOURCE_NAMES = {
-    "bazos": "Bazoš",
-    "aukro": "Aukro",
-    "mironet": "Mironet",
-    "fb": "Facebook",
-    "sbazar": "Sbazar",
-}
+# The display name per source is `sources.SOURCE_LABELS`, shared with alerts.py's push text
+# (categories.yaml's icon is an ntfy tag, never rendered here as an emoji).
 
 
 def source_name(code: str | None) -> str:
-    return SOURCE_NAMES.get(code or "", (code or "-").capitalize())
+    return SOURCE_LABELS.get(code or "", (code or "-").capitalize())
 
 
 def thumb(images: list | None) -> str:
@@ -265,10 +339,34 @@ def _row(
     )
 
 
+def _offer_row(r: dict, *, fair=None, ships: bool | None = None, town: str | None = None) -> str:
+    """`_row` for a listing row dict as `repo.listings_in_categories`/`listings_by_models`/
+    `search_listings_title` return it (keyed `id`, `price_czk`, ...), the shape shared by a category
+    product list, a search result group and the search title-match fallback. `fair` and `ships`
+    default to the row's own `fair`/`ships` keys (set by `_apply_price_filters`); render_model's
+    offers have neither, so it passes both explicitly instead."""
+    return _row(
+        listing_id=r["id"],
+        url=r["url"],
+        title=r["title"],
+        price=r.get("price_czk"),
+        fair=r.get("fair") if fair is None else fair,
+        images=r.get("images"),
+        distance_km=r.get("distance_km"),
+        ships=r.get("ships", False) if ships is None else ships,
+        source=r.get("source"),
+        first_seen=r["first_seen"],
+        town=town,
+    )
+
+
 # --- GET filters: price range, max distance, source, "deals only" and sort ---------------------------
 
 FILTER_SOURCES = ("bazos", "aukro", "mironet", "fb")
 SORTS = (("newest", "nejnovější"), ("cheapest", "nejlevnější"), ("discount", "největší sleva"))
+
+
+PAGE_SIZE = 100  # a category product list and the search title-match fallback: rows per `?page=`
 
 
 @dataclass(frozen=True)
@@ -280,6 +378,7 @@ class Filters:
     deals_only: bool = False
     sort: str = "newest"
     town: str | None = None  # a typed "Místo" (town), resolved by geo.locate_town
+    page: int = 1  # 1-based; out-of-range values are clamped by `_page_math`, never raise
 
 
 def _num(raw: str | None, kind):
@@ -310,7 +409,59 @@ def parse_filters(query: dict[str, list[str]]) -> Filters:
         deals_only=first("deals") == "1",
         sort=sort if sort in dict(SORTS) else "newest",
         town=(first("mesto") or "").strip() or None,
+        page=_num(first("page"), int) or 1,  # bad/missing/zero/negative all fall back to page 1
     )
+
+
+def _page_math(total: int, page: int, page_size: int = PAGE_SIZE) -> tuple[int, int, int]:
+    """(effective page, total pages, SQL offset) for a `?page=` against `total` matching rows.
+    At least one page even when `total` is 0 (an empty list still shows "Strana 1 z 1"), and an
+    out-of-range `page` (too big, or the 0/negative `_num` already lets through as 1 here on its
+    own) is clamped into `[1, total_pages]` instead of producing a negative offset or a page past
+    the last one."""
+    total_pages = max(1, -(-total // page_size))  # ceil division
+    eff_page = min(max(1, page), total_pages)
+    return eff_page, total_pages, (eff_page - 1) * page_size
+
+
+def _filters_query(f: Filters, *, query: str | None = None, page: int | None = None) -> str:
+    """The current filters (and, on the search page, the typed query) as a GET query string, with
+    `page` overriding `f.page` -- used by the pager's "Předchozí"/"Další" links so paging never
+    drops a filter the person set. Omits anything at its default, same spirit as a form that only
+    sends the fields someone touched."""
+    params: list[tuple[str, str]] = []
+    if query is not None:
+        params.append(("q", query))
+    if f.price_od is not None:
+        params.append(("price_od", str(f.price_od)))
+    if f.price_do is not None:
+        params.append(("price_do", str(f.price_do)))
+    if f.town:
+        params.append(("mesto", f.town))
+    if f.max_km is not None:
+        params.append(("max_km", str(f.max_km)))
+    for s in f.sources:
+        params.append(("source", s))
+    if f.deals_only:
+        params.append(("deals", "1"))
+    if f.sort != "newest":
+        params.append(("sort", f.sort))
+    eff = page if page is not None else f.page
+    if eff != 1:
+        params.append(("page", str(eff)))
+    return urlencode(params)
+
+
+def _pager(action: str, f: Filters, page: int, total_pages: int, *, query: str | None = None) -> str:
+    """"Strana N z M" plus prev/next links that keep every filter (and the search term) set --
+    shared by a category product list and the search page's plain title-match fallback, the two
+    flat, `PAGE_SIZE`-at-a-time lists."""
+    bits = [f"Strana {page} z {total_pages}"]
+    if page > 1:
+        bits.append(f'<a href="{action}?{_filters_query(f, query=query, page=page - 1)}">Předchozí</a>')
+    if page < total_pages:
+        bits.append(f'<a href="{action}?{_filters_query(f, query=query, page=page + 1)}">Další</a>')
+    return f'<p class="pager">{" ".join(bits)}</p>'
 
 
 def _filters_form(action: str, f: Filters, *, query: str | None = None) -> str:
@@ -356,6 +507,7 @@ DEAL_STATES = ("alerted", "queued", "would_alert", "capped")
 # The categories offered by the `?category=` filter and the CLI's `--category`: every priced leaf of
 # the tree, plus the "office" group alias (office_pc + office_laptop) kept for backward compatibility.
 CATEGORIES = (*(n.id for n in categories.leaves(priced=True)), "office")
+HOME_LIMIT = 200  # the home page's own cap, independent of /category and /hledat's paging-free lists
 
 
 def _matches_category(row_category: str, wanted: str) -> bool:
@@ -386,7 +538,9 @@ def _deal_row(d: dict) -> str:
 def render_index(conn, category: str | None = None, min_discount: float | None = None) -> str:
     from deal_hunter.db import repository as repo
 
-    deals = repo.deals_in_state(conn, *DEAL_STATES)
+    total = repo.count_deals_in_state(conn, *DEAL_STATES, exclude_gone=True)
+    deals = repo.deals_in_state(conn, *DEAL_STATES, limit=HOME_LIMIT, exclude_gone=True)
+    fetched = len(deals)
     if category:
         deals = [d for d in deals if _matches_category(d["category"], category)]
     if min_discount:
@@ -408,19 +562,21 @@ def render_index(conn, category: str | None = None, min_discount: float | None =
     if not deals:
         return filters + '<p class="empty">No deals in this view yet.</p>'
 
+    # The home page itself caps at HOME_LIMIT (newest/highest-discount deals), independent of the
+    # ?category/?min_discount filters applied above; this note is about that cap, not about them.
+    truncated = f'<p class="muted">zobrazeno {fetched} z {total}</p>' if total > HOME_LIMIT else ""
     rows = "".join(_deal_row(d) for d in deals)
-    return filters + f'<p class="muted">{len(deals)} deal(s).</p>' + rows
+    return filters + truncated + f'<p class="muted">{len(deals)} deal(s).</p>' + rows
 
 
 # --- /prices : fair price table ---------------------------------------------------------------------
 
 
 def render_prices(conn) -> str:
-    from deal_hunter import pricing
     from deal_hunter.config import load_settings
 
     settings = load_settings()
-    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    prices = _cached_prices(conn, settings.alert_min_samples, settings.usd_czk)
     rows = sorted(prices.values(), key=lambda p: (p.category, -p.n, p.model))
     if not rows:
         return '<p class="empty">No fair prices yet.</p>'
@@ -572,7 +728,6 @@ def render_category(conn, node_id: str | None = None, filters: Filters | None = 
     """`/category` (node_id=None) and `/category/<id>`: a grid of square boxes for a branch (or the
     roots), or a leaf's (or the "office" group's) own product list. None for an id this module
     doesn't know (404)."""
-    from deal_hunter import pricing
     from deal_hunter.config import load_settings
     from deal_hunter.db import repository as repo
 
@@ -582,7 +737,7 @@ def render_category(conn, node_id: str | None = None, filters: Filters | None = 
     deals = repo.deals_in_state(conn, *DEAL_STATES)
     deal_counts = Counter(d["category"] for d in deals)
     settings = load_settings()
-    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    prices = _cached_prices(conn, settings.alert_min_samples, settings.usd_czk)
     price_counts = Counter(p.category for p in prices.values())
     offer_counts = repo.active_offer_counts(conn)
 
@@ -608,22 +763,7 @@ def render_category(conn, node_id: str | None = None, filters: Filters | None = 
     form = _filters_form(f"/category/{node_id}", f)
     rows = _listing_rows(conn, leaf_ids, prices, f, point, km_ok)
     listing_html = (
-        "".join(
-            _row(
-                listing_id=r["id"],
-                url=r["url"],
-                title=r["title"],
-                price=r["price_czk"],
-                fair=r["fair"],
-                images=r.get("images"),
-                distance_km=r.get("distance_km"),
-                ships=r["ships"],
-                source=r.get("source"),
-                first_seen=r["first_seen"],
-                town=r.get("location"),
-            )
-            for r in rows
-        )
+        "".join(_offer_row(r, town=r.get("location")) for r in rows)
         if rows
         else '<p class="empty">Filtru neodpovídá žádná nabídka.</p>'
     )
@@ -671,7 +811,6 @@ def render_search(conn, query: str, f: Filters) -> str:
     match (fair price, new price, a link to /model/<key>, then its live offers, same row and GET
     filters as a category product list) -- or, when nothing normalizes, a plain, parameterized,
     case-insensitive title match over active listings (repo.search_listings_title)."""
-    from deal_hunter import pricing
     from deal_hunter.config import load_settings
     from deal_hunter.db import repository as repo
 
@@ -684,7 +823,7 @@ def render_search(conn, query: str, f: Filters) -> str:
     models = _guess_models(query)
     parts = [form, place_msg]
     if models:
-        prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+        prices = _cached_prices(conn, settings.alert_min_samples, settings.usd_czk)
         rows = repo.listings_by_models(
             conn, models, price_min=f.price_od, price_max=f.price_do, sources=f.sources or None
         )
@@ -709,24 +848,7 @@ def render_search(conn, query: str, f: Filters) -> str:
                 note = f"Férová cena {median}" + (f" · {esc(new)}" if new else "")
                 parts.append(f'<p class="muted">{note}</p>')
             if group:
-                parts.append(
-                    "".join(
-                        _row(
-                            listing_id=r["id"],
-                            url=r["url"],
-                            title=r["title"],
-                            price=r["price_czk"],
-                            fair=r["fair"],
-                            images=r.get("images"),
-                            distance_km=r.get("distance_km"),
-                            ships=r["ships"],
-                            source=r.get("source"),
-                            first_seen=r["first_seen"],
-                            town=r.get("location"),
-                        )
-                        for r in group
-                    )
-                )
+                parts.append("".join(_offer_row(r, town=r.get("location")) for r in group))
             else:
                 parts.append('<p class="empty">Teď tu není žádná nabídka.</p>')
         parts.insert(2, f'<p class="muted">Nalezeno: {total} nabídka(y).</p>')
@@ -737,24 +859,7 @@ def render_search(conn, query: str, f: Filters) -> str:
     parts.append('<p class="muted">Nenašel se žádný model, zobrazena shoda v názvu inzerátu.</p>')
     parts.append(f'<p class="muted">Nalezeno: {len(rows)}</p>')
     if rows:
-        parts.append(
-            "".join(
-                _row(
-                    listing_id=r["id"],
-                    url=r["url"],
-                    title=r["title"],
-                    price=r["price_czk"],
-                    fair=r.get("fair"),
-                    images=r.get("images"),
-                    distance_km=r.get("distance_km"),
-                    ships=r["ships"],
-                    source=r.get("source"),
-                    first_seen=r["first_seen"],
-                    town=r.get("location"),
-                )
-                for r in rows
-            )
-        )
+        parts.append("".join(_offer_row(r, town=r.get("location")) for r in rows))
     else:
         parts.append('<p class="empty">Nic nenalezeno.</p>')
     return "".join(parts)
@@ -819,12 +924,11 @@ def _history_table(weeks: list[tuple]) -> str:
 def render_model(conn, model: str) -> str | None:
     """`/model/<key>`: the fair price, the new price (if any), a price bar, current live offers
     from every source and a weekly price history. None if the model has no fair price yet (404)."""
-    from deal_hunter import pricing
     from deal_hunter.config import load_settings
     from deal_hunter.db import repository as repo
 
     settings = load_settings()
-    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    prices = _cached_prices(conn, settings.alert_min_samples, settings.usd_czk)
     fp = prices.get(model)
     if fp is None:
         return None
@@ -849,17 +953,10 @@ def render_model(conn, model: str) -> str | None:
     price_bar = _price_bar(offer_prices, fp.median, fp.new_price)
     if offers:
         offers_html = "".join(
-            _row(
-                listing_id=o["id"],
-                url=o["url"],
-                title=o["title"],
-                price=o.get("price_czk"),
+            _offer_row(
+                o,
                 fair=fp.for_listing(o.get("features") or {}),
-                images=o.get("images"),
-                distance_km=o.get("distance_km"),
                 ships=ships_offer(o["title"], o.get("description")),
-                source=o.get("source"),
-                first_seen=o["first_seen"],
             )
             for o in offers
         )
@@ -882,7 +979,7 @@ def render_model(conn, model: str) -> str | None:
 
 
 def render_auctions(conn) -> str:
-    from deal_hunter import auction_cycle, pricing
+    from deal_hunter import auction_cycle
     from deal_hunter.auctions import Costs
     from deal_hunter.config import load_settings
     from deal_hunter.db import repository as repo
@@ -898,7 +995,7 @@ def render_auctions(conn) -> str:
         target_margin=settings.auction_target_margin,
         min_profit=settings.auction_min_profit,
     )
-    prices = pricing.run(conn, settings.alert_min_samples, settings.usd_czk, save=False)
+    prices = _cached_prices(conn, settings.alert_min_samples, settings.usd_czk)
     lots = repo.lots_in_status(conn, "active", "prepared")
     lots.sort(key=lambda r: (r["end_at"] is None, r["end_at"]))
     if not lots:
@@ -1001,17 +1098,6 @@ def render_flips(conn, now: datetime | None = None) -> str:
 
 STALE_LOOPS = 3  # a listing source on the main loop is stale after this many missed cycles
 NEW_PRICE_GRACE = timedelta(days=2)  # weekly new-price step: stale after HUNTER_NEW_PRICE_DAYS + this
-
-
-def ago(dt: datetime | None, now: datetime) -> str:
-    if dt is None:
-        return "never"
-    minutes = max(0, int((now - dt).total_seconds() // 60))
-    if minutes < 60:
-        return f"{minutes} min ago"
-    if minutes < 48 * 60:
-        return f"{minutes // 60} h {minutes % 60} min ago"
-    return f"{minutes // 1440} days ago"
 
 
 def _stamp(dt: datetime | None, now: datetime) -> str:
@@ -1302,6 +1388,49 @@ def render_status(conn, now: datetime | None = None, settings=None) -> str:
 # --- /listing/<id> : one ad --------------------------------------------------------------------------
 
 
+def _why_lines(conn, listing_id: int, listing_row: dict, triage_row: dict | None) -> list[str]:
+    """`alerts.explain`'s verdict for one ad: builds the same `Rules`/distance wiring
+    `cli/worker.py`'s `_rules`/`_distance` do, so the thresholds stay in one place (`config.py`'s
+    `Settings` -> `alerts.Rules`), not re-typed here."""
+    from deal_hunter import alerts
+    from deal_hunter.config import load_settings
+    from deal_hunter.db import repository as repo
+    from deal_hunter.geo import DistanceRules
+
+    settings = load_settings()
+    start, end = alerts.parse_quiet_hours(settings.quiet_hours)
+    distance = (
+        DistanceRules(
+            home=settings.home,
+            pickup_km=settings.pickup_km,
+            pickup_km_by_category=settings.pickup_km_by_category,
+            shipping_czk=settings.shipping_czk,
+            travel_czk_per_km=settings.travel_czk_per_km,
+        )
+        if settings.pickup_km > 0
+        else None
+    )
+    rules = alerts.Rules(
+        enabled=settings.alerts_enabled,
+        min_score=settings.alert_min_score,
+        max_per_day=settings.alert_max_per_day,
+        min_samples=settings.alert_min_samples,
+        min_days=settings.alert_min_days,
+        quiet_start=start,
+        quiet_end=end,
+        quiet_bypass=settings.quiet_bypass_score,
+        candidate_discount=settings.candidate_discount,
+        usd_czk=settings.usd_czk,
+        distance=distance,
+        hdd_min_tb=settings.hdd_min_tb,
+    )
+    prices = _cached_prices(conn, settings.alert_min_samples, settings.usd_czk)
+    deal_row = repo.get_deal(conn, listing_id)
+    fp = prices.get(listing_row.get("model"))
+    data_since = repo.data_since(conn)
+    return alerts.explain(listing_row, deal_row, triage_row, fp, data_since, rules, datetime.now(UTC))
+
+
 def render_listing(conn, listing_id: int) -> str | None:
     from deal_hunter.db import repository as repo
 
@@ -1340,6 +1469,10 @@ def render_listing(conn, listing_id: int) -> str | None:
     else:
         lines.append('<p class="muted">Not triaged (or no result yet).</p>')
 
+    lines.append("<h2>Proč (ne)bylo odesláno</h2>")
+    for reason_line in _why_lines(conn, listing_id, row, triage_row):
+        lines.append(f"<p>{esc(reason_line)}</p>")
+
     history = repo.price_history(conn, listing_id)
     lines.append("<h2>Price history</h2>")
     if history:
@@ -1369,6 +1502,12 @@ def _error(message: str) -> str:
     return page("Error", f'<p class="bad">{esc(message)}</p>')
 
 
+def _db_unreachable() -> str:
+    return page(
+        "Databáze nedostupná", '<p class="bad">Databáze je momentálně nedostupná. Zkuste to za chvíli.</p>'
+    )
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "deal-hunter-web/1.0"
 
@@ -1383,17 +1522,43 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _respond_text(self, status: int, text: str) -> None:
+        data = text.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self) -> None:  # stdlib method name (not snake_case)
+        import psycopg
+
         from deal_hunter.db import repository as repo
 
         parts = urlsplit(self.path)
         path, query = parts.path.rstrip("/") or "/", parse_qs(parts.query)
+
+        if path == "/healthz":
+            # Used by the service supervisor/monitoring, not a person: plain text, no page chrome.
+            try:
+                with repo.connect(autocommit=True) as conn:
+                    conn.execute("SELECT 1")
+            except (psycopg.OperationalError, SystemExit):
+                self._respond_text(503, "database unreachable")
+            except Exception:
+                log.exception("error checking /healthz")
+                self._respond_text(503, "database unreachable")
+            else:
+                self._respond_text(200, "ok")
+            return
+
         try:
             with repo.connect(autocommit=True) as conn:
                 if path == "/":
                     category = (query.get("category") or [""])[0].strip() or None
                     raw_disc = (query.get("min_discount") or [""])[0].strip()
-                    min_discount = float(raw_disc) / 100 if raw_disc else None
+                    pct_disc = _num(raw_disc, float)  # bad input (e.g. "abc") falls back to no filter
+                    min_discount = pct_disc / 100 if pct_disc is not None else None
                     body = render_index(conn, category, min_discount)
                     self._respond(200, page("Deals", body))
                 elif path == "/hledat":
@@ -1428,17 +1593,24 @@ class Handler(BaseHTTPRequestHandler):
                 elif path == "/status":
                     self._respond(200, page("Status", render_status(conn)))
                 elif path.startswith("/listing/"):
-                    raw_id = path.removeprefix("/listing/")
-                    if not raw_id.isdigit():
-                        self._respond(404, _not_found())
-                        return
-                    body = render_listing(conn, int(raw_id))
-                    if body is None:
+                    # _num also rejects anything int() can't parse (e.g. a superscript digit that
+                    # passes str.isdigit() but not int()), instead of raising a 500.
+                    listing_id = _num(path.removeprefix("/listing/"), int)
+                    if listing_id is None:
                         self._respond(404, _not_found())
                     else:
-                        self._respond(200, page(f"Listing {raw_id}", body))
+                        body = render_listing(conn, listing_id)
+                        if body is None:
+                            self._respond(404, _not_found())
+                        else:
+                            self._respond(200, page(f"Listing {listing_id}", body))
                 else:
                     self._respond(404, _not_found())
+        except (psycopg.OperationalError, SystemExit):
+            # DB down/unreachable (or DATABASE_URL missing, which repo.connect raises as SystemExit):
+            # a clear 503 page, not a 500 traceback or a hung connection.
+            log.error("database unreachable rendering %s", self.path)
+            self._respond(503, _db_unreachable())
         except Exception:  # LAN-only read-only tool: show a plain message, log the real error
             log.exception("error rendering %s", self.path)
             self._respond(500, _error("Something went wrong rendering this page."))

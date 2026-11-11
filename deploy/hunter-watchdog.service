@@ -6,4 +6,6 @@ OnFailure=hunter-notify-failure@%n.service
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/deal-hunter
+# A hung watchdog run must not block forever and delay the next check.
+TimeoutStartSec=5min
 ExecStart=/usr/bin/docker compose run --rm -T hunter watchdog

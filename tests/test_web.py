@@ -31,6 +31,27 @@ def test_kc_range_uses_a_hyphen_not_a_dash():
     assert web.kc_range(100, 200, per_tb=True) == "100 - 200 Kč/TB"
 
 
+def test_cached_prices_reuses_within_ttl_and_reset_forces_recompute(monkeypatch):
+    # `_cached_prices` is the TTL cache every pricing.run() page view (`/prices`, `/category/<leaf>`,
+    # `/hledat`, `/model/<key>`, `/auctions`) now goes through instead of recomputing every time.
+    from deal_hunter import pricing
+
+    calls = []
+    monkeypatch.setattr(pricing, "run", lambda *a, **kw: calls.append(1) or {"x": 1})
+    web.reset_pricing_cache()
+
+    first = web._cached_prices(None, 10, 25.0)
+    second = web._cached_prices(None, 10, 25.0)
+    assert len(calls) == 1 and first is second  # the second call reused the cached result
+
+    web.reset_pricing_cache()
+    web._cached_prices(None, 10, 25.0)
+    assert len(calls) == 2  # reset forces a recompute
+
+    web._cached_prices(None, 10, 30.0)  # a different usd_czk is a different cache key
+    assert len(calls) == 3
+
+
 def test_matches_category_groups_office():
     assert web._matches_category("office_pc", "office")
     assert web._matches_category("office_laptop", "office")
@@ -162,6 +183,58 @@ def test_row_marks_unknown_location_and_shows_the_town():
     assert "<span>Brno</span>" in with_town  # the town, never a seller name
 
 
+def test_offer_row_defaults_fair_and_ships_from_the_row_dict():
+    # a listing row as repo.listings_in_categories/listings_by_models/search_listings_title return
+    # it, with `fair`/`ships` already attached by _apply_price_filters -- the shape _offer_row
+    # dedupes the /category, /hledat (both branches) call sites against.
+    row = {
+        "id": 1,
+        "url": "https://example.com/1",
+        "title": "RTX 3060",
+        "price_czk": 6000,
+        "fair": 8000,
+        "images": None,
+        "distance_km": None,
+        "ships": True,
+        "source": "bazos",
+        "first_seen": None,
+    }
+    html = web._offer_row(row)
+    assert "pod férovou cenou" in html and "posílá" in html and "Bazoš" in html
+
+
+def test_offer_row_overrides_fair_and_ships_when_given():
+    # render_model's offers have neither key (no _apply_price_filters pass): it passes both.
+    row = {
+        "id": 2,
+        "url": "https://example.com/2",
+        "title": "RTX 3060",
+        "price_czk": 6000,
+        "images": None,
+        "distance_km": None,
+        "source": "bazos",
+        "first_seen": None,
+    }
+    html = web._offer_row(row, fair=8000, ships=True)
+    assert "pod férovou cenou" in html and "posílá" in html
+
+
+def test_offer_row_passes_town_through():
+    row = {
+        "id": 3,
+        "url": "https://example.com/3",
+        "title": "RTX 3060",
+        "price_czk": 6000,
+        "fair": None,
+        "images": None,
+        "distance_km": None,
+        "ships": False,
+        "source": "bazos",
+        "first_seen": None,
+    }
+    assert "<span>Brno</span>" in web._offer_row(row, town="Brno")
+
+
 def test_parse_filters_ignores_bad_values_and_unknown_sources():
     f = web.parse_filters(
         {
@@ -240,3 +313,31 @@ def test_filters_form_shows_a_query_box_only_when_asked():
 def test_filters_form_keeps_the_typed_town():
     html = web._filters_form("/category/gpu", web.Filters(town="Brno"))
     assert 'name="mesto" value="Brno"' in html
+
+
+# --- bad GET input never 500s: ?min_discount= and /listing/<id> go through `_num` --------------------
+
+
+def test_num_parses_a_plain_listing_id():
+    assert web._num("999", int) == 999
+    assert web._num("", int) is None
+    assert web._num(None, int) is None
+    assert web._num("-5", int) is None  # a listing id is never negative
+
+
+def test_num_rejects_a_superscript_digit_that_isdigit_lets_through_but_int_cannot_parse():
+    # str.isdigit() is True for '²' (it is a Unicode digit), but int('²') raises ValueError; the old
+    # `/listing/<id>` check used isdigit() and then int(), which 500ed on exactly this input.
+    assert "²".isdigit()
+    assert web._num("²", int) is None
+
+
+def test_num_rejects_unparseable_discount_percentage():
+    assert web._num("abc", float) is None
+
+
+def test_db_unreachable_page_has_no_border_radius_emoji_or_dash():
+    html = web._db_unreachable()
+    assert "border-radius" not in html
+    assert "–" not in html and "—" not in html  # en dash, em dash
+    assert "nedostupn" in html.lower()

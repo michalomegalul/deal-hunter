@@ -6,11 +6,14 @@
 #   uloziste > hdd
 #   sit
 #
-# Only office_laptop, office_pc, gpu and hdd are priced today (priced: true) -- they are the exact
-# ids normalize.py/office.py/storage.py already emit, unchanged, so no database data moves and no
-# migration is needed. Every other leaf is a placeholder (priced: false, spec_adjust: false, no
-# sections yet) for the catalogs Phase 3 will fill in; they are kept out of alerting (alerts.py only
-# ever sees a `category` that came from a priced normalizer result) until then.
+# Every notebooky leaf (office_laptop, herni, apple, ostatni), office_pc and apple_desktop under
+# stolni, plus gpu and hdd, are priced today (priced: true) -- they are the exact ids
+# normalize.py/office.py/storage.py/apple.py/laptop_spec.py already emit, unchanged, so no database
+# data moves and no migration is needed (categories.leaves(priced=True) is the current list). Every
+# other leaf (herni_pc, procesory, pameti, zakladni_desky, skrine, sit) is still a placeholder
+# (priced: false, spec_adjust: false, no sections yet) for the catalogs Phase 3 will fill in; they
+# are kept out of alerting (alerts.py only ever sees a `category` that came from a priced normalizer
+# result) until then.
 #
 # `sections` lists the Bazoš sections (bazos.SECTIONS) that feed a leaf, home section first: the
 # section whose ads normalize into this leaf by default (categories.for_section). A section can

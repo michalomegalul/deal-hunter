@@ -3,6 +3,15 @@
 # NTFY_FEEDBACK_TOKEN, plus settings such as HUNTER_ALERTS_ENABLED (see .env.example).
 name: deal-hunter
 
+# Shared log rotation for every service below. Docker's default json-file driver keeps
+# container logs forever (the logs were small in the Nov 2026 outage, but there is no reason to
+# let them grow unbounded). 10 MB x 3 files per container is enough to debug without journalctl.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:17
@@ -11,6 +20,18 @@ services:
       POSTGRES_USER: hunter
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: hunter
+    # Postgres must never be able to write a core file. Nov 2026 outage: once the root disk was
+    # full (old release images), every 5-minute checkpoint PANICked on "No space left on device",
+    # the checkpointer aborted with SIGABRT and dumped a ~150 MB core into pgdata - 179 cores,
+    # ~7 GB, which kept the disk full long after the original cause. Cores are useless to us here.
+    ulimits:
+      core:
+        soft: 0
+        hard: 0
+    # Docker's default /dev/shm is 64 MB; Postgres parallel workers use it for dynamic shared
+    # memory. Not the cause of the Nov 2026 crashes (that was the full disk), just headroom.
+    shm_size: 256m
+    logging: *logging
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -28,6 +49,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    logging: *logging
     profiles: ["cli"]
 
   # Every 10 minutes: RSS + first category pages, detail pages for new ads only.

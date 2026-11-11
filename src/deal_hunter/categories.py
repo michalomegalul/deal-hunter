@@ -11,11 +11,14 @@ A shop-style tree, physically modelled on Datart's own menu::
     uloziste > hdd
     sit
 
-Only `office_laptop`, `office_pc`, `gpu` and `hdd` are priced today (`Node.priced`) -- the exact ids
-`normalize.py`/`office.py`/`storage.py` already emit, unchanged, so no database data moves and no
-migration is needed. Every other leaf is a placeholder (`priced=False`) for the catalogs Phase 3
-will fill in; they stay out of alerting because `alerts.py` only ever sees a `category` that came
-from a priced normalizer result in the first place.
+Every `notebooky` leaf (`office_laptop`, `herni`, `apple`, `ostatni`), `office_pc` and
+`apple_desktop` under `stolni`, plus `gpu` and `hdd`, are priced today (`Node.priced`) -- the exact
+ids `normalize.py`/`office.py`/`storage.py`/`apple.py`/`laptop_spec.py` already emit, unchanged, so
+no database data moves and no migration is needed. `leaves(priced=True)` is the current list; every
+other leaf (`herni_pc`, `procesory`, `pameti`, `zakladni_desky`, `skrine`, `sit`) is still a
+placeholder (`priced=False`) for the catalogs Phase 3 will fill in; they stay out of alerting
+because `alerts.py` only ever sees a `category` that came from a priced normalizer result in the
+first place.
 
 Two category values the normalizers can emit are not part of the physical tree above, because they
 never carry a model and are never priced or alerted. They are `groups` instead (name + member leaf
@@ -225,13 +228,6 @@ def nouns(priced: bool | None = None) -> dict[str, str]:
 def triage_labels(priced: bool | None = None) -> dict[str, str]:
     """{category id: English label}, for the LLM prompt ("Item: ... (ex-office PC)")."""
     return {n.id: n.triage_label for n in leaves(priced) if n.triage_label}
-
-
-@cache
-def icons(priced: bool | None = None) -> dict[str, str]:
-    """{category id: icon}. For the four priced leaves these are the exact ntfy tag names the push
-    notifications always used (`video_game`, `desktop_computer`, `computer`, `floppy_disk`)."""
-    return {n.id: n.icon for n in leaves(priced) if n.icon}
 
 
 @cache

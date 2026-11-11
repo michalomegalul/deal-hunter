@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
 
 from deal_hunter import alerts
@@ -204,3 +205,373 @@ def test_quiet_hours_config():
     assert alerts.parse_quiet_hours("23-7") == (23, 7)
     with pytest.raises(SystemExit):
         alerts.parse_quiet_hours("late")
+
+
+def test_publish_treats_a_2xx_with_an_unparseable_body_as_delivered():
+    # ntfy accepted the push (2xx) but the body wasn't valid JSON: that must count as delivered
+    # (ntfy_id=None), not as a failure to retry next cycle -- a retry would duplicate the push.
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, text="not json"))
+    ntfy = alerts.Ntfy(
+        "http://lan",
+        "tk_pub",
+        "deals",
+        "https://ntfy.example/",
+        "deals-feedback",
+        "tk_fb",
+        transport=transport,
+    )
+    assert ntfy.publish("title", "message") is None
+
+
+def test_publish_still_raises_on_a_real_http_failure():
+    transport = httpx.MockTransport(lambda request: httpx.Response(500, text="nope"))
+    ntfy = alerts.Ntfy(
+        "http://lan",
+        "tk_pub",
+        "deals",
+        "https://ntfy.example/",
+        "deals-feedback",
+        "tk_fb",
+        transport=transport,
+    )
+    with pytest.raises(httpx.HTTPStatusError):
+        ntfy.publish("title", "message")
+
+
+def test_publish_returns_the_id_on_a_normal_2xx_json_reply():
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"id": "abc123"}))
+    ntfy = alerts.Ntfy(
+        "http://lan",
+        "tk_pub",
+        "deals",
+        "https://ntfy.example/",
+        "deals-feedback",
+        "tk_fb",
+        transport=transport,
+    )
+    assert ntfy.publish("title", "message") == "abc123"
+
+
+def test_work_once_continues_past_a_failing_core_step(monkeypatch):
+    """distances/pricing/candidates/disks/alerts/digest are now guarded like the auction/new-price/
+    watch steps already were: one failing must not stop the rest of the cycle or crash it."""
+    from deal_hunter import health
+    from deal_hunter.db import repository
+
+    failed_steps = []
+
+    monkeypatch.setattr(alerts.geo, "update_distances", lambda *a, **k: None)
+    monkeypatch.setattr(alerts.pricing, "run", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(alerts, "find_candidates", lambda *a, **k: 0)
+    monkeypatch.setattr(alerts, "screen_disks", lambda *a, **k: None)
+    monkeypatch.setattr(repository, "data_since", lambda conn: {})
+    monkeypatch.setattr(
+        alerts, "send_alerts", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("push boom"))
+    )
+    monkeypatch.setattr(alerts, "maybe_send_digest", lambda *a, **k: False)
+    monkeypatch.setattr(health, "record_heartbeat", lambda conn, now, failed: failed_steps.extend(failed))
+
+    stats = alerts.work_once(object(), RULES, llm=None, cache_dir=None, ntfy=None, triage_limit=5, now=NOW)
+
+    assert stats.models == 0  # pricing failed -> prices defaulted to {}, not an abandoned cycle
+    assert "pricing" in failed_steps and "alerts" in failed_steps
+
+
+# --- carry_over_capped: a daily cap is not the end of the line ---------------------------------------
+
+
+def test_carry_over_capped_waits_for_the_next_prague_day(monkeypatch):
+    from deal_hunter.db import repository
+
+    capped_at = datetime(2026, 10, 20, 23, 50, tzinfo=alerts.PRAGUE)
+    deal = {
+        "listing_id": 1,
+        "gone_at": None,
+        "updated_at": capped_at,
+        "first_seen": capped_at - timedelta(days=1),
+    }
+    calls = []
+    monkeypatch.setattr(repository, "deals_in_state", lambda conn, *states, **kw: [deal])
+    monkeypatch.setattr(repository, "update_deal", lambda conn, lid, **f: calls.append((lid, f)))
+
+    same_day = datetime(2026, 10, 20, 23, 55, tzinfo=alerts.PRAGUE)
+    assert alerts.carry_over_capped(object(), same_day) == 0
+    assert not calls  # the cap still stands today
+
+    next_day = datetime(2026, 10, 21, 0, 10, tzinfo=alerts.PRAGUE)
+    assert alerts.carry_over_capped(object(), next_day) == 1
+    lid, fields = calls[0]
+    assert lid == 1
+    assert fields["state"] == "queued" and fields["first_flagged"] == next_day
+    assert fields["reason"] == "carried over from 2026-10-20"
+
+
+def test_carry_over_capped_skips_gone_and_stale_ads(monkeypatch):
+    from deal_hunter.db import repository
+
+    capped_at = datetime(2026, 10, 20, 10, 0, tzinfo=alerts.PRAGUE)
+    next_day = datetime(2026, 10, 21, 10, 0, tzinfo=alerts.PRAGUE)
+    gone = {"listing_id": 2, "gone_at": next_day, "updated_at": capped_at, "first_seen": capped_at}
+    stale = {
+        "listing_id": 3,
+        "gone_at": None,
+        "updated_at": capped_at,
+        "first_seen": capped_at - timedelta(days=alerts.FRESH_DAYS + 1),
+    }
+    calls = []
+    monkeypatch.setattr(repository, "deals_in_state", lambda conn, *states, **kw: [gone, stale])
+    monkeypatch.setattr(repository, "update_deal", lambda conn, lid, **f: calls.append((lid, f)))
+
+    assert alerts.carry_over_capped(object(), next_day) == 0
+    assert not calls
+
+
+# --- explain: a plain-English (well, Czech) trace of the pipeline's verdict --------------------------
+
+
+def listing_row(**kw):
+    base = {
+        "model": "rtx 3080 10gb",
+        "category": "gpu",
+        "features": {},
+        "price_czk": 6000,
+        "first_seen": NOW - timedelta(days=1),
+        "gone_at": None,
+    }
+    return {**base, **kw}
+
+
+def test_explain_before_candidacy():
+    since = {"graficka": NOW - timedelta(days=10)}
+
+    assert alerts.explain(listing_row(model=None), None, None, fp(), since, RULES, NOW) == [
+        "Inzerát ještě nemá přiřazený model (nenormalizováno)."
+    ]
+    assert alerts.explain(listing_row(category="procesory"), None, None, None, since, RULES, NOW) == [
+        "Kategorie procesory se zatím neceňuje (chybí katalog)."
+    ]
+    assert alerts.explain(listing_row(), None, None, None, since, RULES, NOW) == [
+        "Chybí fair price: no fair price."
+    ]
+    assert alerts.explain(listing_row(price_czk=9000), None, None, fp(), since, RULES, NOW) == [
+        "Sleva 10% je pod prahem 20%."
+    ]
+    assert alerts.explain(listing_row(price_czk=500), None, None, fp(), since, RULES, NOW) == [
+        "Sleva 95% vypadá jako chyba v ceně (nad 90%)."
+    ]
+    old = listing_row(price_czk=6000, first_seen=NOW - timedelta(days=10))
+    assert alerts.explain(old, None, None, fp(), since, RULES, NOW) == [
+        "Inzerát je starší než 3 dny, kandidátem už nebude."
+    ]
+    assert alerts.explain(listing_row(price_czk=6000), None, None, fp(), since, RULES, NOW) == [
+        "Zatím nebyl zpracován jako kandidát (vyřeší další kolo workeru)."
+    ]
+
+
+def test_explain_after_candidacy():
+    since = {"graficka": NOW - timedelta(days=10)}
+    row = listing_row()
+
+    assert alerts.explain(row, {"state": "triage"}, None, fp(), since, RULES, NOW) == ["Čeká na LLM triage."]
+
+    dropped = {"state": "dropped", "reason": "scam signals: deposit_or_prepay", "verdict": "Looks risky."}
+    assert alerts.explain(row, dropped, None, fp(), since, RULES, NOW) == [
+        "LLM inzerát zamítlo: scam signals: deposit_or_prepay.",
+        'Verdikt LLM: "Looks risky."',
+    ]
+
+    low = {"state": "low_score", "reason": "score 0.050", "verdict": None}
+    triage_row = {"result": {"one_line_verdict": "Fine but pricey."}}
+    assert alerts.explain(row, low, triage_row, fp(), since, RULES, NOW) == [
+        "Skóre bylo příliš nízké (score 0.050).",
+        'Verdikt LLM: "Fine but pricey."',
+    ]
+
+    would_alert = {"state": "would_alert", "reason": "gated: n=5<15"}
+    assert alerts.explain(row, would_alert, None, fp(), since, RULES, NOW) == [
+        "Byl by to alert, ale: gated: n=5<15."
+    ]
+
+    gone_row = listing_row(gone_at=NOW)
+    assert alerts.explain(gone_row, {"state": "queued", "score": 0.5}, None, fp(), since, RULES, NOW) == [
+        "Inzerát už zmizel, příští kolo workeru ho uzavře jako expired."
+    ]
+
+    quiet_now = datetime(2026, 10, 20, 0, tzinfo=UTC)  # 02:00 Prague, inside 23-7
+    assert alerts.explain(row, {"state": "queued", "score": 0.1}, None, fp(), since, RULES, quiet_now) == [
+        "Čeká na konec nočního klidu."
+    ]
+    assert alerts.explain(row, {"state": "queued", "score": 0.9}, None, fp(), since, RULES, NOW) == [
+        "Čeká ve frontě na odeslání."
+    ]
+
+    capped = {"state": "capped", "reason": "5 pushes today already"}
+    assert alerts.explain(row, capped, None, fp(), since, RULES, NOW) == [
+        "Denní limit upozornění byl vyčerpán (5 pushes today already)."
+    ]
+
+    duplicate = {"state": "duplicate", "reason": "repost of a recent push"}
+    assert alerts.explain(row, duplicate, None, fp(), since, RULES, NOW) == [
+        "Repost už odeslaného inzerátu (repost of a recent push)."
+    ]
+
+    expired = {"state": "expired", "reason": "ad gone"}
+    assert alerts.explain(row, expired, None, fp(), since, RULES, NOW) == ["Vypršelo: ad gone."]
+
+    assert alerts.explain(row, {"state": "ready"}, None, fp(), since, RULES, NOW) == [
+        "Čeká na vyhodnocení (gate, dosah) v dalším kole."
+    ]
+
+    alerted = {"state": "alerted", "alerted_at": datetime(2026, 10, 20, 14, 5, tzinfo=UTC)}
+    assert alerts.explain(row, alerted, None, fp(), since, RULES, NOW) == ["Odesláno 2026-10-20 16:05."]
+
+
+# --- price_drop_step: ads no longer fresh, pushed only if they dropped further -----------------------
+
+
+class FakeNtfy:
+    def __init__(self, fail=False):
+        self.posts = []
+        self.fail = fail
+
+    def vote_actions(self, listing_id, test=False):
+        return []
+
+    def publish(self, title, message, priority=3, tags=(), click=None, actions=(), attach=None):
+        if self.fail:
+            raise httpx.HTTPError("boom")
+        self.posts.append((title, message, priority, tags, click))
+        return "msg1"
+
+
+def drop_row(**kw):
+    row = {
+        "listing_id": 42,
+        "title": "Gigabyte RTX 3060 Gaming OC 12GB",
+        "url": "https://bazos.cz/inzerat/42/",
+        "source": "bazos",
+        "images": [],
+        "model": "rtx 3060 12gb",
+        "category": "gpu",
+        "features": {},
+        "old_price": 10000,
+        "new_price": 8000,  # 20 % below old_price
+    }
+    row.update(kw)
+    return row
+
+
+def patch_price_drop(monkeypatch, candidates, fair=None, sent_today=0, record=None):
+    from deal_hunter.db import repository
+
+    fair = {"rtx 3060 12gb": (10000, "high")} if fair is None else fair
+    monkeypatch.setattr(repository, "price_drop_candidates", lambda *a, **k: candidates)
+    monkeypatch.setattr(repository, "fair_price_on", lambda *a, **k: fair)
+    monkeypatch.setattr(repository, "alerts_since", lambda *a, **k: 0)
+    monkeypatch.setattr(repository, "price_drop_alerts_since", lambda *a, **k: sent_today)
+    monkeypatch.setattr(
+        repository,
+        "record_price_drop_alert",
+        lambda conn, lid, old, new, now: record.append((lid, old, new)) if record is not None else None,
+    )
+
+
+def test_price_drop_pushes_once_above_threshold(monkeypatch):
+    recorded = []
+    patch_price_drop(monkeypatch, [drop_row()], record=recorded)
+    ntfy = FakeNtfy()
+    stats = alerts.CycleStats()
+
+    alerts.price_drop_step(object(), ntfy, RULES, NOW, stats)
+
+    assert len(ntfy.posts) == 1
+    title, message, *_ = ntfy.posts[0]
+    assert title == "Gigabyte RTX 3060 Gaming OC 12GB"
+    assert message == "Zlevněno: 10 000 Kč -> 8 000 Kč (20%)"
+    assert stats.price_drops == 1
+    assert recorded == [(42, 10000, 8000)]
+
+
+def test_price_drop_second_cycle_does_not_repeat(monkeypatch):
+    """The SQL query (`price_drop_candidates`) stops returning a listing once it's recorded; two
+    cycles with that behaviour push at most once in total."""
+    from deal_hunter.db import repository
+
+    patch_price_drop(monkeypatch, [drop_row()])
+    monkeypatch.setattr(
+        repository, "price_drop_candidates", lambda *a, **k: []
+    )  # placeholder, overwritten below
+    calls = iter([[drop_row()], []])
+    monkeypatch.setattr(repository, "price_drop_candidates", lambda *a, **k: next(calls))
+    ntfy = FakeNtfy()
+
+    alerts.price_drop_step(object(), ntfy, RULES, NOW, alerts.CycleStats())
+    alerts.price_drop_step(object(), ntfy, RULES, NOW, alerts.CycleStats())
+
+    assert len(ntfy.posts) == 1
+
+
+def test_price_drop_small_drop_ignored(monkeypatch):
+    """Defence in depth: even if the query ever returned a listing below the percent threshold,
+    the step itself must not push it."""
+    row = drop_row(new_price=9200)  # only 8 % below old_price, under RULES.price_drop_pct (0.15)
+    patch_price_drop(monkeypatch, [row])
+    ntfy = FakeNtfy()
+
+    alerts.price_drop_step(object(), ntfy, RULES, NOW, alerts.CycleStats())
+
+    assert ntfy.posts == []
+
+
+def test_price_drop_quiet_hours_hold(monkeypatch):
+    from deal_hunter.db import repository
+
+    called = []
+    monkeypatch.setattr(repository, "price_drop_candidates", lambda *a, **k: called.append(1) or [])
+    quiet_now = datetime(2026, 10, 20, 0, tzinfo=UTC)  # 02:00 Prague, inside RULES' 23-7 quiet hours
+    ntfy = FakeNtfy()
+
+    alerts.price_drop_step(object(), ntfy, RULES, quiet_now, alerts.CycleStats())
+
+    assert ntfy.posts == []
+    assert not called  # it returns before even querying
+
+
+def test_price_drop_gone_listing_skipped(monkeypatch):
+    row = drop_row(gone_at=NOW)
+    patch_price_drop(monkeypatch, [row])
+    ntfy = FakeNtfy()
+
+    alerts.price_drop_step(object(), ntfy, RULES, NOW, alerts.CycleStats())
+
+    assert ntfy.posts == []
+
+
+def test_price_drop_respects_daily_cap(monkeypatch):
+    patch_price_drop(monkeypatch, [drop_row()], sent_today=RULES.max_per_day)
+    ntfy = FakeNtfy()
+
+    alerts.price_drop_step(object(), ntfy, RULES, NOW, alerts.CycleStats())
+
+    assert ntfy.posts == []
+
+
+def test_price_drop_disabled_or_no_ntfy_is_a_noop(monkeypatch):
+    from deal_hunter.db import repository
+
+    called = []
+    monkeypatch.setattr(repository, "price_drop_candidates", lambda *a, **k: called.append(1) or [])
+
+    alerts.price_drop_step(object(), None, RULES, NOW, alerts.CycleStats())
+    alerts.price_drop_step(
+        object(), FakeNtfy(), Rules(**{**RULES.__dict__, "enabled": False}), NOW, alerts.CycleStats()
+    )
+
+    assert not called
+
+
+def test_format_price_drop_message():
+    title, message, tags = alerts.format_price_drop(drop_row())
+    assert title == "Gigabyte RTX 3060 Gaming OC 12GB"
+    assert message == "Zlevněno: 10 000 Kč -> 8 000 Kč (20%)"
+    assert "chart_with_downwards_trend" in tags

@@ -46,12 +46,23 @@ SECTIONS = {
     "motherboard": Section("motherboard", 19, 1, "watch", "all", cadence_min=45),  # Základní desky
 }
 CATEGORY = "graficka"  # the original section; listings scraped before v0.3.0 all come from it
-RSS_URL = "https://www.bazos.cz/rss.php?rub=pc&cat=4"  # PC > Grafické karty
 
 AD_URL_RE = re.compile(r"/inzerat/(\d+)/")
 DATE_RE = re.compile(r"\[\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})\s*\]")
 PSC_RE = re.compile(r"\b(\d{3}\s?\d{2})\b")
 DIGITS_RE = re.compile(r"\d+")
+
+# A single price-looking number: 1-3 digits, then zero or more Czech thousand-separator groups of
+# exactly 3 digits each ("134 990", "2 000"), never followed by another digit (so it can't be a
+# truncated read of a longer, unrelated number such as a capacity or phone number). Prefer a group
+# immediately followed by the currency marker; otherwise fall back to the first one in the text.
+# Either way this is ONE such group, never every digit run in the text joined together (that's how a
+# title or a stray phone number used to turn into a number that overflows Postgres int4 and stalls
+# the scrape loop on insert).
+_PRICE_GROUP = r"(?<!\d)(\d{1,3}(?:\s\d{3})*)(?!\d)"
+PRICE_WITH_KC_RE = re.compile(_PRICE_GROUP + r"\s*k[cč]\b", re.IGNORECASE)
+PRICE_FALLBACK_RE = re.compile(_PRICE_GROUP)
+MAX_PRICE_CZK = 5_000_000  # above this a "price" is almost certainly a parsing artifact, not a real ad
 
 # Non-numeric prices Bazoš shows instead of an amount.
 PRICE_KINDS = {
@@ -111,17 +122,29 @@ def ad_id(url: str) -> int | None:
 
 
 def parse_price(text: str | None) -> tuple[int | None, str]:
-    """'  11 000 Kč' -> (11000, 'fixed'); 'Dohodou' -> (None, 'negotiable'); '' -> (None, 'unknown')."""
+    """'  11 000 Kč' -> (11000, 'fixed'); 'Dohodou' -> (None, 'negotiable'); '' -> (None, 'unknown').
+
+    Takes one price-looking digit group (the one right before "Kč" if there is one, else the first
+    digit group in the text) rather than joining every digit run found anywhere in the text -- a
+    title or description can otherwise contribute unrelated numbers (capacities, a phone number) that
+    combine into a huge, bogus price. Anything above MAX_PRICE_CZK is treated as unparseable too.
+    """
     if not text:
         return None, "unknown"
     clean = " ".join(text.split()).lower()
     for word, kind in PRICE_KINDS.items():
         if word in clean:
             return None, kind
-    digits = "".join(DIGITS_RE.findall(clean.replace("kč", "")))
-    if digits:
-        return int(digits), "fixed"
-    return None, "unknown"
+    m = PRICE_WITH_KC_RE.search(clean) or PRICE_FALLBACK_RE.search(clean)
+    if not m:
+        return None, "unknown"
+    digits = m.group(1).replace(" ", "")
+    if not digits:
+        return None, "unknown"
+    value = int(digits)
+    if value <= 0 or value > MAX_PRICE_CZK:
+        return None, "unknown"
+    return value, "fixed"
 
 
 def parse_date(text: str | None) -> date | None:

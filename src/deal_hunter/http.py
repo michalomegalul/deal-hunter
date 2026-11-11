@@ -9,6 +9,7 @@ import httpx
 log = logging.getLogger(__name__)
 
 RETRY_STATUS = {429, 500, 502, 503, 504}
+MAX_RETRY_AFTER = 600.0  # cap a server-supplied Retry-After at 10 minutes; unparsable values are ignored
 
 
 @dataclass
@@ -87,7 +88,7 @@ class PoliteClient:
                 wait = delay
                 retry_after = r.headers.get("Retry-After", "")
                 if retry_after.isdigit():
-                    wait = max(wait, float(retry_after))
+                    wait = max(wait, min(float(retry_after), MAX_RETRY_AFTER))
                 log.warning("%s: HTTP %d, retry %d in %.0fs", url, r.status_code, attempt, wait)
                 self.sleep(wait)
                 delay *= 2

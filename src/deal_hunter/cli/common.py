@@ -21,7 +21,7 @@ def ntfy_client(settings, required: bool = False):
         if required:
             raise SystemExit("Missing NTFY_TOKEN (the deal-hunter publisher token) in .env")
         return None
-    return Ntfy(
+    ntfy = Ntfy(
         settings.ntfy_url,
         settings.ntfy_token,
         settings.ntfy_topic,
@@ -31,6 +31,12 @@ def ntfy_client(settings, required: bool = False):
         watch_topic=settings.ntfy_watch_topic,
         watch_token=settings.ntfy_watch_token,
     )
+    # Write-capable token for the watch topic, used only to embed the "Stop"/👍/👎 action buttons on
+    # a watch-hit push (see watchlist.watch_hit_actions); settings.ntfy_watch_token above is
+    # read-only (the listener's own subscription). Not an Ntfy constructor param: that class is
+    # owned elsewhere right now, so this is a plain attribute instead of a schema change there.
+    ntfy.watch_write_token = settings.ntfy_watch_write_token
+    return ntfy
 
 
 def load_estimates(conn, priors: bool = True):

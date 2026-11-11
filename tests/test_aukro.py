@@ -64,6 +64,6 @@ def test_ids_unique_per_source_even_on_collision():
 
 
 def test_category_url():
-    assert aukro.category_url("pc-graficke-karty") == (
+    assert aukro.category_url() == (
         "https://aukro.cz/backend-web/api/offers/searchItemsCommon?page=0&size=60"
     )

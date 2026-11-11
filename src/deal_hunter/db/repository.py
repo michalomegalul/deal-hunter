@@ -15,17 +15,40 @@ from deal_hunter.sources import SHOP_SOURCES
 from deal_hunter.storage import unit_price
 
 
-def connect(url: str | None = None, autocommit: bool = False) -> psycopg.Connection:
+def connect(
+    url: str | None = None,
+    autocommit: bool = False,
+    connect_timeout: float | None = None,
+    statement_timeout: float | None = None,
+) -> psycopg.Connection:
     """Connect using `url` or the DATABASE_URL environment variable (.env is loaded).
 
     Long-running services use autocommit=True, so every `conn.transaction()` block commits on its
     own and a plain SELECT never leaves a transaction open between scrape requests.
+
+    `connect_timeout` (seconds, HUNTER_DB_CONNECT_TIMEOUT, default 10) bounds how long a hung
+    database or network can block startup. `statement_timeout` (seconds, HUNTER_DB_STATEMENT_TIMEOUT,
+    default 60, 0 disables it) kills a single query that runs away, so one bad query can't wedge a
+    long-running loop forever; `migrate()` lifts it for the duration of applying migration files,
+    since a backfill migration may legitimately take longer.
     """
     load_dotenv()
     url = url or os.getenv("DATABASE_URL")
     if not url:
         raise SystemExit("Missing DATABASE_URL. See .env.example (and `docker compose up -d db`).")
-    return psycopg.connect(url, autocommit=autocommit)
+    if connect_timeout is None:
+        connect_timeout = float(os.getenv("HUNTER_DB_CONNECT_TIMEOUT", "10"))
+    if statement_timeout is None:
+        statement_timeout = float(os.getenv("HUNTER_DB_STATEMENT_TIMEOUT", "60"))
+    conn = psycopg.connect(url, autocommit=autocommit, connect_timeout=connect_timeout)
+    _set_statement_timeout(conn, statement_timeout)
+    return conn
+
+
+def _set_statement_timeout(conn: psycopg.Connection, seconds: float) -> None:
+    """SET doesn't accept bind parameters, so the (trusted, locally-computed) value is formatted in."""
+    conn.execute(f"SET statement_timeout = {int(max(0, seconds) * 1000)}")
+    conn.commit()
 
 
 def migrate(conn: psycopg.Connection) -> list[str]:
@@ -39,14 +62,21 @@ def migrate(conn: psycopg.Connection) -> list[str]:
         (f for f in resources.files("deal_hunter.db.migrations").iterdir() if f.name.endswith(".sql")),
         key=lambda f: f.name,
     )
+    # A backfill migration can legitimately run past the session's statement_timeout; lift it for
+    # the duration of applying files, then restore exactly what was configured before.
+    prev_timeout = conn.execute("SHOW statement_timeout").fetchone()[0]
+    conn.execute("SET statement_timeout = 0")
     applied = []
-    for f in files:
-        if f.name in done:
-            continue
-        with conn.transaction():
-            conn.execute(f.read_text())
-            conn.execute("INSERT INTO schema_migrations (name) VALUES (%s)", (f.name,))
-        applied.append(f.name)
+    try:
+        for f in files:
+            if f.name in done:
+                continue
+            with conn.transaction():
+                conn.execute(f.read_text())
+                conn.execute("INSERT INTO schema_migrations (name) VALUES (%s)", (f.name,))
+            applied.append(f.name)
+    finally:
+        conn.execute(f"SET statement_timeout = '{prev_timeout}'")
     conn.commit()
     return applied
 
@@ -170,17 +200,21 @@ def mark_gone(conn: psycopg.Connection, listing_id: int, reason: str) -> bool:
 
 
 def due_for_recheck(conn: psycopg.Connection, older_than_hours: float, limit: int) -> list[tuple[int, str]]:
-    """(id, url) of active ads not seen for `older_than_hours`, least recently seen first.
+    """(id, url) of active Bazoš ads not seen for `older_than_hours`, least recently seen first.
 
     Ads that still show up on the category pages get their last_seen refreshed by every scrape, so
-    in practice this re-checks the older ads that have scrolled off the pages we read. Shop listings
-    (sources.SHOP_SOURCES) are not Bazoš pages: their own cycle retires them (mark_missing_gone). Ads the
-    normalizer excluded (wanted ads, gaming PCs, MacBooks, ...) are never priced, so whether they
-    sold doesn't matter and they aren't re-checked.
+    in practice this re-checks the older ads that have scrolled off the pages we read. Restricted to
+    source='bazos': the re-check re-fetches the ad's own page with the Bazoš parser (scraper.fetch_ad),
+    which would misread an Aukro/Facebook/Mironet page (or any fetch failure) as "gone" and corrupt
+    their sold-fast pricing signal. Shop listings (sources.SHOP_SOURCES) are also excluded on top of
+    that, for clarity, but their own cycle already retires them (mark_missing_gone); Aukro/Facebook
+    have no per-source checker, so they simply aren't re-checked here. Ads the normalizer excluded
+    (wanted ads, gaming PCs, MacBooks, ...) are never priced, so whether they sold doesn't matter and
+    they aren't re-checked either.
     """
     return conn.execute(
         "SELECT l.id, l.url FROM listings l LEFT JOIN normalized n ON n.listing_id = l.id "
-        "WHERE l.gone_at IS NULL AND n.excluded_reason IS NULL AND l.source <> ALL(%s) "
+        "WHERE l.gone_at IS NULL AND n.excluded_reason IS NULL AND l.source = 'bazos' AND l.source <> ALL(%s) "
         "AND l.last_seen < now() - make_interval(secs => %s) ORDER BY l.last_seen LIMIT %s",
         (list(SHOP_SOURCES), older_than_hours * 3600, limit),
     ).fetchall()
@@ -437,6 +471,19 @@ def active_offer_counts(conn: psycopg.Connection) -> dict[str, int]:
     return dict(rows)
 
 
+# A listing row's own columns the three functions below can sort by in SQL: "newest" (first_seen,
+# the long-standing implicit order) and "cheapest" (price_czk) are real columns. "discount" has no
+# SQL equivalent -- a listing's fair price is computed in Python from the pricing catalog
+# (`FairPrice.for_listing`, feature-adjusted, never stored per listing), so it falls back to the same
+# "newest" order here; the caller (web.py's `_apply_price_filters`) still re-sorts by discount once
+# it has computed each row's fair price, just over one page's rows rather than every matching one.
+_LISTING_ORDER = {"newest": "l.first_seen DESC", "cheapest": "l.price_czk ASC"}
+
+
+def _listing_order(sort: str) -> str:
+    return _LISTING_ORDER.get(sort, _LISTING_ORDER["newest"])
+
+
 def listings_in_categories(
     conn: psycopg.Connection,
     categories: list[str],
@@ -444,13 +491,17 @@ def listings_in_categories(
     price_min: int | None = None,
     price_max: int | None = None,
     sources: tuple[str, ...] | None = None,
-    limit: int = 1000,
+    sort: str = "newest",
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[dict]:
-    """Active, fixed-price ads normalized into one of `categories`: the catalogue's product list
-    for a leaf category (web.render_category). Price and source are filtered here (parameterized
-    SQL); distance, town and "deals only" are derived values the caller (web.py) filters in Python
-    once fair prices are applied per listing's features (psc/location are carried along so the
-    distance can be recomputed from an arbitrary point, e.g. a searched town, not just home)."""
+    """One page (`limit`/`offset`, `?page=` on the web side) of active, fixed-price ads normalized
+    into one of `categories`, newest/cheapest first in SQL: the catalogue's product list for a leaf
+    category (web.render_category). Price and source are filtered here (parameterized SQL); distance,
+    town and "deals only" are derived values the caller (web.py) filters in Python once fair prices
+    are applied per listing's features (psc/location are carried along so the distance can be
+    recomputed from an arbitrary point, e.g. a searched town, not just home). Pair with
+    `count_listings_in_categories` for the total behind a "Strana N z M" pager."""
     cur = conn.execute(
         "SELECT l.id, l.source, l.url, l.title, l.price_czk, l.images, l.distance_km, l.description, "
         "l.psc, l.location, l.first_seen, n.category, n.model, n.features "
@@ -460,16 +511,46 @@ def listings_in_categories(
         "AND (%(price_min)s::int IS NULL OR l.price_czk >= %(price_min)s) "
         "AND (%(price_max)s::int IS NULL OR l.price_czk <= %(price_max)s) "
         "AND (%(sources)s::text[] IS NULL OR l.source = ANY(%(sources)s)) "
-        "ORDER BY l.first_seen DESC LIMIT %(limit)s",
+        f"ORDER BY {_listing_order(sort)} LIMIT %(limit)s OFFSET %(offset)s",
         {
             "categories": list(categories),
             "price_min": price_min,
             "price_max": price_max,
             "sources": list(sources) if sources else None,
             "limit": limit,
+            "offset": offset,
         },
     )
     return _dicts(cur)
+
+
+def count_listings_in_categories(
+    conn: psycopg.Connection,
+    categories: list[str],
+    *,
+    price_min: int | None = None,
+    price_max: int | None = None,
+    sources: tuple[str, ...] | None = None,
+) -> int:
+    """How many rows `listings_in_categories` would page over for the same filters -- the total a
+    "Strana N z M" pager is computed against. Counts every SQL-matched row (price/source), same as
+    `listings_in_categories` without its LIMIT/OFFSET; a Python-only filter applied afterwards
+    (`max_km`, "jen výhodné") can still make one particular page come up short of a full `PAGE_SIZE`,
+    same trade-off the unpaginated list had before."""
+    return conn.execute(
+        "SELECT count(*) FROM listings l JOIN normalized n ON n.listing_id = l.id "
+        "WHERE l.gone_at IS NULL AND n.model IS NOT NULL AND n.category = ANY(%(categories)s) "
+        "AND l.price_kind = 'fixed' AND l.price_czk > 0 "
+        "AND (%(price_min)s::int IS NULL OR l.price_czk >= %(price_min)s) "
+        "AND (%(price_max)s::int IS NULL OR l.price_czk <= %(price_max)s) "
+        "AND (%(sources)s::text[] IS NULL OR l.source = ANY(%(sources)s))",
+        {
+            "categories": list(categories),
+            "price_min": price_min,
+            "price_max": price_max,
+            "sources": list(sources) if sources else None,
+        },
+    ).fetchone()[0]
 
 
 def listings_by_models(
@@ -479,11 +560,16 @@ def listings_by_models(
     price_min: int | None = None,
     price_max: int | None = None,
     sources: tuple[str, ...] | None = None,
+    sort: str = "newest",
     limit: int = 1000,
+    offset: int = 0,
 ) -> list[dict]:
     """Active, fixed-price ads normalized into one of `models`: the search page's result list
     (web.render_search), grouped by model there. Same shape as listings_in_categories (psc/location
-    included for a per-row distance from an arbitrary point), filtered by model instead of category."""
+    included for a per-row distance from an arbitrary point, `sort` the same "newest"/"cheapest" SQL
+    order), filtered by model instead of category. Unlike the category list, the search page renders
+    this as several per-model sections rather than one flat list, so web.py does not page it (`limit`
+    is a generous cap, not a `PAGE_SIZE` page)."""
     cur = conn.execute(
         "SELECT l.id, l.source, l.url, l.title, l.price_czk, l.images, l.distance_km, l.description, "
         "l.psc, l.location, l.first_seen, n.category, n.model, n.features "
@@ -493,13 +579,14 @@ def listings_by_models(
         "AND (%(price_min)s::int IS NULL OR l.price_czk >= %(price_min)s) "
         "AND (%(price_max)s::int IS NULL OR l.price_czk <= %(price_max)s) "
         "AND (%(sources)s::text[] IS NULL OR l.source = ANY(%(sources)s)) "
-        "ORDER BY l.first_seen DESC LIMIT %(limit)s",
+        f"ORDER BY {_listing_order(sort)} LIMIT %(limit)s OFFSET %(offset)s",
         {
             "models": list(models),
             "price_min": price_min,
             "price_max": price_max,
             "sources": list(sources) if sources else None,
             "limit": limit,
+            "offset": offset,
         },
     )
     return _dicts(cur)
@@ -510,19 +597,32 @@ def escape_like(text: str) -> str:
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def search_listings_title(conn: psycopg.Connection, query: str, limit: int = 200) -> list[dict]:
-    """Active, fixed-price ads whose title plainly contains `query` (case-insensitive, parameterized
-    ILIKE with wildcards escaped): the search page's fallback when nothing normalizes. No model or
-    category (never normalized), so no fair price either -- the catalogue row just shows the ad."""
+def search_listings_title(
+    conn: psycopg.Connection, query: str, *, sort: str = "newest", limit: int = 100, offset: int = 0
+) -> list[dict]:
+    """One page of active, fixed-price ads whose title plainly contains `query` (case-insensitive,
+    parameterized ILIKE with wildcards escaped): the search page's fallback when nothing normalizes.
+    No model or category (never normalized), so no fair price either -- the catalogue row just shows
+    the ad. Pair with `count_search_listings_title` for a "Strana N z M" pager's total."""
     pattern = f"%{escape_like(query)}%"
     cur = conn.execute(
         "SELECT l.id, l.source, l.url, l.title, l.price_czk, l.images, l.distance_km, l.description, "
         "l.psc, l.location, l.first_seen FROM listings l "
         "WHERE l.gone_at IS NULL AND l.price_kind = 'fixed' AND l.price_czk > 0 AND l.title ILIKE %s "
-        "ORDER BY l.first_seen DESC LIMIT %s",
-        (pattern, limit),
+        f"ORDER BY {_listing_order(sort)} LIMIT %s OFFSET %s",
+        (pattern, limit, offset),
     )
     return _dicts(cur)
+
+
+def count_search_listings_title(conn: psycopg.Connection, query: str) -> int:
+    """How many rows `search_listings_title` would page over for the same `query`."""
+    pattern = f"%{escape_like(query)}%"
+    return conn.execute(
+        "SELECT count(*) FROM listings l "
+        "WHERE l.gone_at IS NULL AND l.price_kind = 'fixed' AND l.price_czk > 0 AND l.title ILIKE %s",
+        (pattern,),
+    ).fetchone()[0]
 
 
 def weekly_median_prices(conn: psycopg.Connection, model: str, weeks: int = 12) -> list[tuple]:
@@ -591,17 +691,49 @@ def upsert_candidate(
         )
 
 
-def deals_in_state(conn: psycopg.Connection, *states: str) -> list[dict]:
-    cur = conn.execute(
+def deals_in_state(
+    conn: psycopg.Connection, *states: str, limit: int | None = None, exclude_gone: bool = False
+) -> list[dict]:
+    """Deals in any of `states`, newest-discount-first. `exclude_gone` drops listings already marked
+    gone (l.gone_at); `limit` caps the row count (both default to the old, unbounded behaviour, so
+    every existing caller is unaffected)."""
+    sql = (
         "SELECT d.*, l.title, l.url, l.location, l.psc, l.seller, l.description, l.gone_at, l.first_seen, "
         "l.images, l.distance_km, l.distance_src, l.source, n.features, "
         "(SELECT t.result FROM triage t WHERE t.listing_id = d.listing_id AND t.status = 'done' "
         " ORDER BY t.prompt_version DESC, t.updated_at DESC LIMIT 1) AS triage_result FROM deals d JOIN listings l ON l.id = d.listing_id "
-        "JOIN normalized n ON n.listing_id = d.listing_id WHERE d.state = ANY(%s) ORDER BY d.discount DESC",
-        (list(states),),
+        "JOIN normalized n ON n.listing_id = d.listing_id WHERE d.state = ANY(%s)"
     )
+    params: list = [list(states)]
+    if exclude_gone:
+        sql += " AND l.gone_at IS NULL"
+    sql += " ORDER BY d.discount DESC"
+    if limit is not None:
+        sql += " LIMIT %s"
+        params.append(limit)
+    cur = conn.execute(sql, params)
     names = [c.name for c in cur.description]
     return [dict(zip(names, row)) for row in cur.fetchall()]
+
+
+def count_deals_in_state(conn: psycopg.Connection, *states: str, exclude_gone: bool = False) -> int:
+    """How many deals are in any of `states` -- the unbounded total `deals_in_state`'s own `limit`
+    is cut against, so a page can say "zobrazeno N z M" instead of silently dropping rows."""
+    sql = "SELECT count(*) FROM deals d JOIN listings l ON l.id = d.listing_id WHERE d.state = ANY(%s)"
+    params: list = [list(states)]
+    if exclude_gone:
+        sql += " AND l.gone_at IS NULL"
+    return conn.execute(sql, params).fetchone()[0]
+
+
+def get_deal(conn: psycopg.Connection, listing_id: int) -> dict | None:
+    """The raw `deals` row for one ad, whatever its state, or None if it never became a candidate
+    (`deals_in_state` only looks at one or a few states at a time; `/listing/<id>` and `hunt why`
+    need whichever one it is in, plus the terminal ones `deals_in_state` callers don't normally ask
+    for, like `alerted`)."""
+    cur = conn.execute("SELECT * FROM deals WHERE listing_id = %s", (listing_id,))
+    rows = _dicts(cur)
+    return rows[0] if rows else None
 
 
 def update_deal(conn: psycopg.Connection, listing_id: int, **fields) -> None:
@@ -625,6 +757,70 @@ def recent_alerts(conn: psycopg.Connection, days: float) -> list[dict]:
 
 def alerts_since(conn: psycopg.Connection, since) -> int:
     return conn.execute("SELECT count(*) FROM deals WHERE alerted_at >= %s", (since,)).fetchone()[0]
+
+
+# --- price-drop alerts -----------------------------------------------------------------------------
+#
+# Ads that aged out of find_candidates/active_priced (first seen more than `fresh_days` ago, so the
+# normal candidate pipeline never looks at them again) but whose price fell further since first seen.
+# One cheap query: the earliest price_changes row per listing is its first-seen price, the latest is
+# whether anything changed recently at all; price_drop_alerts (left-joined out) makes a listing a
+# one-time push, same as deals.alerted_at does for the normal pipeline.
+
+
+def price_drop_candidates(
+    conn: psycopg.Connection, fresh_days: float, window_hours: float, min_pct: float
+) -> list[dict]:
+    """Not gone, first seen before `fresh_days` ago, model-matched, a fixed/retail price, a price
+    change within `window_hours`, never alerted for a drop before, and at least `min_pct` below the
+    first-seen price. (listing_id, title, url, source, images, model, category, features, old_price,
+    new_price) -- `alerts.price_drop_step` still checks the discount against the fair price."""
+    cur = conn.execute(
+        """
+        SELECT l.id AS listing_id, l.title, l.url, l.source, l.images,
+               n.model, n.category, n.features, first_pc.old_price, l.price_czk AS new_price
+        FROM listings l
+        JOIN normalized n ON n.listing_id = l.id
+        JOIN LATERAL (
+            SELECT old_price FROM price_changes WHERE listing_id = l.id ORDER BY changed_at ASC LIMIT 1
+        ) first_pc ON true
+        JOIN LATERAL (
+            SELECT changed_at FROM price_changes WHERE listing_id = l.id ORDER BY changed_at DESC LIMIT 1
+        ) last_pc ON true
+        LEFT JOIN price_drop_alerts pda ON pda.listing_id = l.id
+        WHERE l.gone_at IS NULL
+          AND n.model IS NOT NULL
+          AND l.price_kind IN ('fixed', 'retail')
+          AND l.price_czk > 0
+          AND l.first_seen <= now() - make_interval(secs => %s)
+          AND last_pc.changed_at > now() - make_interval(secs => %s)
+          AND pda.listing_id IS NULL
+          AND first_pc.old_price > 0
+          AND l.price_czk <= first_pc.old_price * (1 - %s)
+        """,
+        (fresh_days * 86400, window_hours * 3600, min_pct),
+    )
+    return _dicts(cur)
+
+
+def price_drop_alerts_since(conn: psycopg.Connection, since) -> int:
+    """How many price-drop pushes already went out today, so `price_drop_step` can share the
+    same daily cap as the normal alert pipeline (`alerts_since`)."""
+    return conn.execute("SELECT count(*) FROM price_drop_alerts WHERE alerted_at >= %s", (since,)).fetchone()[
+        0
+    ]
+
+
+def record_price_drop_alert(
+    conn: psycopg.Connection, listing_id: int, old_price: int, new_price: int, now=None
+) -> None:
+    """Marks a listing as pushed for a price drop, once and for good (ON CONFLICT: a race between
+    two worker instances must not raise)."""
+    conn.execute(
+        "INSERT INTO price_drop_alerts (listing_id, old_price, new_price, alerted_at) "
+        "VALUES (%s, %s, %s, COALESCE(%s, now())) ON CONFLICT (listing_id) DO NOTHING",
+        (listing_id, old_price, new_price, now),
+    )
 
 
 def get_triage(conn: psycopg.Connection, listing_id: int, llm_model: str, prompt_version: int) -> dict | None:
@@ -1221,16 +1417,6 @@ def list_watches(conn: psycopg.Connection, active_only: bool = False) -> list[di
         "FROM watches" + (" WHERE active" if active_only else "") + " ORDER BY id"
     )
     return _dicts(cur)
-
-
-def get_watch(conn: psycopg.Connection, watch_id: int) -> dict | None:
-    cur = conn.execute(
-        "SELECT id, query, keywords, categories, max_price, radius_km, tag, active, created_at, created_by "
-        "FROM watches WHERE id = %s",
-        (watch_id,),
-    )
-    rows = _dicts(cur)
-    return rows[0] if rows else None
 
 
 def set_watch_active(conn: psycopg.Connection, watch_id: int, active: bool) -> bool:

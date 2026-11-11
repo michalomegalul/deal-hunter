@@ -19,7 +19,10 @@ Publishing a GitHub Release builds the image (base images from `mirror.gcr.io`, 
 Docker Hub's and ECR's pull limits) and pushes it to GHCR. `hunter-deploy.timer` notices the new
 release within 5 minutes and runs `deploy/deploy.sh`: pull, back up the database, migrate, restart the
 services, then install the host scripts and systemd units from the same release (so changes to them
-ship like code). Nothing on GitHub can reach into the server. Secrets live only in
+ship like code), then prune old release images (never `:latest`, never one a running container still
+uses). These steps only run when the release tag actually changed; a failed attempt at a given tag is
+retried with an exponential backoff (capped at 2h, tracked in `.deploy_attempt`) instead of every tick.
+Nothing on GitHub can reach into the server. Secrets live only in
 `/opt/deal-hunter/.env`: the database password, `NTFY_TOKEN` (user `deal-hunter`),
 `NTFY_FEEDBACK_TOKEN` (user `deals-feedback-writer`) and `NTFY_WATCH_TOKEN` (read-only on the `watch`
 topic), next to settings such as `HUNTER_ALERTS_ENABLED` and `HUNTER_SOURCES`. Ollama runs on CT 100
@@ -28,7 +31,9 @@ topic), next to settings such as `HUNTER_ALERTS_ENABLED` and `HUNTER_SOURCES`. O
 ## Operations
 
 - **Backups** (`hunter-backup.timer`, 03:30 daily, and before every migration): `deploy/backup.sh`
-  writes a `pg_dump -Fc` to `/opt/deal-hunter/backups/` and keeps 14 days.
+  writes a `pg_dump -Fc` to `/opt/deal-hunter/backups/` and keeps 14 days. It aborts instead of
+  dumping if free disk space is below 500 MB or less than 3x the previous dump's size, and cleans up
+  its `.dump.tmp` file if the dump fails partway through.
   Restore with `docker compose exec -T db pg_restore -U hunter -d hunter --clean --if-exists <
   backups/<file>.dump`. The dumps sit on the same disk as the database: they cover a bad migration or a
   mistake, not a lost disk.
@@ -40,4 +45,7 @@ topic), next to settings such as `HUNTER_ALERTS_ENABLED` and `HUNTER_SOURCES`. O
   `health.py` and are the same ones `/status` marks STALE.
 - **When the host itself fails** (`hunter-notify-failure@.service`): if the deploy, backup or watchdog
   unit fails (database down, broken image), `deploy/notify.sh` pushes straight from the host with
-  `curl`. A GitHub API outage is not a failed deploy.
+  `curl`. A GitHub API outage is not a failed deploy. The same title+message is pushed at most once
+  per hour (state under `/run/deal-hunter-notify`, falling back to `/var/tmp`); the first occurrence
+  always pushes immediately. Each of these oneshot units also has a `TimeoutStartSec` (backup 15 min,
+  deploy 20 min, watchdog 5 min) so a hung run can't block the next one forever.

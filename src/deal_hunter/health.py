@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from datetime import UTC, datetime, timedelta
 
 from deal_hunter.db import repository as repo
+from deal_hunter.text import ago
 
 log = logging.getLogger(__name__)
 
@@ -29,9 +31,34 @@ def record_heartbeat(conn, now: datetime, failed_steps: list[str]) -> None:
     repo.kv_set(conn, HEARTBEAT_KEY, {"at": now.isoformat(), "failing": failing})
 
 
-def problems(conn, now: datetime, sources: tuple[str, ...] = ("bazos",)) -> dict[str, str]:
+def check_disk(path: str = "/", min_mb: int = 1024) -> str | None:
+    """None when there's enough free space on `path`'s filesystem; a message otherwise.
+
+    Checked before anything that needs the database, because a full root disk is exactly the kind
+    of problem that also takes Postgres down with it (HUNTER_WATCHDOG_DISK_PATH/_MIN_MB).
+    """
+    try:
+        free_mb = shutil.disk_usage(path).free / (1024 * 1024)
+    except OSError as exc:
+        return f"disk: could not check free space on {path} ({exc})"
+    if free_mb < min_mb:
+        return f"disk: only {free_mb:.0f} MB free on {path} (min {min_mb} MB)"
+    return None
+
+
+def problems(
+    conn,
+    now: datetime,
+    sources: tuple[str, ...] = ("bazos",),
+    disk_path: str = "/",
+    disk_min_mb: int = 1024,
+) -> dict[str, str]:
     """Problem key -> human-readable message. Empty when everything looks alive."""
     out: dict[str, str] = {}
+
+    disk_msg = check_disk(disk_path, disk_min_mb)
+    if disk_msg:
+        out["disk"] = disk_msg
 
     beat = repo.kv_get(conn, HEARTBEAT_KEY)
     if beat is None:
@@ -39,31 +66,47 @@ def problems(conn, now: datetime, sources: tuple[str, ...] = ("bazos",)) -> dict
     else:
         at = datetime.fromisoformat(beat["at"])
         if now - at > WORKER_STALE:
-            out["worker"] = f"worker: last cycle {_ago(at, now)}"
+            out["worker"] = f"worker: last cycle {ago(at, now)}"
         for step, since in beat.get("failing", {}).items():
             since_dt = datetime.fromisoformat(since)
             if now - since_dt >= STEP_FAILING:
-                out[f"step:{step}"] = f"worker step '{step}' failing for {_ago(since_dt, now, suffix='')}"
+                out[f"step:{step}"] = f"worker step '{step}' failing for {ago(since_dt, now, suffix='')}"
 
     wanted = {"scrape", "recheck"} | ({"scrape_aukro"} if "aukro" in sources else set())
     for run in repo.status_pipeline(conn)["runs"]:
         kind = run["kind"]
-        if kind in wanted and now - run["started_at"] > STALE_AFTER[kind]:
-            out[f"run:{kind}"] = f"{kind}: last run {_ago(run['started_at'], now)}"
+        if kind not in wanted:
+            continue
+        # A run that keeps failing restarts promptly, so "started recently" alone says nothing:
+        # only its own ok/errors tell us the previous attempt didn't actually work.
+        failed = run["ok"] is False or (run["errors"] or 0) > 0
+        if failed:
+            when = run["finished_at"] or run["started_at"]
+            errors = f" ({run['errors']} error(s))" if run["errors"] else ""
+            out[f"run:{kind}"] = f"{kind}: last run failed {ago(when, now)}{errors}"
+        elif now - run["started_at"] > STALE_AFTER[kind]:
+            out[f"run:{kind}"] = f"{kind}: last run {ago(run['started_at'], now)}"
 
     tri = repo.status_triage(conn, now, recent=0)
     if tri["pending_due"] > 0 and (tri["last_done"] is None or now - tri["last_done"] > TRIAGE_STALE):
         out["triage"] = (
-            f"LLM triage stuck: {tri['pending_due']} due, last result {_ago(tri['last_done'], now)} "
+            f"LLM triage stuck: {tri['pending_due']} due, last result {ago(tri['last_done'], now)} "
             "(is Ollama up?)"
         )
     return out
 
 
-def run(conn, ntfy, now: datetime | None = None, sources: tuple[str, ...] = ("bazos",)) -> dict[str, str]:
+def run(
+    conn,
+    ntfy,
+    now: datetime | None = None,
+    sources: tuple[str, ...] = ("bazos",),
+    disk_path: str = "/",
+    disk_min_mb: int = 1024,
+) -> dict[str, str]:
     """Push newly found problems (and reminders for old ones once a day), and a note when they clear."""
     now = now or datetime.now(UTC)
-    found = problems(conn, now, sources)
+    found = problems(conn, now, sources, disk_path, disk_min_mb)
     open_ = repo.kv_get(conn, OPEN_KEY) or {}
 
     due = {
@@ -84,6 +127,47 @@ def run(conn, ntfy, now: datetime | None = None, sources: tuple[str, ...] = ("ba
     return found
 
 
+def watchdog_cli(
+    ntfy,
+    sources: tuple[str, ...] = ("bazos",),
+    disk_path: str = "/",
+    disk_min_mb: int = 1024,
+    now: datetime | None = None,
+) -> int:
+    """Entry point for `hunt watchdog`: owns the DB connection itself.
+
+    The watchdog's whole job is to report when something else is broken, and the DB being
+    unreachable (Postgres refusing connections, e.g. because the disk that holds its data filled
+    up) is exactly the kind of thing that must never come back as a bare traceback instead of a
+    report. The disk check runs first and does not need the database, so a full disk is reported
+    even when it has already taken Postgres down with it.
+
+    cli/worker.py's cmd_watchdog calls this instead of connecting and calling `run` itself.
+
+    Returns the process exit code (0 all good/handled, 1 if the DB itself could not be reached).
+    """
+    disk_msg = check_disk(disk_path, disk_min_mb)
+    try:
+        conn = repo.connect(autocommit=True)
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - any connect failure is "DB unreachable"
+        lines = [f"DB unreachable: {exc}"]
+        if disk_msg:
+            lines.append(disk_msg)
+        print("\n".join(lines), flush=True)
+        return 1
+
+    try:
+        with conn:
+            found = run(conn, ntfy, now, sources, disk_path, disk_min_mb)
+    except Exception as exc:  # the connection was open but something still went wrong mid-query
+        log.exception("watchdog could not finish")
+        print(f"watchdog failed: {exc}", flush=True)
+        return 1
+
+    print("\n".join(found.values()) if found else "watchdog: all good", flush=True)
+    return 0
+
+
 def _push(ntfy, title: str, message: str, priority: int, tag: str) -> bool:
     if ntfy is None:
         log.warning("%s (no NTFY_TOKEN, not pushed): %s", title, message)
@@ -94,14 +178,3 @@ def _push(ntfy, title: str, message: str, priority: int, tag: str) -> bool:
         log.exception("watchdog push failed")
         return False
     return True
-
-
-def _ago(dt: datetime | None, now: datetime, suffix: str = " ago") -> str:
-    if dt is None:
-        return "never"
-    minutes = max(0, int((now - dt).total_seconds() // 60))
-    if minutes < 120:
-        return f"{minutes} min{suffix}"
-    if minutes < 48 * 60:
-        return f"{minutes // 60} h{suffix}"
-    return f"{minutes // 1440} days{suffix}"

@@ -30,7 +30,14 @@ just matched and pushed. Two independent pieces (`watchlist.py`).
   the source if not Bazoš) respecting quiet hours and its own daily cap (`HUNTER_WATCH_MAX_PER_DAY`,
   separate from `HUNTER_ALERT_MAX_PER_DAY`). The limits are checked again just before the push (the
   price may have gone up), and a match is never pushed once its ad is gone or it is more than 24 h
-  old.
+  old. A muted watch (see below) is still scanned, matched and recorded, just left pending instead of
+  pushed, so it is pushed once the mute lapses rather than lost. The push itself carries three ntfy
+  action buttons -- "Stop", 👍, 👎 -- that POST a plain-text `stop <id>` / `vote <watch_id>-<listing_id>
+  up|down` command straight back to the watch topic (`watchlist.watch_hit_actions`), the same
+  HTTP-action mechanism as the deals feedback buttons (`alerts.Ntfy.feedback_action`), just posting a
+  command instead of a JSON vote. They need their own write-capable token (`NTFY_WATCH_WRITE_TOKEN`,
+  separate from the listener's read-only `NTFY_WATCH_TOKEN`); without it, no buttons are attached. A
+  vote is a last-write-wins flag on the hit (`watch_hits.vote`), no history kept.
 - **Management**, its own small ntfy listener and compose service (`hunt watch listen --loop`, the
   same live-stream pattern as `feedback.py`): reads commands from its own topic
   (`HUNTER_WATCH_TOPIC`, default `watch`, read with `NTFY_WATCH_TOKEN`) and replies on the `deals`
@@ -39,13 +46,23 @@ just matched and pushed. Two independent pieces (`watchlist.py`).
   English, case-insensitive:
 
   ```
-  watch ddr4 2x16gb max 1500 km 50 #homelab   (also: sleduj, add, přidej)
+  watch ddr4 2x16gb -notebook -vadna max 1500 km 50 #homelab   (also: sleduj, add, přidej)
   list                                        (also: seznam, ls)
   stop 3                                      (also: zastav, smazat, delete, remove)
+  start 3                                     (also: obnov, spustit)
+  mute ddr4 7d                                (or: mute 3 7d -- also: ztlum, ztlumit)
+  vote 3-501 up                               (or: vote 3-501 down -- normally tapped from a push)
   help                                        (also: nápověda, ?)
   ```
 
-  The same CRUD is available from the CLI: `hunt watch add/list/stop`, plus `hunt watch seed` for
+  A `-word` token anywhere in an `add` query is an exclude term, folded into the same
+  `keywords.exclude` list the seeded watches already use (`watchlist.prefilter`) -- so
+  `watch rtx 3060 -notebook -vadna` behaves exactly like a hand-written exclude list. `mute` takes
+  either a watch id or free words matched against existing queries, plus a duration ending in `d`
+  (days), `h` (hours) or `w` (weeks); a muted watch keeps matching and recording hits, it just isn't
+  pushed until the mute lapses. `start` re-activates a watch `stop` had deactivated.
+
+  The same CRUD is available from the CLI: `hunt watch add/list/stop/start/mute`, plus `hunt watch seed` for
   the defaults below (idempotent -- matched by `query`, safe to run again after an upgrade).
 
 **Default watches** (`watchlist.SEEDS`; owner lives in Prague, so radii are modest): DDR4 UDIMM

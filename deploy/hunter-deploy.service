@@ -6,4 +6,6 @@ OnFailure=hunter-notify-failure@%n.service
 
 [Service]
 Type=oneshot
+# A hung pull/migrate/restart must not block forever and stall every later tick behind it.
+TimeoutStartSec=20min
 ExecStart=/opt/deal-hunter/deploy.sh

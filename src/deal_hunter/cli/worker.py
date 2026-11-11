@@ -44,6 +44,7 @@ def _rules(settings):
         quiet_end=end,
         quiet_bypass=settings.quiet_bypass_score,
         candidate_discount=settings.candidate_discount,
+        price_drop_pct=settings.price_drop_pct,
         usd_czk=settings.usd_czk,
         distance=_distance(settings),
         hdd_min_tb=settings.hdd_min_tb,
@@ -163,6 +164,27 @@ def cmd_gate(args: argparse.Namespace) -> None:
         print(f"  waiting  {model:<28} {why}")
 
 
+def cmd_why(args: argparse.Namespace) -> None:
+    """Why one ad was (not) alerted -- the same lines `/listing/<id>` shows."""
+    from deal_hunter.alerts import explain
+    from deal_hunter.db import repository as repo
+
+    settings = load_settings()
+    rules = _rules(settings)
+    with repo.connect() as conn:
+        listing_row = repo.listing_for_followup(conn, args.listing_id)
+        if listing_row is None:
+            print(f"No such listing: {args.listing_id}")
+            return
+        deal_row = repo.get_deal(conn, args.listing_id)
+        triage_row = repo.latest_triage(conn, args.listing_id)
+        prices = load_estimates(conn)
+        data_since = repo.data_since(conn)
+    fp = prices.get(listing_row.get("model"))
+    for line in explain(listing_row, deal_row, triage_row, fp, data_since, rules, datetime.now(UTC)):
+        print(line)
+
+
 def cmd_triage(args: argparse.Namespace) -> None:
     """Run the LLM on given ads and print the answer (nothing is stored)."""
     import json
@@ -211,7 +233,7 @@ def cmd_triage(args: argparse.Namespace) -> None:
             print(f"  score {value:.3f} (penalty x{factor}){' DROP: ' + reason if reason else ''}")
 
 
-def _feedback_context(settings, conn, throttle_conn, bazos):
+def _feedback_context(settings, conn, bazos):
     from pathlib import Path
 
     from deal_hunter.feedback import Context
@@ -239,7 +261,7 @@ def cmd_feedback(args: argparse.Namespace) -> None:
     with repo.connect(autocommit=True) as conn, repo.connect(autocommit=True) as throttle_conn:
         repo.migrate(conn)
         with scraper.make_client(settings, throttle_conn) as bazos:
-            ctx = _feedback_context(settings, conn, throttle_conn, bazos)
+            ctx = _feedback_context(settings, conn, bazos)
             if args.loop:
                 feedback.forever(ctx)
                 return
@@ -341,12 +363,18 @@ def cmd_web(args: argparse.Namespace) -> None:
 
 def cmd_watchdog(args: argparse.Namespace) -> None:
     from deal_hunter import health
-    from deal_hunter.db import repository as repo
 
     settings = load_settings()
-    with repo.connect(autocommit=True) as conn:
-        found = health.run(conn, ntfy_client(settings), sources=settings.sources)
-    print("\n".join(found.values()) if found else "watchdog: all good", flush=True)
+    # health.watchdog_cli owns the connection: a DB that refuses connections is reported as
+    # "DB unreachable" (exit 1, so the on-failure unit pushes) instead of a traceback.
+    code = health.watchdog_cli(
+        ntfy_client(settings),
+        sources=settings.sources,
+        disk_path=settings.watchdog_disk_path,
+        disk_min_mb=settings.watchdog_disk_min_mb,
+    )
+    if code:
+        raise SystemExit(code)
 
 
 def register(sub: argparse._SubParsersAction) -> None:
@@ -366,6 +394,10 @@ def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("gate", help="which models are allowed to alert yet")
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(func=cmd_gate)
+
+    p = sub.add_parser("why", help="why one ad was (not) alerted, step by step")
+    p.add_argument("listing_id", type=int)
+    p.set_defaults(func=cmd_why)
 
     p = sub.add_parser("triage", help="run the LLM on some ads and print its answer (not stored)")
     p.add_argument("ids", type=int, nargs="+")

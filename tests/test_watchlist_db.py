@@ -77,8 +77,6 @@ def test_insert_list_stop_watch(conn):
     wid = repo.insert_watch(conn, "ddr4 16gb", {"include": [["ddr4", "16gb"]]}, max_price=1500, tag="homelab")
     rows = repo.list_watches(conn)
     assert len(rows) == 1 and rows[0]["id"] == wid and rows[0]["active"] is True
-    assert repo.get_watch(conn, wid)["query"] == "ddr4 16gb"
-    assert repo.get_watch(conn, 999) is None
     assert repo.set_watch_active(conn, wid, False) is True
     assert repo.set_watch_active(conn, 999, False) is False
     assert repo.list_watches(conn, active_only=True) == []
@@ -104,6 +102,85 @@ def test_execute_commands(conn):
     assert execute(conn, Command("stop", watch_id=42)) == "No watch #42."
     assert execute(conn, Command("help")) == watchlist.HELP_TEXT
     assert "Didn't understand" in execute(conn, Command("unknown", error="nope"))
+
+
+def test_execute_add_stores_exclude_terms_in_keywords(conn):
+    from deal_hunter.watchlist import Command, execute
+
+    reply = execute(conn, Command("add", query="rtx 3060", excludes=("notebook", "vadna")))
+    assert "-notebook" in reply and "-vadna" in reply
+    row = repo.list_watches(conn)[0]
+    assert row["keywords"]["exclude"] == ["notebook", "vadna"]
+    assert watchlist.prefilter(row["keywords"], "RTX 3060 notebook") is False
+    assert watchlist.prefilter(row["keywords"], "RTX 3060 desktop") is True
+
+
+def test_execute_start_reactivates_a_stopped_watch(conn):
+    from deal_hunter.watchlist import Command, execute
+
+    wid = repo.insert_watch(conn, "ddr4 16gb", {"include": [["ddr4"]]})
+    execute(conn, Command("stop", watch_id=wid))
+    assert repo.list_watches(conn)[0]["active"] is False
+    assert execute(conn, Command("start", watch_id=wid)) == f"Resumed watch #{wid}."
+    assert repo.list_watches(conn)[0]["active"] is True
+    assert execute(conn, Command("start", watch_id=999)) == "No watch #999."
+
+
+def test_execute_mute_by_watch_id(conn):
+    from deal_hunter.db import watch_repo
+    from deal_hunter.watchlist import Command, execute
+
+    wid = repo.insert_watch(conn, "ddr4 16gb", {"include": [["ddr4"]]})
+    reply = execute(conn, Command("mute", watch_id=wid, mute_days=7.0))
+    assert reply == f"Muted watch #{wid} for 7 day(s): ddr4 16gb."
+    assert watch_repo.muted_watch_ids(conn) == {wid}
+    assert "(muted)" in execute(conn, Command("list"))
+
+
+def test_execute_mute_by_free_text_query(conn):
+    from deal_hunter.db import watch_repo
+    from deal_hunter.watchlist import Command, execute
+
+    wid = repo.insert_watch(conn, "ddr4 16gb", {"include": [["ddr4"]]})
+    reply = execute(conn, Command("mute", query="ddr4", mute_days=0.5))
+    assert reply.startswith(f"Muted watch #{wid}")
+    assert watch_repo.muted_watch_ids(conn) == {wid}
+
+
+def test_execute_mute_no_match_reports_no_watch(conn):
+    from deal_hunter.watchlist import Command, execute
+
+    assert execute(conn, Command("mute", query="nothing like this", mute_days=1.0)) == (
+        "No watch matching 'nothing like this'."
+    )
+
+
+def test_execute_vote_records_up_and_down(conn):
+    from deal_hunter.watchlist import Command, execute
+
+    wid = repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
+    listing_id = ram_listing(conn)
+    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48.0)
+    assert execute(conn, Command("vote", watch_id=wid, listing_id=listing_id, vote="up")) == (
+        "Thanks for the feedback."
+    )
+    row = conn.execute(
+        "SELECT vote FROM watch_hits WHERE watch_id = %s AND listing_id = %s", (wid, listing_id)
+    ).fetchone()
+    assert row[0] == "up"
+    # overwritten by a later vote on the same hit (last-write-wins, no history)
+    execute(conn, Command("vote", watch_id=wid, listing_id=listing_id, vote="down"))
+    row = conn.execute(
+        "SELECT vote FROM watch_hits WHERE watch_id = %s AND listing_id = %s", (wid, listing_id)
+    ).fetchone()
+    assert row[0] == "down"
+
+
+def test_execute_vote_on_a_nonexistent_hit(conn):
+    from deal_hunter.watchlist import Command, execute
+
+    reply = execute(conn, Command("vote", watch_id=1, listing_id=2, vote="up"))
+    assert reply == "No watch hit 1-2."
 
 
 # --- scan + match + push ----------------------------------------------------------------------------
@@ -224,6 +301,52 @@ def test_push_matches_respects_the_daily_cap(conn):
     now = datetime(2026, 10, 11, 14, 0, tzinfo=PRAGUE)
     pushed = watchlist.push_matches(conn, make_ntfy(site), now, 23, 7, max_per_day=1)
     assert pushed == 1 and len(repo.pending_watch_matches(conn)) == 1
+
+
+def test_push_matches_skips_a_muted_watch_but_keeps_the_match(conn):
+    from deal_hunter.db import watch_repo
+
+    watch_id = repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
+    ram_listing(conn)
+    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48.0)
+    watch_repo.set_watch_muted(conn, watch_id, days=1.0)
+    site = FakeNtfy()
+    now = datetime(2026, 10, 11, 14, 0, tzinfo=PRAGUE)
+    assert watchlist.push_matches(conn, make_ntfy(site), now, 23, 7, max_per_day=10) == 0
+    assert site.posts == []
+    # still pending (matched, just snoozed) -- not unmatched, not consumed
+    assert len(repo.pending_watch_matches(conn)) == 1
+    # lapsed mute: the same pending hit is pushed on the next cycle
+    conn.execute("UPDATE watches SET muted_until = now() - interval '1 hour' WHERE id = %s", (watch_id,))
+    assert watchlist.push_matches(conn, make_ntfy(FakeNtfy()), now, 23, 7, max_per_day=10) == 1
+
+
+def test_push_matches_attaches_action_buttons_with_a_write_token(conn):
+    repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
+    listing_id = ram_listing(conn)
+    watch_id = repo.list_watches(conn)[0]["id"]
+    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48.0)
+    site = FakeNtfy()
+    ntfy = make_ntfy(site)
+    ntfy.watch_write_token = "tk_watch_write"
+    now = datetime(2026, 10, 11, 14, 0, tzinfo=PRAGUE)
+    assert watchlist.push_matches(conn, ntfy, now, 23, 7, max_per_day=10) == 1
+    actions = site.posts[0]["actions"]
+    bodies = {a["label"]: a["body"] for a in actions}
+    assert bodies["Stop"] == f"stop {watch_id}"
+    assert bodies["👍"] == f"vote {watch_id}-{listing_id} up"
+    assert bodies["👎"] == f"vote {watch_id}-{listing_id} down"
+    assert all(a["url"] == "https://ntfy.example/watch" for a in actions)
+
+
+def test_push_matches_has_no_action_buttons_without_a_write_token(conn):
+    repo.insert_watch(conn, "ddr4 16gb", watchlist.SEEDS[0]["keywords"])
+    ram_listing(conn)
+    watchlist.scan_and_match(conn, FakeLLM(json.dumps(GOOD_ANSWER)), None, hours=48.0)
+    site = FakeNtfy()
+    now = datetime(2026, 10, 11, 14, 0, tzinfo=PRAGUE)
+    assert watchlist.push_matches(conn, make_ntfy(site), now, 23, 7, max_per_day=10) == 1
+    assert "actions" not in site.posts[0]
 
 
 def test_tick_scans_and_pushes_in_one_step(conn):

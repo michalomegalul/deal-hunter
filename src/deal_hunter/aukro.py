@@ -57,7 +57,7 @@ def request_body(seo_url: str) -> dict:
     }
 
 
-def category_url(seo_url: str, page: int = 0, size: int = PAGE_SIZE) -> str:
+def category_url(page: int = 0, size: int = PAGE_SIZE) -> str:
     return f"{BACKEND_URL}?page={page}&size={size}"
 
 

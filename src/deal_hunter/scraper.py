@@ -138,6 +138,14 @@ def fetch_ad(client: PoliteClient, url: str) -> tuple[Listing | None, str | None
     return listing, None, page
 
 
+def _clamp_price(item: Listing, stats: repo.RunStats) -> None:
+    """Defence in depth against a bogus price reaching the DB (int4 overflow would abort the whole
+    cycle on insert): any parser's output gets re-checked here, not just Bazoš's own parse_price."""
+    if item.price_czk is not None and not (0 < item.price_czk <= bazos.MAX_PRICE_CZK):
+        stats.errors.append(f"{item.url}: dropped absurd price {item.price_czk}")
+        item.price_czk, item.price_kind = None, "unknown"
+
+
 def ingest(
     client: PoliteClient, conn: psycopg.Connection, found: dict[int, Listing], stats: repo.RunStats
 ) -> None:
@@ -161,6 +169,7 @@ def ingest(
                 continue  # removed between the list page and now: nothing worth storing
             elif page is not None:
                 stats.errors.append(f"{summary.url}: HTTP {page.status}")
+        _clamp_price(item, stats)
         is_new, changed = repo.save_listing(conn, item, detail)
         stats.new += is_new
         stats.updated += not is_new
@@ -217,6 +226,7 @@ def ingest_listings(conn: psycopg.Connection, listings: list[Listing], stats: re
     APIs return the full ad, not a teaser), so there is no separate detail fetch to do."""
     stats.seen += len(listings)
     for item in listings:
+        _clamp_price(item, stats)
         is_new, changed = repo.save_listing(conn, item, detail=True)
         stats.new += is_new
         stats.updated += not is_new
@@ -236,7 +246,7 @@ def scrape_aukro_once(
         start = client.requests
         for section, cat in categories.items():
             for page in range(pages):
-                url = aukro.category_url(cat.seo_url, page)
+                url = aukro.category_url(page)
                 try:
                     resp = client.post_json(url, aukro.request_body(cat.seo_url))
                 except Exception as exc:  # noqa: BLE001
@@ -245,7 +255,13 @@ def scrape_aukro_once(
                 if resp.status != 200:
                     stats.errors.append(f"{cat.seo_url} page {page}: HTTP {resp.status}")
                     break
-                items = aukro.parse_response(json.loads(resp.text), section)
+                try:
+                    items = aukro.parse_response(json.loads(resp.text), section)
+                except json.JSONDecodeError as exc:
+                    # A bot-wall or an HTML error page instead of JSON: log and move on to the next
+                    # category rather than aborting the whole Aukro scrape step.
+                    stats.errors.append(f"{cat.seo_url} page {page}: bad response: {exc}")
+                    break
                 if not items:
                     break
                 ingest_listings(conn, items, stats)

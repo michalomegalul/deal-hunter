@@ -42,6 +42,7 @@ from importlib import resources
 import yaml
 
 from deal_hunter.text import fold
+from deal_hunter.title_filters import WANTED
 
 
 @dataclass(frozen=True)
@@ -135,9 +136,6 @@ def prepare(text: str) -> str:
 
 # --- exclusions -----------------------------------------------------------------------------------------
 
-WANTED = re.compile(
-    r"\b(koupim|kupim|shanim|hledam|vykup|vykupuji|vykupujeme|vykoupim|poptavam|sezenu|koupime)\b"
-)
 NOT_A_DRIVE = re.compile(
     r"\b(micro ?sd|sd ?kart\w*|sdhc|sdxc|flash ?disk\w*|usb flash|flashk\w*|lto ?\d?|ultrium|kazet\w*"
     r"|ram|ddr ?\d?|pamet\w*|dvd|cd|disket\w*|vga|adr|canvas|a[12]|uhs)\b"

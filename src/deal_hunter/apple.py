@@ -39,6 +39,7 @@ from dataclasses import dataclass, field
 
 from deal_hunter.office import features as _office_features
 from deal_hunter.text import fold
+from deal_hunter.title_filters import WANTED
 
 # Bump whenever the rules change, so `hunt normalize` re-processes old listings.
 VERSION = 2  # v2: Mx (not just M1-M4) chips, a much more conservative Intel fallback, display bundles
@@ -76,9 +77,6 @@ def features(title: str) -> dict:
 
 # --- exclusions -----------------------------------------------------------------------------------
 
-WANTED = re.compile(
-    r"\b(koupim|kupim|shanim|hledam|vykup|vykupuji|vykupujeme|vykoupim|poptavam|sezenu|koupime)\b"
-)
 ACCESSORY = re.compile(
     r"\b(nabijec\w*|adapter\w*|zdroj\w*|napajec\w*|baterie|baterk\w*|akumulator\w*|dok|dokovac\w*|docking"
     r"|dock|klavesnic\w*|displej\w*|display|lcd|matrice|panel|kryt\w*|palmrest|pant\w*|ventilator\w*"
@@ -109,7 +107,6 @@ SCREEN_MARK = re.compile(r"\b(13|14|15|16)(?:#\d)? in\b")
 SCREEN_LEADING = re.compile(r"^(13|14|15|16)\b")
 # 24" is Apple Silicon iMac's one and only size -- never used for the Intel-era fallback below, so
 # an iMac with no chip and no plausible Intel screen is left unmatched rather than guessed.
-IMAC_SCREEN = re.compile(r"\b(21\.5|21|24|27)(?:\s?in)?\b")
 INTEL_IMAC_SCREEN = re.compile(r"\b(21\.5|21|27)(?:\s?in)?\b")
 # Any plausible 4-digit year a seller might state, including a few years past 'today' -- harmless:
 # every threshold below treats 2021+ the same as "no year" (never Intel), so a warranty-expiry date

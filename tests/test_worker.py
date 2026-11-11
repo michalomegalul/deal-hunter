@@ -1,5 +1,6 @@
 """The worker cycle against a real (throwaway) database, with a fake LLM and a fake ntfy server."""
 
+import argparse
 import json
 import os
 from datetime import UTC, datetime, timedelta
@@ -10,10 +11,12 @@ if not os.getenv("DATABASE_URL"):
     pytest.skip("DATABASE_URL not set (start it with `docker compose up -d db`)", allow_module_level=True)
 
 import httpx
+import psycopg
 
 from deal_hunter import alerts, normalize, triage
 from deal_hunter.alerts import PRAGUE, Rules
 from deal_hunter.bazos import Listing
+from deal_hunter.cli import worker as cli_worker
 from deal_hunter.db import repository as repo
 from tests.test_triage import GOOD, FakeLLM
 
@@ -214,3 +217,17 @@ def test_weekly_digest_on_sunday_evening_once(conn):
     )
     assert site.posts[0]["title"] == "deal-hunter: still learning"
     assert "0 of 0 priced models ready" in site.posts[0]["message"]
+
+
+def test_why_command_prints_the_pipeline_explanation(conn, test_url, monkeypatch, capsys):
+    """`hunt why <listing_id>`: same `alerts.explain` lines `/listing/<id>` shows, as plain prints."""
+    seed(conn)
+    work(conn, FakeNtfy())  # ad 999 ends up "alerted"
+    monkeypatch.setattr(repo, "connect", lambda *a, **k: psycopg.connect(test_url, autocommit=True))
+
+    cli_worker.cmd_why(argparse.Namespace(listing_id=999))
+    out = capsys.readouterr().out.strip()
+    assert out.startswith("Odesláno ")
+
+    cli_worker.cmd_why(argparse.Namespace(listing_id=424242))
+    assert "No such listing: 424242" in capsys.readouterr().out

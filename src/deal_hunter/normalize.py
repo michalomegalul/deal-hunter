@@ -20,6 +20,7 @@ import yaml
 from deal_hunter import apple, office, storage
 from deal_hunter.bazos import CATEGORY, SECTIONS
 from deal_hunter.text import fold
+from deal_hunter.title_filters import WANTED
 
 
 @dataclass(frozen=True)
@@ -130,9 +131,6 @@ def prepare(title: str) -> str:
 
 # --- exclusions -----------------------------------------------------------------------------------
 
-WANTED = re.compile(
-    r"\b(koupim|kupim|shanim|hledam|vykup|vykupuji|vykupujeme|vykoupim|poptavam|sezenu|koupime)\b"
-)
 LAPTOP = re.compile(r"\b(notebook\w*|laptop\w*|ntb|mobile)\b")
 CPU = re.compile(
     r"\b(i [3579] \d{3,5}\w*|i [3579]|core i ?[3579]|ryzen( [3579])?( \d{4}\w*)?|xeon|athlon|threadripper"

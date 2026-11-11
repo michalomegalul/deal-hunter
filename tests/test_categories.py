@@ -154,7 +154,7 @@ def test_for_section_default_category():
     assert c.for_section("wifi") is None  # no priced leaf claims it as a home section
 
 
-def test_nouns_triage_labels_icons_match_the_old_hard_coded_tables():
+def test_nouns_and_triage_labels_match_the_old_hard_coded_tables():
     assert c.nouns(priced=True) == {
         "gpu": "grafickou kartu",
         "office_pc": "počítač",
@@ -174,16 +174,6 @@ def test_nouns_triage_labels_icons_match_the_old_hard_coded_tables():
         "apple_desktop": "Apple desktop",
         "herni": "gaming laptop",
         "ostatni": "consumer laptop",
-    }
-    assert c.icons(priced=True) == {
-        "gpu": "video_game",
-        "office_pc": "desktop_computer",
-        "office_laptop": "computer",
-        "hdd": "floppy_disk",
-        "apple": "apple",
-        "apple_desktop": "apple",
-        "herni": "joystick",
-        "ostatni": "laptop",
     }
 
 
